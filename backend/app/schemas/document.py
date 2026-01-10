@@ -27,3 +27,6 @@ class DocumentOutlineResponse(BaseModel):
     title: str
     total_wordcount: int
     chapters: List[ChapterOutline]
+
+class ReorderRequest(BaseModel):
+    ordered_ids: List[str]

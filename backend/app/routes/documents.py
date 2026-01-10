@@ -9,7 +9,7 @@ from app.services.wordcount_service import count_words, sum_scene_wordcounts
 from app.schemas.requests import CreateDocumentRequest, CreateChapterRequest, CreateSceneRequest
 from app.utils.mongo import serialize_mongo
 from app.schemas.autosave import SceneAutosaveRequest
-from app.schemas.document import SceneResponse, DocumentOutlineResponse
+from app.schemas.document import SceneResponse, DocumentOutlineResponse, ReorderRequest
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -211,3 +211,79 @@ async def get_document_outline(
         "total_wordcount": document.get("total_wordcount", 0),
         "chapters": chapters,
     }
+
+@router.put("/{document_id}/chapters/reorder")
+async def reorder_chapters(
+    document_id: str,
+    payload: ReorderRequest,
+    user_id=Depends(get_current_user)
+):
+    document = await documents_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    chapter_map = {c["id"]: c for c in document.get("chapters", [])}
+
+    if set(payload.ordered_ids) != set(chapter_map.keys()):
+        raise HTTPException(
+            status_code=400,
+            detail="Ordered IDs do not match document chapters"
+        )
+
+    reordered_chapters = []
+    for index, chapter_id in enumerate(payload.ordered_ids):
+        chapter = chapter_map[chapter_id]
+        chapter["order"] = index
+        reordered_chapters.append(chapter)
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"chapters": reordered_chapters}}
+    )
+
+    return {"status": "chapters reordered"}
+
+@router.put("/{document_id}/chapters/{chapter_id}/scenes/reorder")
+async def reorder_scenes(
+    document_id: str,
+    chapter_id: str,
+    payload: ReorderRequest,
+    user_id=Depends(get_current_user)
+):
+    document = await documents_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    for chapter in document.get("chapters", []):
+        if chapter["id"] == chapter_id:
+            scene_map = {s["id"]: s for s in chapter.get("scenes", [])}
+
+            if set(payload.ordered_ids) != set(scene_map.keys()):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Ordered IDs do not match chapter scenes"
+                )
+
+            reordered_scenes = []
+            for index, scene_id in enumerate(payload.ordered_ids):
+                scene = scene_map[scene_id]
+                scene["order"] = index
+                reordered_scenes.append(scene)
+
+            chapter["scenes"] = reordered_scenes
+            break
+    else:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"chapters": document["chapters"]}}
+    )
+
+    return {"status": "scenes reordered"}
