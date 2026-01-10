@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from bson import ObjectId
 from datetime import datetime
 
-from app.database import documents_collection, projects_collection
+from app.database import documents_collection
 from app.utils.auth import get_current_user
 from app.services.wordcount_service import count_words, sum_scene_wordcounts
-from app.schemas.requests import CreateDocumentRequest, CreateChapterRequest, CreateSceneRequest, AutosaveSceneRequest
+from app.schemas.requests import CreateDocumentRequest, CreateChapterRequest, CreateSceneRequest
 from app.utils.mongo import serialize_mongo
 from app.schemas.autosave import SceneAutosaveRequest
+from app.schemas.document import SceneResponse
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -144,3 +145,29 @@ async def autosave_scene(
         "document_wordcount": total_wordcount
     }
 
+@router.get("/{document_id}/scenes/{scene_id}", response_model=SceneResponse)
+async def get_scene(
+    document_id: str,
+    scene_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await documents_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    for chapter in document["chapters"]:
+        for scene in chapter["scenes"]:
+            if scene["id"] == scene_id:
+                return {
+                    "scene_id": scene_id,
+                    "chapter_id": chapter["id"],
+                    "content": scene.get("content", ""),
+                    "scene_wordcount": scene.get("wordcount", 0),
+                    "chapter_wordcount": chapter.get("wordcount", 0),
+                    "document_wordcount": document.get("total_wordcount", 0),
+                }
+
+    raise HTTPException(status_code=404, detail="Scene not found")
