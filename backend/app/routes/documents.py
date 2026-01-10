@@ -9,7 +9,7 @@ from app.services.wordcount_service import count_words, sum_scene_wordcounts
 from app.schemas.requests import CreateDocumentRequest, CreateChapterRequest, CreateSceneRequest
 from app.utils.mongo import serialize_mongo
 from app.schemas.autosave import SceneAutosaveRequest
-from app.schemas.document import SceneResponse
+from app.schemas.document import SceneResponse, DocumentOutlineResponse
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -171,3 +171,43 @@ async def get_scene(
                 }
 
     raise HTTPException(status_code=404, detail="Scene not found")
+
+@router.get("/{document_id}/outline", response_model=DocumentOutlineResponse)
+async def get_document_outline(
+    document_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await documents_collection.find_one(
+        {"_id": ObjectId(document_id)}
+    )
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    chapters = []
+
+    for chapter in document.get("chapters", []):
+        scenes = [
+            {
+                "id": scene["id"],
+                "title": scene.get("title", "Untitled Scene"),
+                "wordcount": scene.get("wordcount", 0),
+                "order": scene.get("order", 0),
+            }
+            for scene in chapter.get("scenes", [])
+        ]
+
+        chapters.append({
+            "id": chapter["id"],
+            "title": chapter.get("title", "Untitled Chapter"),
+            "wordcount": chapter.get("wordcount", 0),
+            "order": chapter.get("order", 0),
+            "scenes": scenes,
+        })
+
+    return {
+        "document_id": document_id,
+        "title": document.get("title", ""),
+        "total_wordcount": document.get("total_wordcount", 0),
+        "chapters": chapters,
+    }
