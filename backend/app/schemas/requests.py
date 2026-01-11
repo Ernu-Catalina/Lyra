@@ -4,7 +4,6 @@ class CreateProjectRequest(BaseModel):
     name: str
 
 class CreateDocumentRequest(BaseModel):
-    project_id: str
     title: str
 
 class CreateChapterRequest(BaseModel):
