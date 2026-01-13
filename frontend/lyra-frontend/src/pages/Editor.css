@@ -1,0 +1,54 @@
+.editor-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 25mm;
+  margin: 20px auto;
+  background: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+.editor-container {
+  display: flex;
+  height: 100vh;
+}
+.editor-sidebar {
+  width: 300px;
+  border-right: 1px solid #ccc;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.editor-title {
+  font-weight: bold;
+}
+.editor-chapter {
+  margin-bottom: 1rem;
+}
+.editor-scene {
+  cursor: pointer;
+}
+.editor-scene.active {
+  font-weight: bold;
+}
+.editor-main {
+  flex: 1;
+  overflow-y: auto;
+  background: #eee;
+}
+.editor-error {
+  color: rgb(97, 20, 20);
+}
+.editor-textarea {
+  width: 100%;
+  height: 70vh;
+}
+
+.editor-main p {
+  line-height: 1.6;
+}
+
+.editor-main p[style*="text-align:center"] {
+  margin: 24px 0;
+  letter-spacing: 2px;
+}
+.ProseMirror {
+  outline: none;
+}

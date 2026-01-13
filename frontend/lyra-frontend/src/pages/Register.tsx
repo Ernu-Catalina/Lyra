@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 
 
-export default function Login() {
+export default function Register() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +19,7 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await api.post("/auth/login", {
+      const res = await api.post("/auth/register", {
         email,
         password,
       });
@@ -38,14 +38,14 @@ export default function Login() {
       if (error.response?.data?.detail) {
         setError(error.response.data.detail);
       } else {
-        setError("Login failed");
+        setError("Registration failed");
       }
     }
   };
 
   return (
     <div>
-      <h2>Login</h2>
+      <h2>Register</h2>
 
       <form onSubmit={handleSubmit}>
         <input
@@ -61,10 +61,10 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button type="submit">Login</button>
+        <button type="submit">Register</button>
       </form>
       <p>
-          Don't have an account? <Link to="/register">Register</Link>
+         Already have an account? <Link to="/login">Login</Link>
       </p>
 
       {error && <p className="auth-error">{error}</p>}

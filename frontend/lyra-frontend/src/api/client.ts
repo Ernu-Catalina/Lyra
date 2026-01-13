@@ -1,26 +1,19 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+import axios from "axios";
+import type { InternalAxiosRequestConfig } from "axios";
 
-export async function apiRequest(
-  endpoint: string,
-  options: RequestInit = {}
-) {
-  const token = localStorage.getItem("lyra_token");
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8000",
+  headers: {
+    "Content-Type": "application/json; charset=utf-8",
+  },
+});
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
-  };
-
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || "API request failed");
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = localStorage.getItem("token");
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
-  return response.json();
-}
+export default api;
