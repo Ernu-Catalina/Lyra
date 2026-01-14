@@ -155,51 +155,55 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--accent)]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Bar – clean, only logo + title + profile */}
-      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-2.5 flex items-center justify-between">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      {/* Navigation Bar */}
+      <nav className="bg-[var(--bg-secondary)] border-b border-[var(--border)] px-4 sm:px-6 py-2.5 flex items-center justify-between">
         {/* Logo + Projects title */}
         <div className="flex items-center gap-2.5">
-          <BookOpen className="h-8 w-8 text-black-600" />
-          <span className="text-2xl font-semibold text-gray-900">Projects</span>
+          <BookOpen className="h-6 w-6 text-[var(--accent)]" />
+          <span className="text-xl font-semibold text-[var(--text-primary)]">Projects</span>
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4">
           {/* Search */}
           <div className="relative hidden sm:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)] pointer-events-none" />
             <input
               type="search"
               placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-1.5 bg-gray-100 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-80 lg:w-72 transition"
+              className="pl-10 pr-4 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] w-56 lg:w-72 transition text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
             />
           </div>
 
-          {/* Profile Dropdown – click toggle */}
+          {/* Profile Dropdown */}
           <div ref={profileRef} className="relative">
             <button
               type="button"
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 hover:bg-gray-100 rounded-full p-1 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full"
+              className="flex items-center gap-2 hover:bg-[var(--border)]/30 rounded-full p-1 transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-full"
             >
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+              <div className="w-8 h-8 bg-[var(--accent)] rounded-full flex items-center justify-center text-white font-medium">
                 U
               </div>
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] rounded-lg shadow-xl border border-[var(--border)] py-1 z-50">
                 <button
                   type="button"
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  onClick={() => {
+                    navigate("/settings");
+                    setProfileOpen(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--accent)]/10 flex items-center gap-2 transition"
                 >
                   <Settings size={16} /> Settings
                 </button>
@@ -219,51 +223,60 @@ export default function ProjectsPage() {
         </div>
       </nav>
 
-      {/* Header area – now contains sort + create trigger */}
+      {/* Header area – sort left, create right, smaller padding */}
       <div className="max-w-[96%] mx-auto px-3 sm:px-4 lg:px-6 py-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            {/* Sort */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <label htmlFor="sort-projects" className="text-sm text-gray-600 whitespace-nowrap">
-                Sort by:
-              </label>
-              <select
-                id="sort-projects"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[160px]"
-              >
-                <option value="updated-desc">Recently updated</option>
-                <option value="name-asc">Name (A–Z)</option>
-                <option value="name-desc">Name (Z–A)</option>
-              </select>
-            </div>
-
-            {/* Create trigger – gray circle with + */}
-            <button
-              type="button"
-              onClick={() => setCreateModalOpen(true)}
-              className="flex items-center justify-center w-10 h-10 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 self-end sm:self-auto"
-              aria-label="Create new project"
+          {/* Left: Sort */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label htmlFor="sort-projects" className="text-sm text-[var(--text-secondary)] whitespace-nowrap">
+              Sort by:
+            </label>
+            <select
+              id="sort-projects"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] outline-none min-w-[160px] text-[var(--text-primary)]"
             >
-              <Plus size={20} />
-            </button>
+              <option value="updated-desc">Recently updated</option>
+              <option value="name-asc">Name (A–Z)</option>
+              <option value="name-desc">Name (Z–A)</option>
+            </select>
+          </div>
+
+          {/* Right: Create button – theme-aware */}
+          <button
+            type="button"
+            onClick={() => setCreateModalOpen(true)}
+            className={`
+              flex items-center justify-center w-10 h-10 
+              bg-[var(--bg-secondary)] text-[var(--text-secondary)] 
+              rounded-full 
+              hover:bg-[var(--accent)]/10 
+              transition-all duration-200 
+              shadow-sm 
+              focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]
+              self-end sm:self-auto
+            `}
+            aria-label="Create new project"
+          >
+            <Plus size={20} className="text-[var(--text-primary)]" />
+          </button>
         </div>
 
         {/* Project grid */}
         {sortedAndFiltered.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-[var(--text-secondary)]">
             {searchQuery ? "No projects match your search" : "No projects yet — click + to create one!"}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-5">
             {sortedAndFiltered.map((project) => (
               <div
                 key={project._id}
                 onClick={() => navigate(`/projects/${project._id}`)}
-                className="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition cursor-pointer"
+                className="group card overflow-hidden hover:shadow-md hover:border-[var(--accent)]/50 transition cursor-pointer"
               >
-                <div className="relative aspect-[6/8] bg-gradient-to-br from-blue-500 to-indigo-600 overflow-hidden">
+                <div className="relative aspect-[6/9] bg-gradient-to-br from-[var(--accent)] to-indigo-600 overflow-hidden">
                   {project.cover_image_url ? (
                     <img
                       src={project.cover_image_url}
@@ -282,7 +295,7 @@ export default function ProjectsPage() {
 
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition line-clamp-2 flex-1 pr-2">
+                    <h3 className="font-semibold text-base text-[var(--text-primary)] group-hover:text-[var(--accent)] transition line-clamp-2 flex-1 pr-2">
                       {project.name}
                     </h3>
                     <button
@@ -291,14 +304,14 @@ export default function ProjectsPage() {
                         e.stopPropagation();
                         togglePin(project);
                       }}
-                      className="p-1 hover:bg-gray-100 rounded-full transition"
+                      className="p-1 hover:bg-[var(--border)]/50 rounded-full transition"
                       aria-label={project.pinned ? "Unpin project" : "Pin project (max 3)"}
                     >
-                      {project.pinned ? <PinOff size={18} className="text-blue-600" /> : <Pin size={18} className="text-gray-400" />}
+                      {project.pinned ? <PinOff size={18} className="text-[var(--accent)]" /> : <Pin size={18} className="text-[var(--text-secondary)]" />}
                     </button>
                   </div>
 
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-[var(--text-secondary)] mb-3">
                     Updated {new Date(project.updated_at).toLocaleDateString()}
                   </p>
 
@@ -311,7 +324,7 @@ export default function ProjectsPage() {
                         setEditName(project.name);
                         setEditCoverUrl(project.cover_image_url || "");
                       }}
-                      className="flex-1 px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded transition flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-1.5 text-xs bg-[var(--border)]/50 hover:bg-[var(--border)] rounded transition flex items-center justify-center gap-1 text-[var(--text-primary)]"
                     >
                       <Edit size={14} /> Edit
                     </button>
@@ -336,13 +349,13 @@ export default function ProjectsPage() {
       {/* Create Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
+          <div className="bg-[var(--bg-secondary)] rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-[var(--border)]">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-xl font-bold text-gray-900">Create New Project</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Create New Project</h2>
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="text-gray-500 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1"
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-full p-1"
                 aria-label="Close create modal"
               >
                 <X size={24} />
@@ -351,7 +364,7 @@ export default function ProjectsPage() {
 
             <div className="space-y-5">
               <div>
-                <label htmlFor="create-project-name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="create-project-name" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Project Name
                 </label>
                 <input
@@ -359,13 +372,13 @@ export default function ProjectsPage() {
                   type="text"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] outline-none bg-[var(--bg-secondary)] text-[var(--text-primary)]"
                   placeholder="My New Novel"
                 />
               </div>
 
               <div>
-                <label htmlFor="create-cover-url" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="create-cover-url" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Cover Image URL (optional)
                 </label>
                 <input
@@ -374,15 +387,15 @@ export default function ProjectsPage() {
                   value={newCoverUrl}
                   onChange={(e) => setNewCoverUrl(e.target.value)}
                   placeholder="https://example.com/cover.jpg"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] outline-none bg-[var(--bg-secondary)] text-[var(--text-primary)]"
                 />
                 {newCoverUrl && (
                   <div className="mt-3">
-                    <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                    <p className="text-sm text-[var(--text-secondary)] mb-1">Preview:</p>
                     <img
                       src={newCoverUrl}
                       alt="Cover preview"
-                      className="w-32 h-48 object-cover rounded-md border border-gray-200"
+                      className="w-32 h-48 object-cover rounded-md border border-[var(--border)]"
                       onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                     />
                   </div>
@@ -394,14 +407,14 @@ export default function ProjectsPage() {
                   type="button"
                   onClick={createProject}
                   disabled={!newProjectName.trim()}
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium"
+                  className="flex-1 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent)]/90 disabled:opacity-50 transition font-medium"
                 >
                   Create Project
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="flex-1 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium"
+                  className="flex-1 py-2.5 bg-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]/80 transition font-medium"
                 >
                   Cancel
                 </button>
@@ -410,16 +423,17 @@ export default function ProjectsPage() {
           </div>
         </div>
       )}
-      {/* Edit Modal */}
+
+      {/* Edit Modal (also theme-aware) */}
       {editProject && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
+          <div className="bg-[var(--bg-secondary)] rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-[var(--border)]">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-xl font-bold text-gray-900">Edit Project</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Edit Project</h2>
               <button
                 type="button"
                 onClick={() => setEditProject(null)}
-                className="text-gray-500 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1"
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-full p-1"
                 aria-label="Close edit modal"
               >
                 <X size={24} />
@@ -428,38 +442,38 @@ export default function ProjectsPage() {
 
             <div className="space-y-5">
               <div>
-                <label htmlFor="edit-project-name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="edit-project-name" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Project Name
                 </label>
                 <input
                   id="edit-project-name"
                   type="text"
                   value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] outline-none bg-[var(--bg-secondary)] text-[var(--text-primary)]"
                 />
               </div>
 
               <div>
-                <label htmlFor="edit-cover-url" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="edit-cover-url" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                   Cover Image URL (optional)
                 </label>
                 <input
                   id="edit-cover-url"
                   type="url"
                   value={editCoverUrl}
-                  onChange={e => setEditCoverUrl(e.target.value)}
+                  onChange={(e) => setEditCoverUrl(e.target.value)}
                   placeholder="https://example.com/cover.jpg"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] outline-none bg-[var(--bg-secondary)] text-[var(--text-primary)]"
                 />
                 {editCoverUrl && (
                   <div className="mt-3">
-                    <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                    <p className="text-sm text-[var(--text-secondary)] mb-1">Preview:</p>
                     <img
                       src={editCoverUrl}
                       alt="Cover preview"
-                      className="w-32 h-48 object-cover rounded-md border border-gray-200"
-                      onError={e => (e.currentTarget.style.display = "none")}
+                      className="w-32 h-48 object-cover rounded-md border border-[var(--border)]"
+                      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                     />
                   </div>
                 )}
@@ -470,14 +484,14 @@ export default function ProjectsPage() {
                   type="button"
                   onClick={updateProject}
                   disabled={!editName.trim()}
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium"
+                  className="flex-1 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent)]/90 disabled:opacity-50 transition font-medium"
                 >
                   Save Changes
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditProject(null)}
-                  className="flex-1 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium"
+                  className="flex-1 py-2.5 bg-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]/80 transition font-medium"
                 >
                   Cancel
                 </button>

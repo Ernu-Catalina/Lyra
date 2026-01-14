@@ -8,6 +8,7 @@ import DocumentsPage from "./features/documents/Documents.page";
 import EditorPage from "./features/editor/Editor.page";
 
 import ProtectedRoute from "./auth/ProtectedRoute";
+import SettingsPage from "./features/settings/Settings.page";
 
 function App() {
   return (
@@ -31,6 +32,15 @@ function App() {
           element={
             <ProtectedRoute>
               <DocumentsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

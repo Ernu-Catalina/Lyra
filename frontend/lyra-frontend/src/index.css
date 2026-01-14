@@ -1,25 +1,54 @@
 @import "tailwindcss";
 
-/* Optional: your custom resets / globals */
+/* ── Theme: light-modern (default) ── */
+.light-modern {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border: #e2e8f0;
+  --accent: #715fb3;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Georgia', serif;
+}
+
+.dark-minimal{
+  --bg-primary:   #030407;
+  --bg-secondary: #080b14;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --border:       #1e293b;
+  --accent:       #7db0fc;
+  --accent-dim:   #5779ac;
+  --glow:         rgba(166, 174, 201, 0.12);
+  --font-sans:    'Inter', system-ui, sans-serif;
+  --font-serif:   'Georgia', serif;
+}
+
+/* ── Theme: sepia-classic ── */
+.sepia-classic {
+  --bg-primary: #fdf6e3;
+  --bg-secondary: #fffaf0;
+  --text-primary: #5d4037;
+  --text-secondary: #8d6e63;
+  --border: #d7ccc8;
+  --accent: #8d5524;
+  --font-sans: 'Georgia', serif;
+  --font-serif: 'Georgia', serif;
+}
+
+/* Apply variables globally */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
+  font-family: var(--font-sans);
 }
 
-body {
-  @apply bg-[var(--background)] text-[var(--foreground)] min-h-screen;
+/* Card / component examples */
+.card {
+  @apply bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-sm;
 }
 
-/* Scrollbar styling (optional) */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-gray-100;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+/* Accent buttons, links, etc. */
+.btn-primary {
+  @apply bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90;
 }
