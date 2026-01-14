@@ -1,9 +1,9 @@
 // src/features/projects/Projects.page.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import { useAuth } from "../../auth/useAuth";
-import { Plus, Search, Settings, LogOut, Edit, Pin, PinOff, Trash2, X } from "lucide-react";
+import { Plus, Search, Settings, LogOut, Edit, Pin, PinOff, Trash2, X, BookOpen } from "lucide-react";
 
 interface Project {
   _id: string;
@@ -18,14 +18,22 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newCoverUrl, setNewCoverUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"updated-desc" | "name-asc" | "name-desc">("updated-desc");
-  const [isCreating, setIsCreating] = useState(false);
+
+  // Create modal state
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newCoverUrl, setNewCoverUrl] = useState("");
+
+  // Edit modal state
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [editName, setEditName] = useState("");
   const [editCoverUrl, setEditCoverUrl] = useState("");
+
+  // Profile dropdown
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -50,49 +58,39 @@ export default function ProjectsPage() {
     fetchProjects();
   }, [fetchProjects]);
 
-const createProject = async () => {
-  if (!newProjectName.trim()) {
-    setError("Project name is required");
-    return;
-  }
-
-  setIsCreating(true);
-  setError("");
-
-  try {
-    const payload = {
-      name: newProjectName.trim(),
-      cover_image_url: newCoverUrl.trim() || undefined,
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    const response = await api.post("/projects", payload);
-    console.log("Project created:", response.data); // for debugging
-
-    // Reset form
-    setNewProjectName("");
-    setNewCoverUrl("");
-
-    // Refresh list
-    await fetchProjects();
-
-    // Optional success feedback
-    // toast.success("Project created!");
-  } catch (err: any) {
-    console.error("Create project error:", err);
-    if (err.response?.status === 401) {
-      logout();
-      navigate("/login");
-    } else {
-      const errorMessage =
-        err.response?.data?.detail ||
-        err.message ||
-        "Failed to create project. Please check your connection.";
-      setError(errorMessage);
+  const createProject = async () => {
+    if (!newProjectName.trim()) {
+      setError("Project name is required");
+      return;
     }
-  } finally {
-    setIsCreating(false);
-  }
-};
+
+    try {
+      const payload = {
+        name: newProjectName.trim(),
+        cover_image_url: newCoverUrl.trim() || undefined,
+      };
+
+      await api.post("/projects", payload);
+      setNewProjectName("");
+      setNewCoverUrl("");
+      setCreateModalOpen(false);
+      setError("");
+      fetchProjects();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to create project");
+    }
+  };
 
   const updateProject = async () => {
     if (!editProject || !editName.trim()) return;
@@ -124,7 +122,7 @@ const createProject = async () => {
 
   const togglePin = async (project: Project) => {
     const newPinned = !project.pinned;
-    const pinnedCount = projects.filter(p => p.pinned).length;
+    const pinnedCount = projects.filter((p) => p.pinned).length;
 
     if (newPinned && pinnedCount >= 3) {
       alert("You can pin up to 3 projects only.");
@@ -141,118 +139,125 @@ const createProject = async () => {
 
   // Sort & filter
   const sortedAndFiltered = [...projects]
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       switch (sortBy) {
-        case "name-asc": return a.name.localeCompare(b.name);
-        case "name-desc": return b.name.localeCompare(a.name);
-        default: return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        default:
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       }
     });
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin h-12 w-12 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation - tighter padding */}
-      <nav className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
-        <div className="text-xl font-semibold text-gray-900">Lyra</div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      {/* Navigation Bar – clean, only logo + title + profile */}
+      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-2.5 flex items-center justify-between">
+        {/* Logo + Projects title */}
+        <div className="flex items-center gap-2.5">
+          <BookOpen className="h-8 w-8 text-black-600" />
+          <span className="text-2xl font-semibold text-gray-900">Projects</span>
+        </div>
+
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Search */}
+          <div className="relative hidden sm:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               type="search"
               placeholder="Search projects..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9 pr-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-60 transition"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-1.5 bg-gray-100 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-80 lg:w-72 transition"
             />
           </div>
 
-          <div className="relative group">
-            <button type="button" className="flex items-center gap-2 hover:bg-gray-100 rounded-full p-1 transition">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">U</div>
+          {/* Profile Dropdown – click toggle */}
+          <div ref={profileRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex items-center gap-2 hover:bg-gray-100 rounded-full p-1 transition focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full"
+            >
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+                U
+              </div>
             </button>
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 hidden group-hover:block z-50">
-              <button type="button" className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                <Settings size={16} /> Settings
-              </button>
-              <button
-                type="button"
-                onClick={() => { logout(); navigate("/login"); }}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              >
-                <LogOut size={16} /> Log Out
-              </button>
-            </div>
+
+            {profileOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                <button
+                  type="button"
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Settings size={16} /> Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <LogOut size={16} /> Log Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* Main content - reduced padding */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Header + Create */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Projects</h1>
+      {/* Header area – now contains sort + create trigger */}
+      <div className="max-w-[96%] mx-auto px-3 sm:px-4 lg:px-6 py-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            {/* Sort */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <label htmlFor="sort-projects" className="text-sm text-gray-600 whitespace-nowrap">
+                Sort by:
+              </label>
+              <select
+                id="sort-projects"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[160px]"
+              >
+                <option value="updated-desc">Recently updated</option>
+                <option value="name-asc">Name (A–Z)</option>
+                <option value="name-desc">Name (Z–A)</option>
+              </select>
+            </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="New project name"
-              value={newProjectName}
-              onChange={e => setNewProjectName(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none flex-1 min-w-[200px]"
-            />
-            <input
-              type="url"
-              placeholder="Cover image URL (optional)"
-              value={newCoverUrl}
-              onChange={e => setNewCoverUrl(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none flex-1 min-w-[260px]"
-            />
+            {/* Create trigger – gray circle with + */}
             <button
               type="button"
-              onClick={createProject}
-              disabled={isCreating || !newProjectName.trim()}
-              className={`px-6 py-2 bg-blue-600 text-white rounded-lg transition whitespace-nowrap font-medium flex items-center gap-2 justify-center
-                ${isCreating ? "opacity-70 cursor-wait" : "hover:bg-blue-700"}`}
+              onClick={() => setCreateModalOpen(true)}
+              className="flex items-center justify-center w-10 h-10 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 self-end sm:self-auto"
+              aria-label="Create new project"
             >
-              {isCreating ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Creating...
-                </>
-              ) : (
-                "Create"
-              )}
+              <Plus size={20} />
             </button>
-          </div>
-        </div>
-
-        {/* Sort controls + extra padding before grid */}
-        <div className="flex justify-end mb-8">
-          <label htmlFor="sort-projects" className="text-sm text-gray-600 mr-2 self-center">Sort by:</label>
-          <select
-            id="sort-projects"
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value as typeof sortBy)}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            <option value="updated-desc">Recently updated</option>
-            <option value="name-asc">Name (A–Z)</option>
-            <option value="name-desc">Name (Z–A)</option>
-          </select>
         </div>
 
         {/* Project grid */}
         {sortedAndFiltered.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
-            {searchQuery ? "No projects match your search" : "No projects yet — create one above!"}
+            {searchQuery ? "No projects match your search" : "No projects yet — click + to create one!"}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-            {sortedAndFiltered.map(project => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 md:gap-6">
+            {sortedAndFiltered.map((project) => (
               <div
                 key={project._id}
                 onClick={() => navigate(`/projects/${project._id}`)}
@@ -263,8 +268,8 @@ const createProject = async () => {
                     <img
                       src={project.cover_image_url}
                       alt={project.name}
-                      className="w-full h-full object-cover"
-                      onError={e => (e.currentTarget.style.display = "none")}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -282,7 +287,7 @@ const createProject = async () => {
                     </h3>
                     <button
                       type="button"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         togglePin(project);
                       }}
@@ -300,7 +305,7 @@ const createProject = async () => {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         setEditProject(project);
                         setEditName(project.name);
@@ -312,7 +317,7 @@ const createProject = async () => {
                     </button>
                     <button
                       type="button"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         deleteProject(project._id);
                       }}
@@ -328,7 +333,84 @@ const createProject = async () => {
         )}
       </div>
 
-      {/* Edit Modal - dark transparent overlay */}
+      {/* Create Modal */}
+      {createModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-gray-900">Create New Project</h2>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(false)}
+                className="text-gray-500 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1"
+                aria-label="Close create modal"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label htmlFor="create-project-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Name
+                </label>
+                <input
+                  id="create-project-name"
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder="My New Novel"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="create-cover-url" className="block text-sm font-medium text-gray-700 mb-1">
+                  Cover Image URL (optional)
+                </label>
+                <input
+                  id="create-cover-url"
+                  type="url"
+                  value={newCoverUrl}
+                  onChange={(e) => setNewCoverUrl(e.target.value)}
+                  placeholder="https://example.com/cover.jpg"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+                {newCoverUrl && (
+                  <div className="mt-3">
+                    <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                    <img
+                      src={newCoverUrl}
+                      alt="Cover preview"
+                      className="w-32 h-48 object-cover rounded-md border border-gray-200"
+                      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={createProject}
+                  disabled={!newProjectName.trim()}
+                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition font-medium"
+                >
+                  Create Project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateModalOpen(false)}
+                  className="flex-1 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Modal */}
       {editProject && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl">
