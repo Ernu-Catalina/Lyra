@@ -1,0 +1,37 @@
+.editor-sidebar {
+  width: 280px;
+  padding: 12px;
+  border-right: 1px solid #ddd;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+.sidebar-actions {
+  margin-bottom: 12px;
+}
+
+.sidebar-actions button {
+  width: 100%;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.editor-sidebar ul {
+  list-style: none;
+  padding-left: 12px;
+}
+
+.editor-sidebar li {
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.editor-sidebar li.active {
+  font-weight: bold;
+}
+
+.chapter-title {
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 8px;
+}

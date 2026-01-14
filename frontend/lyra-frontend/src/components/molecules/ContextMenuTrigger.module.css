@@ -1,0 +1,41 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+
+.menu {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 140px;
+  padding: 0.25rem 0;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #111827;
+}
+
+.item:hover {
+  background: #f3f4f6;
+}
+
+.danger {
+  color: #ef4444;
+}
+
+.danger:hover {
+  background: #fee2e2;
+}

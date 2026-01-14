@@ -1,0 +1,11 @@
+.handle {
+  color: #9ca3af;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: grab;
+  padding: 0 0.25rem;
+}
+
+.handle:active {
+  cursor: grabbing;
+}

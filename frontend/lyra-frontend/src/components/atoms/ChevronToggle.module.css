@@ -1,0 +1,13 @@
+.toggle {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.toggle:hover {
+  color: #374151;
+}

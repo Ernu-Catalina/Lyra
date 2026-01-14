@@ -1,0 +1,14 @@
+.editor {
+  min-height: 300px;
+  padding: 1rem;
+  outline: none;
+  line-height: 1.7;
+}
+
+.editor p {
+  margin: 0.8em 0;
+}
+
+.editor h1, .editor h2, .editor h3, .editor h4 {
+  margin: 1.2em 0 0.6em;
+}

@@ -1,0 +1,17 @@
+/* src/components/molecules/SceneListItem.module.css */
+.item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.item:hover {
+  background: #f3f4f6;
+}
+
+.active {
+  background: #dbeafe;
+  font-weight: 600;
+  color: #1d4ed8;
+}
