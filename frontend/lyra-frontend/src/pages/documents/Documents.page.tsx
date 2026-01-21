@@ -198,86 +198,98 @@ const fetchData = useCallback(async () => {
 
       {/* Main layout: sidebar + content */}
       <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar – fixed */}
-      <aside
-        className={`
-          fixed top-[var(--nav-height,64px)] left-0 z-40
-          h-[calc(100vh-var(--nav-height,64px))]
-          transition-all duration-300 ease-in-out
-          ${sidebarOpen ? "w-80 lg:w-96" : "w-14"}
-          bg-[var(--bg-secondary)] border-r border-[var(--border)]
-          overflow-hidden
-          ${isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"}
-        `}
-      >
-        <ProjectCoverSidebar
-          project={project}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen((prev) => !prev)}
-        />
-      </aside>
-        
-      {/* Main content – offset by sidebar width on desktop */}
-      <main
-        className={`
-          flex-1 overflow-y-auto relative
-          ${sidebarOpen ? "lg:pl-80 lg:xl:pl-96" : "lg:pl-14"}
-          transition-all duration-300 ease-in-out
-        `}
-      >
-        {/* Overlay for mobile */}
-        {isMobile && sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden pointer-events-auto"
-            onClick={() => setSidebarOpen(false)}
+
+        {/* Sidebar – fixed (unchanged) */}
+        <aside
+          className={`
+            fixed top-[var(--nav-height,64px)] left-0 z-40
+            h-[calc(100vh-var(--nav-height,64px))]
+            transition-all duration-300 ease-in-out
+            ${sidebarOpen ? "w-80 lg:w-96" : "w-14"}
+            bg-[var(--bg-secondary)] border-r border-[var(--border)]
+            overflow-hidden
+            ${isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"}
+          `}
+        >
+          <ProjectCoverSidebar
+            project={project}
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen((prev) => !prev)}
           />
-        )}
-          {/* Header controls */}
-          <div className="px-4 sm:px-6 lg:px-8 py-5">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="flex items-center gap-4">
-                {/* Back button in folder */}
-                {folderStack.length > 0 && (
-                  <button
-                    onClick={goBack}
-                    className="text-[var(--accent)] hover:text-[var(--accent-dark)] transition"
-                    aria-label="Go back"
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                )}
-
-                {/* Hamburger menu – only on mobile */}
-                {isMobile && !sidebarOpen && (
-                  <button
-                    onClick={() => setSidebarOpen(true)}
-                    className="lg:hidden p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    aria-label="Open sidebar"
-                  >
-                    <Menu size={24} />
-                  </button>
-                )}
-
-                <CreateButton onClick={() => setCreateModalOpen(true)} label="Create" />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <label htmlFor="sort-documents" className="text-sm text-[var(--text-secondary)]">
-                  Sort by:
-                </label>
-                <select
-                  id="sort-documents"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] min-w-[160px]"
+        </aside>
+          
+        {/* Fixed secondary header (controls bar) – sticks right below primary nav */}
+        <div
+          className={`
+            fixed top-[var(--nav-height,60px)] z-30
+            transition-all duration-300 ease-in-out
+            ${sidebarOpen ? "lg:left-80 lg:xl:left-96" : "lg:left-14"}
+            right-0
+            bg-[var(--bg-primary)] border-b border-[var(--border)]
+            px-4 sm:px-6 lg:px-8 py-5
+          `}
+        >
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              {/* Back button in folder */}
+              {folderStack.length > 0 && (
+                <button
+                  onClick={goBack}
+                  className="text-[var(--accent)] hover:text-[var(--accent-dark)] transition"
+                  aria-label="Go back"
                 >
-                  <option value="updated-desc">Recently updated</option>
-                  <option value="title-asc">Title (A–Z)</option>
-                  <option value="title-desc">Title (Z–A)</option>
-                </select>
-              </div>
+                  <ChevronLeft size={24} />
+                </button>
+              )}
+
+              {/* Hamburger menu – only on mobile */}
+              {isMobile && !sidebarOpen && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="lg:hidden p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  aria-label="Open sidebar"
+                >
+                  <Menu size={24} />
+                </button>
+              )}
+
+              <CreateButton onClick={() => setCreateModalOpen(true)} label="Create" />
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <label htmlFor="sort-documents" className="text-sm text-[var(--text-secondary)]">
+                Sort by:
+              </label>
+              <select
+                id="sort-documents"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] min-w-[160px]"
+              >
+                <option value="updated-desc">Recently updated</option>
+                <option value="title-asc">Title (A–Z)</option>
+                <option value="title-desc">Title (Z–A)</option>
+              </select>
             </div>
           </div>
+        </div>
+            
+        {/* Main content – now starts below the fixed controls */}
+        <main
+          className={`
+            flex-1 overflow-y-auto relative
+            mt-[calc(5rem+1.25rem)] lg:mt-[calc(5rem+1.25rem)]   /* ≈ py-5 + mb-6 ≈ 80px; adjust if needed */
+            ${sidebarOpen ? "lg:pl-80 lg:xl:pl-96" : "lg:pl-14"}
+            transition-all duration-300 ease-in-out
+          `}
+        >
+          {/* Overlay for mobile sidebar */}
+          {isMobile && sidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden pointer-events-auto"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
 
           {/* Document list – takes full remaining width */}
           <DocumentList
