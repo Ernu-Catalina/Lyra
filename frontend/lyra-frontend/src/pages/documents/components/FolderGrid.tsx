@@ -19,7 +19,6 @@ export default function FolderGrid({
 
   return (
     <div className="mb-6">
-      <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">Folders</h2>
       <div className={`
         grid gap-4
         ${sidebarOpen ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}
@@ -30,7 +29,7 @@ export default function FolderGrid({
             onClick={() => onEnterFolder(folder._id)}
             className="group flex flex-col items-center p-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:border-[var(--accent)]/50 hover:shadow-md transition cursor-pointer aspect-[4/5] max-w-[180px] mx-auto"
           >
-            <Folder size={48} className="text-[var(--accent)] mb-2" />
+            <Folder size={60} className="text-[var(--accent)] mb-1" />
             <span className="font-medium text-center text-sm line-clamp-2 group-hover:text-[var(--accent)] mb-3">
               {folder.title}
             </span>
@@ -54,7 +53,7 @@ export default function FolderGrid({
                   e.stopPropagation();
                   onDelete(folder._id);
                 }}
-                className="p-1.5 text-[var(--text-secondary)] hover:text-red-600 hover:bg-red-50/50 rounded transition"
+                className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
                 aria-label="Delete folder"
                 title="Delete folder"
               >

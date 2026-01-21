@@ -198,35 +198,40 @@ const fetchData = useCallback(async () => {
 
       {/* Main layout: sidebar + content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar – fixed left, full height below nav */}
-        <aside
-          className={`
-            fixed inset-y-0 left-0 z-40 lg:static lg:inset-auto
-            transition-all duration-300 ease-in-out
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-            ${sidebarOpen ? "w-80 lg:w-96" : "w-14 lg:w-14"}
-            bg-[var(--bg-secondary)] border-r border-[var(--border)]
-            overflow-hidden flex-shrink-0
-            h-[calc(100vh-var(--nav-height,64px))]
-          `}
-        >
-          <ProjectCoverSidebar
-            project={project}
-            isOpen={sidebarOpen}
-            onToggle={() => setSidebarOpen((prev) => !prev)}
+      {/* Sidebar – fixed */}
+      <aside
+        className={`
+          fixed top-[var(--nav-height,64px)] left-0 z-40
+          h-[calc(100vh-var(--nav-height,64px))]
+          transition-all duration-300 ease-in-out
+          ${sidebarOpen ? "w-80 lg:w-96" : "w-14"}
+          bg-[var(--bg-secondary)] border-r border-[var(--border)]
+          overflow-hidden
+          ${isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"}
+        `}
+      >
+        <ProjectCoverSidebar
+          project={project}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen((prev) => !prev)}
+        />
+      </aside>
+        
+      {/* Main content – offset by sidebar width on desktop */}
+      <main
+        className={`
+          flex-1 overflow-y-auto relative
+          ${sidebarOpen ? "lg:pl-80 lg:xl:pl-96" : "lg:pl-14"}
+          transition-all duration-300 ease-in-out
+        `}
+      >
+        {/* Overlay for mobile */}
+        {isMobile && sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden pointer-events-auto"
+            onClick={() => setSidebarOpen(false)}
           />
-        </aside>
-
-        {/* Main content area */}
-        <main className="flex-1 overflow-y-auto relative">
-          {/* Optional overlay for mobile when sidebar is open */}
-          {isMobile && sidebarOpen && (
-            <div
-              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-
+        )}
           {/* Header controls */}
           <div className="px-4 sm:px-6 lg:px-8 py-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -331,8 +336,6 @@ const fetchData = useCallback(async () => {
           setItemToDelete(null);
         }}
         onConfirm={handleDeleteItem}
-        title={itemToDelete?.type === "folder" ? "Delete Folder?" : "Delete Document?"}
-        message={`Are you sure you want to delete "${itemToDelete?.title}"? This action cannot be undone.`}
       />
     </div>
   );

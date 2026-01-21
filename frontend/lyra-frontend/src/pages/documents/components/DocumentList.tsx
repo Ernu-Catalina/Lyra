@@ -30,6 +30,7 @@ export default function DocumentList({
         onEnterFolder={onEnterFolder}
         onEdit={onEdit}  
         onDelete={onDelete}
+        sidebarOpen={false}
       />
 
       {/* Documents List */}

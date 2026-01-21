@@ -21,7 +21,7 @@ export default function DocumentListItem({
     >
       {/* Title + icon */}
       <div className="col-span-4 flex items-center gap-3">
-        <FileText size={20} className="text-blue-500" />
+        <FileText size={20} className="text-[var(--accent)]" />
         <span className="font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)] line-clamp-1 flex-1">
           {document.title}
         </span>
@@ -62,7 +62,7 @@ export default function DocumentListItem({
             e.stopPropagation();
             onDelete();
           }}
-          className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition"
+          className="p-1.5 text-[var(--accent)] hover:text-[var(--accent)] hover:bg-red-50 rounded transition"
           aria-label="Delete document"
           title="Delete document"
         >
