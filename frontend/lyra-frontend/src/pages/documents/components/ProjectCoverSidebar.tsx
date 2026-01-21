@@ -51,6 +51,16 @@ export default function ProjectCoverSidebar({ project, isOpen, onToggle }: Proje
             <ChevronLeft size={20} />
           </button>
         </div>
+      ) : (
+        {/* Collapsed state: thin bar with centered chevron – always visible */}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute inset-0 flex items-center justify-center text-[var(--text-primary)] hover:text-[var(--accent)] transition z-50"
+          aria-label="Open sidebar"
+        >
+          <ChevronRight size={24} />
+        </button>
       )}
     </aside>
   );

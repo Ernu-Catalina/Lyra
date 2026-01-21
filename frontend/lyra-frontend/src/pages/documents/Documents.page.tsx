@@ -102,6 +102,17 @@ export default function Documents() {
     }
   };
 
+const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+useEffect(() => {
+  const handleResize = () => {
+    setIsMobile(window.innerWidth < 1024);
+    if (window.innerWidth < 1024) setSidebarOpen(false); // force close on mobile
+  };
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
+
 const handleUpdateItem = async () => {
   if (!projectId || !editItem || !editItem._id || !editItemName.trim()) {
     setError("Cannot update: missing ID or name");
@@ -283,7 +294,6 @@ return (
                 className="flex-1 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent)]/90 disabled:opacity-50 transition font-medium"
               >
                 Save Changes
-              </button>
               <button
                 type="button"
                 onClick={() => setEditModalOpen(false)}
