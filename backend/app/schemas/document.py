@@ -1,5 +1,7 @@
-from typing import List
-from pydantic import BaseModel
+# app/schemas/document.py
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
 
 class SceneResponse(BaseModel):
     scene_id: str
@@ -9,24 +11,41 @@ class SceneResponse(BaseModel):
     chapter_wordcount: int
     document_wordcount: int
 
-class SceneOutline(BaseModel):
+class ChapterResponse(BaseModel):
     id: str
     title: str
     wordcount: int
     order: int
-
-class ChapterOutline(BaseModel):
-    id: str
-    title: str
-    wordcount: int
-    order: int
-    scenes: List[SceneOutline]
+    scenes: List[dict]
 
 class DocumentOutlineResponse(BaseModel):
     document_id: str
     title: str
     total_wordcount: int
-    chapters: List[ChapterOutline]
+    chapters: List[ChapterResponse]
 
-class ReorderRequest(BaseModel):
-    ordered_ids: List[str]
+class DocumentResponse(BaseModel):
+    id: str = Field(alias="_id")
+    project_id: str
+    title: str
+    type: str
+    parent_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    total_wordcount: int
+    chapter_count: Optional[int] = None
+    word_count: Optional[int] = None
+
+class ItemListResponse(BaseModel):
+    id: str = Field(alias="_id")
+    title: str
+    type: str
+    parent_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    chapter_count: Optional[int] = None
+    word_count: Optional[int] = None
+
+class FolderResponse(DocumentResponse):
+    type: str = "folder"
+    children: Optional[List["ItemListResponse"]] = None

@@ -1,24 +1,41 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from bson import ObjectId
 from datetime import datetime
+from typing import Optional, List
 
-from app.database import documents_collection, projects_collection
+from app.database import (
+    projects_collection,
+    documents_collection,
+    chapters_collection
+)
 from app.utils.auth import get_current_user
 from app.services.wordcount_service import count_words, sum_scene_wordcounts
-from app.schemas.requests import CreateDocumentRequest, CreateChapterRequest, CreateSceneRequest
+from app.schemas.requests import (
+    CreateDocumentRequest,
+    CreateChapterRequest,
+    CreateSceneRequest,
+    ReorderRequest,
+    SceneAutosaveRequest
+)
+from app.schemas.document import (
+    SceneResponse,
+    DocumentOutlineResponse,
+    DocumentResponse,
+    ChapterResponse,
+    ItemListResponse
+)
 from app.utils.mongo import serialize_mongo
-from app.schemas.autosave import SceneAutosaveRequest
-from app.schemas.document import SceneResponse, DocumentOutlineResponse, ReorderRequest
 
 router = APIRouter(
     prefix="/projects/{project_id}/documents",
     tags=["documents"]
 )
 
+
 def ensure_objectid(val):
-    from bson import ObjectId
     return val if isinstance(val, ObjectId) else ObjectId(val)
+
 
 async def get_owned_document(
     user_id: str,
@@ -38,9 +55,13 @@ async def get_owned_document(
         "project_id": ensure_objectid(project_id)
     })
 
-    return serialize_mongo(document)
+    return serialize_mongo(document) if document else None
 
-@router.post("/")
+
+# ────────────────────────────────────────────────
+# CREATE DOCUMENT or FOLDER
+# ────────────────────────────────────────────────
+@router.post("/", response_model=DocumentResponse)
 async def create_document(
     project_id: str,
     data: CreateDocumentRequest,
@@ -56,11 +77,13 @@ async def create_document(
 
     document = {
         "project_id": ObjectId(project_id),
-        "title": data.title,
-        "total_wordcount": 0,
-        "chapters": [],
+        "title": data.title.strip(),
+        "type": data.type if hasattr(data, "type") and data.type in ["document", "folder"] else "document",
+        "parent_id": ensure_objectid(data.parent_id) if data.parent_id else None,
         "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.utcnow(),
+        "total_wordcount": 0,
+        "chapters": [] if data.type != "folder" else None,
     }
 
     result = await documents_collection.insert_one(document)
@@ -68,34 +91,11 @@ async def create_document(
 
     return serialize_mongo(document)
 
-@router.post("/{document_id}/chapters")
-async def create_chapter(
-    project_id: str,
-    document_id: str,
-    data: CreateChapterRequest,
-    user_id=Depends(get_current_user)
-):
-    document = await get_owned_document(user_id, project_id, document_id)
 
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    chapter = {
-        "id": str(uuid.uuid4()),
-        "title": data.title,
-        "order": len(document["chapters"]),
-        "wordcount": 0,
-        "scenes": []
-    }
-
-    await documents_collection.update_one(
-        {"_id": ObjectId(document_id)},
-        {"$push": {"chapters": chapter}}
-    )
-
-    return serialize_mongo(chapter)
-
-@router.post("/{document_id}/chapters/{chapter_id}/scenes")
+# ────────────────────────────────────────────────
+# CREATE SCENE (only for documents)
+# ────────────────────────────────────────────────
+@router.post("/{document_id}/chapters/{chapter_id}/scenes", response_model=SceneResponse)
 async def create_scene(
     project_id: str,
     document_id: str,
@@ -104,218 +104,171 @@ async def create_scene(
     user_id=Depends(get_current_user)
 ):
     document = await get_owned_document(user_id, project_id, document_id)
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
 
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
 
     scene = {
         "id": str(uuid.uuid4()),
-        "title": data.title,
-        "order": 0,
+        "title": data.title.strip(),
+        "order": len(chapter["scenes"]),
         "wordcount": 0,
         "content": ""
     }
 
-    result = await documents_collection.update_one(
-        {
-            "_id": ObjectId(document_id),
-            "chapters.id": chapter_id
-        },
-        {"$push": {"chapters.$.scenes": scene}}
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id), "chapters.id": chapter_id},
+        {"$push": {"chapters.$.scenes": scene}, "$set": {"updated_at": datetime.utcnow()}}
     )
 
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Chapter not found")
+    return scene
 
-    return serialize_mongo(scene)
 
-@router.get("/")
+# ────────────────────────────────────────────────
+# LIST DOCUMENTS / FOLDERS (root or nested)
+# ────────────────────────────────────────────────
+@router.get("/", response_model=List[ItemListResponse])
 async def get_documents(
     project_id: str,
+    parent_id: Optional[str] = Query(None, description="Filter by parent folder ID (null for root)"),
     user_id=Depends(get_current_user)
 ):
+    # Verify user owns the project
     project = await projects_collection.find_one({
         "_id": ObjectId(project_id),
         "user_id": ObjectId(user_id)
     })
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    documents = await documents_collection.find({
-        "project_id": ObjectId(project_id)
-    }).to_list(100)
-    return [serialize_mongo(doc) for doc in documents]
+        raise HTTPException(status_code=403, detail="Project not found or not owned")
 
-@router.get("/{document_id}/chapters")
-async def get_chapters(
+    query = {"project_id": ObjectId(project_id)}
+    if parent_id is not None:
+        query["parent_id"] = ensure_objectid(parent_id) if parent_id else None
+
+    items = await documents_collection.find(query).sort("title", 1).to_list(100)
+    result = []
+
+    for item in items:
+        item_dict = serialize_mongo(item)
+
+        # Safely get type (fallback to "document" if missing)
+        item_type = item_dict.get("type", "document")
+        item_dict["type"] = item_type
+
+        if item_type == "document":
+            chapters = item_dict.get("chapters", [])
+            chapter_count = len(chapters)
+            total_words = sum(ch.get("wordcount", 0) for ch in chapters)
+
+            item_dict["chapter_count"] = chapter_count
+            item_dict["word_count"] = total_words
+
+        result.append(item_dict)
+
+    return result
+
+
+# ────────────────────────────────────────────────
+# GET SINGLE DOCUMENT / FOLDER
+# ────────────────────────────────────────────────
+@router.get("/{document_id}", response_model=DocumentResponse)
+async def get_document(
     project_id: str,
     document_id: str,
     user_id=Depends(get_current_user)
 ):
-    document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = await get_owned_document(user_id, project_id, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document or folder not found")
 
-    return [
-        {
-            "id": c["id"],
-            "title": c["title"],
-            "wordcount": c["wordcount"],
-            "order": c["order"],
-            "scenes": [
-                {
-                    "id": s["id"],
-                    "title": s["title"],
-                    "wordcount": s["wordcount"],
-                    "order": s["order"]
-                } for s in c["scenes"]
-            ]
-        }
-        for c in document["chapters"]
-    ]
+    # Safely get type
+    doc_type = doc.get("type", "document")
 
-@router.patch("/{document_id}/chapters/{chapter_id}")
-async def rename_chapter(
+    if doc_type == "document":
+        chapters = doc.get("chapters", [])
+        chapter_count = len(chapters)
+        doc["chapter_count"] = chapter_count
+        doc["word_count"] = sum(ch.get("wordcount", 0) for ch in chapters)
+
+    return doc
+
+# ────────────────────────────────────────────────
+# REORDER CHAPTERS
+# ────────────────────────────────────────────────
+@router.put("/{document_id}/chapters/reorder")
+async def reorder_chapters(
     project_id: str,
     document_id: str,
-    chapter_id: str,
-    payload: dict,
-    user_id=Depends(get_current_user)
-):
-    title = payload.get("title")
-    if not title:
-        raise HTTPException(status_code=400, detail="Title required")
-
-    document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    result = await documents_collection.update_one(
-        {
-            "_id": ObjectId(document_id),
-            "chapters.id": chapter_id
-        },
-        {
-            "$set": {
-                "chapters.$.title": title,
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Chapter not found")
-
-    return {"status": "chapter renamed"}
-
-@router.delete("/{document_id}/chapters/{chapter_id}")
-async def delete_chapter(
-    project_id: str,
-    document_id: str,
-    chapter_id: str,
+    payload: ReorderRequest,
     user_id=Depends(get_current_user)
 ):
     document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
 
-    chapter = next(
-        (c for c in document["chapters"] if c["id"] == chapter_id),
-        None
-    )
+    chapter_map = {c["id"]: c for c in document["chapters"]}
 
-    if not chapter:
-        raise HTTPException(status_code=404, detail="Chapter not found")
+    if set(payload.ordered_ids) != set(chapter_map.keys()):
+        raise HTTPException(status_code=400, detail="Invalid chapter IDs")
 
-    chapter_wordcount = chapter.get("wordcount")
-    if chapter_wordcount is None:
-        chapter_wordcount = sum(
-            s.get("wordcount", 0) for s in chapter.get("scenes", [])
-        )
-
-    new_total = max(
-        0,
-        document.get("total_wordcount", 0) - chapter_wordcount
-    )
+    reordered = []
+    for index, cid in enumerate(payload.ordered_ids):
+        chapter_map[cid]["order"] = index
+        reordered.append(chapter_map[cid])
 
     await documents_collection.update_one(
         {"_id": ObjectId(document_id)},
-        {
-            "$pull": {"chapters": {"id": chapter_id}},
-            "$set": {
-                "total_wordcount": new_total,
-                "updated_at": datetime.utcnow()
-            }
-        }
+        {"$set": {"chapters": reordered, "updated_at": datetime.utcnow()}}
     )
 
-    return {"status": "chapter deleted"}
-    
-@router.patch("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}")
-async def rename_scene(
+    return {"status": "Chapters reordered"}
+
+
+# ────────────────────────────────────────────────
+# REORDER SCENES IN CHAPTER
+# ────────────────────────────────────────────────
+@router.put("/{document_id}/chapters/{chapter_id}/scenes/reorder")
+async def reorder_scenes(
     project_id: str,
     document_id: str,
     chapter_id: str,
-    scene_id: str,
-    payload: dict,
+    payload: ReorderRequest,
     user_id=Depends(get_current_user)
 ):
-    title = payload.get("title")
-    if not title:
-        raise HTTPException(status_code=400, detail="Title required")
-
     document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
 
-    result = await documents_collection.update_one(
+    chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    scene_map = {s["id"]: s for s in chapter["scenes"]}
+
+    if set(payload.ordered_ids) != set(scene_map.keys()):
+        raise HTTPException(status_code=400, detail="Invalid scene IDs")
+
+    reordered = []
+    for index, sid in enumerate(payload.ordered_ids):
+        scene_map[sid]["order"] = index
+        reordered.append(scene_map[sid])
+
+    chapter["scenes"] = reordered
+
+    await documents_collection.update_one(
         {"_id": ObjectId(document_id)},
-        {
-            "$set": {
-                "chapters.$[chapter].scenes.$[scene].title": title,
-                "updated_at": datetime.utcnow()
-            }
-        },
-        array_filters=[
-            {"chapter.id": chapter_id},
-            {"scene.id": scene_id}
-        ]
+        {"$set": {"chapters": document["chapters"], "updated_at": datetime.utcnow()}}
     )
 
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Scene not found")
+    return {"status": "Scenes reordered"}
 
-    return {"status": "scene renamed"}
 
-@router.delete("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}")
-async def delete_scene(
-    project_id: str,
-    document_id: str,
-    chapter_id: str,
-    scene_id: str,
-    user_id=Depends(get_current_user)
-):
-    document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    result = await documents_collection.update_one(
-        {
-            "_id": ObjectId(document_id),
-            "chapters.id": chapter_id
-        },
-        {
-            "$pull": {
-                "chapters.$.scenes": {"id": scene_id}
-            },
-            "$set": {"updated_at": datetime.utcnow()}
-        }
-    )
-
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Scene not found")
-
-    return {"status": "scene deleted"}
-
+# ────────────────────────────────────────────────
+# AUTOSAVE SCENE CONTENT
+# ────────────────────────────────────────────────
 @router.put("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}")
 async def autosave_scene(
     project_id: str,
@@ -326,38 +279,46 @@ async def autosave_scene(
     user_id=Depends(get_current_user)
 ):
     document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-    # Find the chapter by chapter_id
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
+
     chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
+
     scene = next((s for s in chapter["scenes"] if s["id"] == scene_id), None)
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
-    # Update scene content and wordcount
+
     content = payload.content
     scene_wordcount = count_words(content)
     scene["content"] = content
     scene["wordcount"] = scene_wordcount
+
     chapter["wordcount"] = sum_scene_wordcounts(chapter["scenes"])
-    total_wordcount = sum(
-        c["wordcount"] for c in document["chapters"]
-    )
+
+    total_wordcount = sum(c["wordcount"] for c in document["chapters"])
+
     await documents_collection.update_one(
-        {"_id": ensure_objectid(document_id)},
+        {"_id": ObjectId(document_id)},
         {"$set": {
             "chapters": document["chapters"],
             "total_wordcount": total_wordcount,
             "updated_at": datetime.utcnow()
         }}
     )
+
     return {
         "scene_id": scene_id,
         "scene_wordcount": scene_wordcount,
+        "chapter_wordcount": chapter["wordcount"],
         "document_wordcount": total_wordcount
     }
 
+
+# ────────────────────────────────────────────────
+# GET SINGLE SCENE
+# ────────────────────────────────────────────────
 @router.get("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}", response_model=SceneResponse)
 async def get_scene(
     project_id: str,
@@ -367,8 +328,8 @@ async def get_scene(
     user_id=Depends(get_current_user)
 ):
     document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
 
     chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
     if not chapter:
@@ -387,19 +348,23 @@ async def get_scene(
         "document_wordcount": document["total_wordcount"]
     }
 
+
+# ────────────────────────────────────────────────
+# GET DOCUMENT OUTLINE (only for documents)
+# ────────────────────────────────────────────────
 @router.get("/{document_id}/outline", response_model=DocumentOutlineResponse)
 async def get_document_outline(
     project_id: str,
     document_id: str,
     user_id=Depends(get_current_user)
 ):
-    document = await get_owned_document(
-    user_id=user_id,
-    project_id=project_id,
-    document_id=document_id
-)
+    document = await get_owned_document(user_id, project_id, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    doc_type = document.get("type", "document")
+    if doc_type == "folder":
+        raise HTTPException(status_code=400, detail="Outline is only available for documents, not folders")
 
     chapters = sorted(document["chapters"], key=lambda c: c["order"])
     for ch in chapters:
@@ -412,66 +377,81 @@ async def get_document_outline(
         "chapters": chapters
     }
 
-@router.put("/{document_id}/chapters/reorder")
-async def reorder_chapters(
+
+# ────────────────────────────────────────────────
+# RENAME DOCUMENT / FOLDER
+# ────────────────────────────────────────────────
+@router.patch("/{document_id}")
+async def update_document(
     project_id: str,
     document_id: str,
-    payload: ReorderRequest,
+    data: dict = Body(...),
+    user_id=Depends(get_current_user)
+):
+    doc = await get_owned_document(user_id, project_id, document_id)
+    if not doc:
+        raise HTTPException(404, "Document or folder not found or not owned")
+
+    update_data = {k: v for k, v in data.items() if v is not None}
+    if update_data:
+        update_data["updated_at"] = datetime.utcnow()
+        await documents_collection.update_one(
+            {"_id": ObjectId(document_id), "project_id": ObjectId(project_id)},
+            {"$set": update_data}
+        )
+
+    updated = await documents_collection.find_one({"_id": ObjectId(document_id)})
+    return serialize_mongo(updated)
+
+
+# ────────────────────────────────────────────────
+# DELETE DOCUMENT / FOLDER
+# ────────────────────────────────────────────────
+@router.delete("/{document_id}")
+async def delete_document(
+    project_id: str,
+    document_id: str,
+    user_id=Depends(get_current_user)
+):
+    doc = await get_owned_document(user_id, project_id, document_id)
+    if not doc:
+        raise HTTPException(404, "Document or folder not found or not owned")
+
+    result = await documents_collection.delete_one({
+        "_id": ObjectId(document_id),
+        "project_id": ObjectId(project_id),
+    })
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Document or folder not found")
+
+    return {"message": "Deleted successfully"}
+
+
+# ────────────────────────────────────────────────
+# CREATE CHAPTER (only for documents)
+# ────────────────────────────────────────────────
+@router.post("/{document_id}/chapters")
+async def create_chapter(
+    project_id: str,
+    document_id: str,
+    data: CreateChapterRequest,
     user_id=Depends(get_current_user)
 ):
     document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    if not document or document.get("type", "document") == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
 
-    chapter_map = {c["id"]: c for c in document["chapters"]}
-
-    if set(payload.ordered_ids) != set(chapter_map.keys()):
-        raise HTTPException(status_code=400, detail="Invalid chapter IDs")
-
-    reordered = []
-    for index, cid in enumerate(payload.ordered_ids):
-        chapter_map[cid]["order"] = index
-        reordered.append(chapter_map[cid])
+    chapter = {
+        "id": str(uuid.uuid4()),
+        "title": data.title.strip(),
+        "order": len(document["chapters"]),
+        "wordcount": 0,
+        "scenes": []
+    }
 
     await documents_collection.update_one(
         {"_id": ObjectId(document_id)},
-        {"$set": {"chapters": reordered}}
+        {"$push": {"chapters": chapter}, "$set": {"updated_at": datetime.utcnow()}}
     )
 
-    return {"status": "chapters reordered"}
-
-@router.put("/{document_id}/chapters/{chapter_id}/scenes/reorder")
-async def reorder_scenes(
-    project_id: str,
-    document_id: str,
-    chapter_id: str,
-    payload: ReorderRequest,
-    user_id=Depends(get_current_user)
-):
-    document = await get_owned_document(user_id, project_id, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    for chapter in document["chapters"]:
-        if chapter["id"] == chapter_id:
-            scene_map = {s["id"]: s for s in chapter["scenes"]}
-
-            if set(payload.ordered_ids) != set(scene_map.keys()):
-                raise HTTPException(status_code=400, detail="Invalid scene IDs")
-
-            reordered = []
-            for index, sid in enumerate(payload.ordered_ids):
-                scene_map[sid]["order"] = index
-                reordered.append(scene_map[sid])
-
-            chapter["scenes"] = reordered
-            break
-    else:
-        raise HTTPException(status_code=404, detail="Chapter not found")
-
-    await documents_collection.update_one(
-        {"_id": ObjectId(document_id)},
-        {"$set": {"chapters": document["chapters"]}}
-    )
-
-    return {"status": "scenes reordered"}
+    return chapter

@@ -28,7 +28,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.add(theme);
 
     // Optional: apply body class if needed for non-Tailwind elements
-    document.body.className = theme;
+    document.body.classList.remove("light-modern", "dark-minimal", "sepia-classic");
+    document.body.classList.add(theme);
   }, [theme]);
 
   return (

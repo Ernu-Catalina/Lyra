@@ -5,6 +5,7 @@ from app.utils.auth import get_current_user
 from datetime import datetime
 from app.utils.mongo import serialize_mongo
 from bson import ObjectId
+from bson import errors as bson_errors
 from pydantic import BaseModel
 from typing import Optional
 
@@ -18,6 +19,19 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 async def get_projects(user_id=Depends(get_current_user)):
     projects = await projects_collection.find({"user_id": ObjectId(user_id)}).to_list(100)
     return [serialize_mongo(p) for p in projects]
+
+@router.get("/{project_id}")
+async def get_project(project_id: str, user_id=Depends(get_current_user)):
+    try:
+        project = await projects_collection.find_one({
+            "_id": ObjectId(project_id),
+            "user_id": ObjectId(user_id)
+        })
+    except bson_errors.InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return serialize_mongo(project)
 
 @router.post("/")
 async def create_project(

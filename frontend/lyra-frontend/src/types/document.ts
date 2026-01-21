@@ -20,3 +20,9 @@ export interface DocumentOutline {
   total_wordcount: number;
   chapters: Chapter[];
 }
+
+export interface Project {
+  _id: string;
+  name: string;
+  cover_image_url?: string;
+}

@@ -8,18 +8,20 @@
   --text-secondary: #475569;
   --border: #e2e8f0;
   --accent: #715fb3;
+  --accent-dim: #a78bfa;
+  --glow: rgba(113, 95, 179, 0.1);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: 'Georgia', serif;
 }
 
 .dark-minimal{
   --bg-primary:   #030407;
-  --bg-secondary: #080b14;
+  --bg-secondary: #121225;
   --text-primary:   #f1f5f9;
   --text-secondary: #cbd5e1;
-  --border:       #1e293b;
-  --accent:       #7db0fc;
-  --accent-dim:   #5779ac;
+  --border:       rgb(65, 65, 117);
+  --accent:       #7171a8;
+  --accent-dim:   #37375e;
   --glow:         rgba(166, 174, 201, 0.12);
   --font-sans:    'Inter', system-ui, sans-serif;
   --font-serif:   'Georgia', serif;
@@ -33,8 +35,16 @@
   --text-secondary: #8d6e63;
   --border: #d7ccc8;
   --accent: #8d5524;
+  --accent-dim: #b5651d;
+  --glow: rgba(141, 85, 36, 0.1);
   --font-sans: 'Georgia', serif;
   --font-serif: 'Georgia', serif;
+}
+
+@media (max-width: 640px) {
+  .group .font-medium {
+    font-weight: 700; /* bold title on mobile */
+  }
 }
 
 /* Apply variables globally */

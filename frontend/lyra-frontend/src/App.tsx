@@ -1,14 +1,14 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import LoginPage from "./features/auth/Login.page";
-import RegisterPage from "./features/auth/Register.page";
-import ProjectsPage from "./features/projects/Projects.page";
-import DocumentsPage from "./features/documents/Documents.page";
-import EditorPage from "./features/editor/Editor.page";
+import LoginPage from "./pages/auth/Login.page";
+import RegisterPage from "./pages/auth/Register.page";
+import ProjectsPage from "./pages/projects/Projects.page";
+import DocumentsPage from "./pages/documents/Documents.page";
+import EditorPage from "./pages/editor/Editor.page";
 
 import ProtectedRoute from "./auth/ProtectedRoute";
-import SettingsPage from "./features/settings/Settings.page";
+import SettingsPage from "./pages/settings/Settings.page";
 
 function App() {
   return (
