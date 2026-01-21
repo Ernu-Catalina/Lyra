@@ -2,10 +2,11 @@ import FolderGrid from "./FolderGrid";
 
 interface FolderGridSystemProps {
   folders: any[];
-  onEnterFolder: (id: string) => void;
+  onEnterFolder: (id: string, title: string) => void;  // ← changed
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
   sidebarOpen: boolean;
+  currentFolderId?: string | null;
 }
 
 export default function FolderGridSystem({
@@ -14,6 +15,7 @@ export default function FolderGridSystem({
   onEdit,
   onDelete,
   sidebarOpen,
+  currentFolderId,
 }: FolderGridSystemProps) {
   return (
     <FolderGrid
@@ -22,6 +24,7 @@ export default function FolderGridSystem({
       onEdit={onEdit}
       onDelete={onDelete}
       sidebarOpen={sidebarOpen}
+      currentFolderId={currentFolderId}
     />
   );
 }

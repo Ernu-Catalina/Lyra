@@ -1,15 +1,20 @@
 // src/components/documents/DocumentList.tsx
+import { useDroppable } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import FolderGridSystem from "./FolderGridSystem";
 import DocumentListItem from "./DocumentListItem";
 import DocumentHeader from "./DocumentHeader";
+import type { Item } from "../../types/document";  // ← Item can be folder or document
 
 interface DocumentListProps {
-  items: any[];
-  onEnterFolder: (id: string) => void;
+  items: Item[];
+  onEnterFolder: (id: string, title: string) => void;   // ← now needs title
   onNavigateDocument: (id: string) => void;
-  onEdit: (item: any) => void;
+  onEdit: (item: Item) => void;
   onDelete: (id: string) => void;
-  sidebarOpen: boolean;  // ← add this
+  sidebarOpen: boolean;
+  currentFolderId: string | null;   // ← add this
 }
 
 export default function DocumentList({
@@ -18,34 +23,60 @@ export default function DocumentList({
   onNavigateDocument,
   onEdit,
   onDelete,
+  currentFolderId,
 }: DocumentListProps) {
-  const folders = items.filter(i => i.type === "folder");
-  const documents = items.filter(i => i.type === "document");
+  const folders = items.filter((i) => i.type === "folder");
+  const documents = items.filter((i) => i.type === "document");
+
+function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,         
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
-      {/* Folders Grid */}
+      {/* Folders Grid - each folder is droppable */}
       <FolderGridSystem
         folders={folders}
         onEnterFolder={onEnterFolder}
-        onEdit={onEdit}  
+        onEdit={onEdit}
         onDelete={onDelete}
         sidebarOpen={false}
+        currentFolderId={currentFolderId}
       />
 
       {/* Documents List */}
       {documents.length > 0 && (
-        <div>
+        <div className="mt-8">
+          <DocumentHeader />
           <div className="divide-y divide-[var(--border)]/30">
-            <DocumentHeader />
             {documents.map((doc) => (
-              <DocumentListItem
-                key={doc._id}
-                document={doc}
-                onNavigate={() => onNavigateDocument(doc._id)}
-                onEdit={() => onEdit(doc)}
-                onDelete={() => onDelete(doc._id)}
-              />
+              <SortableItem key={doc._id} id={doc._id}>
+                <DocumentListItem
+                  document={doc}
+                  onNavigate={() => onNavigateDocument(doc._id)}
+                  onEdit={() => onEdit(doc)}
+                  onDelete={() => onDelete(doc._id)}
+                />
+              </SortableItem>
             ))}
           </div>
         </div>

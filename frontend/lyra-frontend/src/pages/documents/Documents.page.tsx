@@ -9,10 +9,25 @@ import DocumentList from "../documents/components/DocumentList";
 import EditItemModal from "../documents/components/EditItemModal";
 import CreateItemModal from "../documents/components/CreateItemModal";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
-import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
-import { X } from "lucide-react";
+import { ChevronLeft, Menu } from "lucide-react";
 import CreateButton from "../../common_components/CreateButton";
 import { Project } from "../../types/document";
+import Breadcrumb from "./components/Breadcrumb";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { DragOverlay } from "@dnd-kit/core";
 
 interface Item {
   _id: string;
@@ -40,6 +55,15 @@ export default function Documents() {
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop default: open
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<string[]>([]);
+  const [folderPath, setFolderPath] = useState<Array<{ id: string | null; title: string }>>([
+  { id: null, title: project?.name || "Project Root" },
+]);
+
+  useEffect(() => {
+    if (project) {
+      setFolderPath(prev => [{ id: null, title: project.name }, ...prev.slice(1)]);
+    }
+  }, [project]);
 
   // Create modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -57,6 +81,54 @@ export default function Documents() {
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  const sensors = useSensors(
+  useSensor(PointerSensor),
+  useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  })
+);
+
+const [activeId, setActiveId] = useState<string | null>(null);
+const [activeDocumentTitle, setActiveDocumentTitle] = useState<string>("");
+
+const handleDragEnd = async (event: DragEndEvent) => {
+  const { active, over } = event;
+  if (!over) return;
+
+  const activeId = active.id as string;
+  const overId = over.id as string;
+
+  if (activeId === overId) return;
+
+  const item = items.find(i => i._id === activeId);
+  if (!item || item.type !== "document") return; // only documents
+
+  const newParentId = overId === "root" ? null : overId;
+
+  try {
+    await api.patch(`/projects/${projectId}/documents/${activeId}`, {
+      parent_id: newParentId,
+    });
+    fetchData();
+  } catch (err) {
+    setError("Failed to move document");
+  }
+};
+
+const isDescendant = (parentId: string | null, childId: string): boolean => {
+  if (parentId === null) return false;
+  const queue = [parentId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const children = items.filter(i => i.parent_id === current);
+    for (const child of children) {
+      if (child._id === childId) return true;
+      queue.push(child._id);
+    }
+  }
+  return false;
+};
 
 const fetchData = useCallback(async () => {
   if (!projectId) return;
@@ -161,15 +233,30 @@ const fetchData = useCallback(async () => {
     }
   };
 
-  const enterFolder = (folderId: string) => {
+  const enterFolder = (folderId: string, folderTitle: string) => {
     setFolderStack((prev) => [...prev, folderId]);
     setCurrentFolderId(folderId);
+    setFolderPath((prev) => [...prev, { id: folderId, title: folderTitle }]);
+  };
+
+  const goToFolder = (index: number) => {
+    if (index >= folderPath.length) return;
+    const target = folderPath[index];
+    setCurrentFolderId(target.id);
+    setFolderStack(folderPath.slice(1, index + 1).map((p) => p.id!));
+    setFolderPath(folderPath.slice(0, index + 1));
   };
 
   const goBack = () => {
     const newStack = folderStack.slice(0, -1);
     setFolderStack(newStack);
     setCurrentFolderId(newStack.length > 0 ? newStack[newStack.length - 1] : null);
+  };
+
+  const handleEnterFolder = (id: string, title: string) => {
+    setCurrentFolderId(id);
+    setFolderPath(prev => [...prev, { id, title }]);
+    setFolderStack(prev => [...prev, id]);
   };
 
   const sortedAndFiltered = [...items]
@@ -202,8 +289,8 @@ const fetchData = useCallback(async () => {
         {/* Sidebar – fixed (unchanged) */}
         <aside
           className={`
-            fixed top-[var(--nav-height,64px)] left-0 z-40
-            h-[calc(100vh-var(--nav-height,64px))]
+            fixed top-[var(--nav-height,60px)] left-0 z-40
+            h-[calc(100vh-var(--nav-height,60px))]
             transition-all duration-300 ease-in-out
             ${sidebarOpen ? "w-80 lg:w-96" : "w-14"}
             bg-[var(--bg-secondary)] border-r border-[var(--border)]
@@ -278,11 +365,35 @@ const fetchData = useCallback(async () => {
         <main
           className={`
             flex-1 overflow-y-auto relative
-            mt-[calc(5rem+1.25rem)] lg:mt-[calc(5rem+1.25rem)]   /* ≈ py-5 + mb-6 ≈ 80px; adjust if needed */
+            mt-[calc(5rem+1.25rem)] lg:mt-[calc(5rem+1.25rem)] 
             ${sidebarOpen ? "lg:pl-80 lg:xl:pl-96" : "lg:pl-14"}
             transition-all duration-300 ease-in-out
           `}
         >
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e) => {
+              const id = e.active.id as string;
+              setActiveId(id);
+              const item = items.find(i => i._id === id);
+              setActiveTitle(item?.title || "");
+            }}
+            onDragEnd={(event) => {
+              setActiveId(null);
+              setActiveDocumentTitle("");
+              // your existing handleDragEnd logic here
+            }}
+            onDragCancel={() => {
+              setActiveId(null);
+              setActiveDocumentTitle("");
+            }}
+          >
+            <SortableContext
+              items={sortedAndFiltered.map((i) => i._id)}
+              strategy={verticalListSortingStrategy}
+            >
+
           {/* Overlay for mobile sidebar */}
           {isMobile && sidebarOpen && (
             <div
@@ -291,10 +402,12 @@ const fetchData = useCallback(async () => {
             />
           )}
 
+          <Breadcrumb path={folderPath} onClick={goToFolder} currentFolderId={currentFolderId} />
+
           {/* Document list – takes full remaining width */}
           <DocumentList
             items={sortedAndFiltered}
-            onEnterFolder={enterFolder}
+            onEnterFolder={handleEnterFolder}
             onNavigateDocument={(id) => navigate(`/editor/${id}`)}
             onEdit={(item) => {
               setEditItem(item);
@@ -307,6 +420,23 @@ const fetchData = useCallback(async () => {
             }}
             sidebarOpen={sidebarOpen}
           />
+          <DragOverlay dropAnimation={null}>
+            {activeId ? (
+              <div className="
+                flex items-center gap-3 px-5 py-3 
+                bg-[var(--bg-secondary)]/95 backdrop-blur-sm 
+                border border-[var(--accent)]/30 rounded-lg 
+                shadow-2xl min-w-[240px] max-w-[320px]
+              ">
+                <FileText size={28} className="text-[var(--accent)] flex-shrink-0" />
+                <span className="font-medium text-[var(--text-primary)] line-clamp-1">
+                  {activeTitle || "Untitled"}
+                </span>
+              </div>
+            ) : null}
+          </DragOverlay>
+            </SortableContext>
+          </DndContext>
         </main>
       </div>
 

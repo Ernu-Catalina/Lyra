@@ -26,3 +26,14 @@ export interface Project {
   name: string;
   cover_image_url?: string;
 }
+
+export interface Item {
+  _id: string;
+  title: string;
+  type: "document" | "folder";
+  created_at: string;
+  updated_at: string;
+  chapter_count?: number;
+  word_count?: number;
+  parent_id: string | null;     // ← make non-optional for clarity
+}
