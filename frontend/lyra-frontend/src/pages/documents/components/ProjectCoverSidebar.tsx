@@ -1,5 +1,5 @@
-// src/components/sidebar/ProjectCoverSidebar.tsx
-import { ChevronLeft } from "lucide-react";
+// src/pages/documents/components/ProjectCoverSidebar.tsx
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Project } from "../../../types/document";
 
 interface ProjectCoverSidebarProps {
@@ -8,22 +8,19 @@ interface ProjectCoverSidebarProps {
   onToggle: () => void;
 }
 
-// src/components/sidebar/ProjectCoverSidebar.tsx
-
 export default function ProjectCoverSidebar({ project, isOpen, onToggle }: ProjectCoverSidebarProps) {
   return (
     <aside
       className={`
         bg-[var(--bg-secondary)] border-r border-[var(--border)] transition-all duration-300
-        ${isOpen ? "w-80 lg:w-96" : "w-0"}
+        ${isOpen ? "w-80 lg:w-96" : "w-14"}
         overflow-hidden flex-shrink-0
         fixed inset-y-0 left-0 z-40 lg:relative lg:inset-auto
-        h-screen   /* full height */
+        h-[calc(100vh-var(--nav-height,64px))]
       `}
     >
-      {isOpen && (
+      {isOpen ? (
         <div className="h-full flex flex-col">
-          {/* Cover – fills remaining space, no scroll */}
           <div className="flex-1 relative bg-gradient-to-br from-[var(--accent)] to-indigo-600 overflow-hidden">
             {project?.cover_image_url ? (
               <img
@@ -41,7 +38,6 @@ export default function ProjectCoverSidebar({ project, isOpen, onToggle }: Proje
             )}
           </div>
 
-          {/* Close button – always visible */}
           <button
             type="button"
             onClick={onToggle}
@@ -52,7 +48,6 @@ export default function ProjectCoverSidebar({ project, isOpen, onToggle }: Proje
           </button>
         </div>
       ) : (
-        {/* Collapsed state: thin bar with centered chevron – always visible */}
         <button
           type="button"
           onClick={onToggle}

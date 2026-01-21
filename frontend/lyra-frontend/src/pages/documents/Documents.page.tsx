@@ -6,9 +6,10 @@ import { useAuth } from "../../auth/useAuth";
 import NavigationBar from "../../common_components/NavigationBar";
 import ProjectCoverSidebar from "../documents/components/ProjectCoverSidebar";
 import DocumentList from "../documents/components/DocumentList";
+import EditItemModal from "../documents/components/EditItemModal";
 import CreateItemModal from "../documents/components/CreateItemModal";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { X } from "lucide-react";
 import CreateButton from "../../common_components/CreateButton";
 import { Project } from "../../types/document";
@@ -35,7 +36,8 @@ export default function Documents() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"updated-desc" | "title-asc" | "title-desc">("updated-desc");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [sidebarOpen, setSidebarOpen] = useState(true); // desktop default: open
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<string[]>([]);
 
@@ -53,33 +55,58 @@ export default function Documents() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    if (!projectId) return;
-    setLoading(true);
-    setError("");
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
-    try {
-      const projectRes = await api.get(`/projects/${projectId}`);
-      setProject(projectRes.data);
+const fetchData = useCallback(async () => {
+  if (!projectId) return;
+  setLoading(true);
+  setError("");
 
-      const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
-      const itemsRes = await api.get(`/projects/${projectId}/documents${params}`);
-      setItems(itemsRes.data);
-    } catch (err: any) {
-      if (err.response?.status === 401) {
-        logout();
-        navigate("/login");
-      } else {
-        setError("Failed to load data");
-      }
-    } finally {
-      setLoading(false);
+  const controller = new AbortController();
+
+  try {
+    const projectRes = await api.get(`/projects/${projectId}`, { signal: controller.signal });
+    setProject(projectRes.data);
+
+    const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
+    const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { signal: controller.signal });
+    setItems(itemsRes.data || []);
+  } catch (err: any) {
+    if (err.name === 'AbortError') return;
+    console.error("Fetch failed:", err);
+    const msg = err.response?.data?.detail || err.message || "Failed to load";
+    setError(msg);
+    if (err.response?.status === 401) {
+      logout();
+      navigate("/login");
     }
-  }, [projectId, currentFolderId, logout, navigate]);
+  } finally {
+    setLoading(false);
+  }
+
+  return () => controller.abort();
+}, [projectId, currentFolderId, logout, navigate]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const nowMobile = window.innerWidth < 1024;
+      setIsMobile(nowMobile);
+      // On mobile → close sidebar by default
+      // On desktop → keep it open if it was open, close only if user explicitly closed
+      if (nowMobile) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // run once on mount
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleCreateItem = async () => {
     if (!projectId || !newItemName.trim()) {
@@ -102,35 +129,24 @@ export default function Documents() {
     }
   };
 
-const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const handleUpdateItem = async () => {
+    if (!projectId || !editItem || !editItem._id || !editItemName.trim()) {
+      setError("Cannot update: missing ID or name");
+      return;
+    }
 
-useEffect(() => {
-  const handleResize = () => {
-    setIsMobile(window.innerWidth < 1024);
-    if (window.innerWidth < 1024) setSidebarOpen(false); // force close on mobile
+    try {
+      await api.patch(`/projects/${projectId}/documents/${editItem._id}`, {
+        title: editItemName.trim(),
+      });
+      setEditModalOpen(false);
+      setEditItem(null);
+      setError("");
+      fetchData();
+    } catch (err: any) {
+      setError("Failed to update item");
+    }
   };
-  window.addEventListener("resize", handleResize);
-  return () => window.removeEventListener("resize", handleResize);
-}, []);
-
-const handleUpdateItem = async () => {
-  if (!projectId || !editItem || !editItem._id || !editItemName.trim()) {
-    setError("Cannot update: missing ID or name");
-    return;
-  }
-
-  try {
-    await api.patch(`/projects/${projectId}/documents/${editItem._id}`, {
-      title: editItemName.trim(),
-    });
-    setEditModalOpen(false);
-    setEditItem(null);
-    setError("");
-    fetchData();
-  } catch (err: any) {
-    setError("Failed to update item");
-  }
-};
 
   const handleDeleteItem = async () => {
     if (!projectId || !itemToDelete) return;
@@ -145,10 +161,10 @@ const handleUpdateItem = async () => {
     }
   };
 
-const enterFolder = (folderId: string) => {
-  setFolderStack(prev => [...prev, folderId]);
-  setCurrentFolderId(folderId);
-};
+  const enterFolder = (folderId: string) => {
+    setFolderStack((prev) => [...prev, folderId]);
+    setCurrentFolderId(folderId);
+  };
 
   const goBack = () => {
     const newStack = folderStack.slice(0, -1);
@@ -157,166 +173,167 @@ const enterFolder = (folderId: string) => {
   };
 
   const sortedAndFiltered = [...items]
-    .filter(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((item) => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === "title-asc") return a.title.localeCompare(b.title);
       if (sortBy === "title-desc") return b.title.localeCompare(a.title);
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
 
-return (
-  <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-    {/* Fixed Navigation Bar */}
-    <header className="sticky top-0 z-50 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
-      <NavigationBar
-        title={project?.name || "Drafts"}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onLogout={() => { logout(); navigate("/login"); }}
-        onSettings={() => navigate("/settings")}
-      />
-    </header>
-
-    {error && (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
-        {error}
-      </div>
-    )}
-
-    {/* Fixed Sidebar + Scrollable Content */}
-    <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar – fixed, full height, no internal scroll */}
-      <ProjectCoverSidebar
-        project={project}
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(prev => !prev)}
-      />
-      <main className="flex-1 overflow-y-auto">
-        {/* Header controls */}
-        <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="flex items-center gap-4">
-              {folderStack.length > 0 && (
-                <button
-                  onClick={goBack}
-                  className="flex items-center gap-1 text-[var(--accent)] hover:underline"
-                >
-                  <ChevronLeft size={16} /> Back
-                </button>
-              )}
-              <CreateButton
-                onClick={() => setCreateModalOpen(true)}
-                label="Create Draft"
-              />
-            </div>
-
-            <div className="flex items-center gap-3">
-              <label htmlFor="sort-documents" className="text-sm text-[var(--text-secondary)]">
-                Sort by:
-              </label>
-              <select
-                id="sort-documents"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] min-w-[160px]"
-              >
-                <option value="updated-desc">Recently updated</option>
-                <option value="title-asc">Title (A–Z)</option>
-                <option value="title-desc">Title (Z–A)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Folder + Document List */}
-        <DocumentList
-          items={sortedAndFiltered}
-          onEnterFolder={enterFolder}
-          onNavigateDocument={(id) => navigate(`/projects/${projectId}/documents/${id}`)}
-          onEdit={(item) => {
-            setEditItem(item);
-            setEditItemName(item.title);
-            setEditModalOpen(true);
+  return (
+      <div key={projectId} className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      {/* Fixed Navigation Bar */}
+      <header className="sticky top-0 z-50 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+        <NavigationBar
+          title={project?.name || "Drafts"}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onLogout={() => {
+            logout();
+            navigate("/login");
           }}
-          onDelete={(id) => {
-            setItemToDelete(id);
-            setDeleteModalOpen(true);
-          }}
+          onSettings={() => navigate("/settings")}
         />
-      </main>
-    </div>
+      </header>
 
-    {/* Modals */}
-    <CreateItemModal
-      isOpen={createModalOpen}
-      onClose={() => setCreateModalOpen(false)}
-      onCreate={handleCreateItem}
-      name={newItemName}
-      onNameChange={setNewItemName}
-      type={newItemType}
-      onTypeChange={setNewItemType}
-    />
+      {/* Main layout: sidebar + content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar – fixed left, full height below nav */}
+        <aside
+          className={`
+            fixed inset-y-0 left-0 z-40 lg:static lg:inset-auto
+            transition-all duration-300 ease-in-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+            ${sidebarOpen ? "w-80 lg:w-96" : "w-14 lg:w-14"}
+            bg-[var(--bg-secondary)] border-r border-[var(--border)]
+            overflow-hidden flex-shrink-0
+            h-[calc(100vh-var(--nav-height,64px))]
+          `}
+        >
+          <ProjectCoverSidebar
+            project={project}
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen((prev) => !prev)}
+          />
+        </aside>
 
-    {editModalOpen && editItem && (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-        <div className="bg-[var(--bg-secondary)] rounded-xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-[var(--border)]">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-xl font-bold text-[var(--text-primary)]">Edit Item</h2>
-            <button
-              type="button"
-              onClick={() => setEditModalOpen(false)}
-              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-full p-1"
-              aria-label="Close"
-            >
-              <X size={24} />
-            </button>
+        {/* Main content area */}
+        <main className="flex-1 overflow-y-auto relative">
+          {/* Optional overlay for mobile when sidebar is open */}
+          {isMobile && sidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+
+          {/* Header controls */}
+          <div className="px-4 sm:px-6 lg:px-8 py-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                {/* Back button in folder */}
+                {folderStack.length > 0 && (
+                  <button
+                    onClick={goBack}
+                    className="text-[var(--accent)] hover:text-[var(--accent-dark)] transition"
+                    aria-label="Go back"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                )}
+
+                {/* Hamburger menu – only on mobile */}
+                {isMobile && !sidebarOpen && (
+                  <button
+                    onClick={() => setSidebarOpen(true)}
+                    className="lg:hidden p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    aria-label="Open sidebar"
+                  >
+                    <Menu size={24} />
+                  </button>
+                )}
+
+                <CreateButton onClick={() => setCreateModalOpen(true)} label="Create" />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label htmlFor="sort-documents" className="text-sm text-[var(--text-secondary)]">
+                  Sort by:
+                </label>
+                <select
+                  id="sort-documents"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] min-w-[160px]"
+                >
+                  <option value="updated-desc">Recently updated</option>
+                  <option value="title-asc">Title (A–Z)</option>
+                  <option value="title-desc">Title (Z–A)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-5">
-            <div>
-              <label htmlFor="edit-item-name" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                Name
-              </label>
-              <input
-                id="edit-item-name"
-                type="text"
-                value={editItemName}
-                onChange={(e) => setEditItemName(e.target.value)}
-                className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--accent)] outline-none bg-[var(--bg-secondary)] text-[var(--text-primary)]"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={handleUpdateItem}
-                disabled={!editItemName.trim()}
-                className="flex-1 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent)]/90 disabled:opacity-50 transition font-medium"
-              >
-                Save Changes
-              <button
-                type="button"
-                onClick={() => setEditModalOpen(false)}
-                className="flex-1 py-2.5 bg-[var(--border)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--border)]/80 transition font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+          {/* Document list – takes full remaining width */}
+          <DocumentList
+            items={sortedAndFiltered}
+            onEnterFolder={enterFolder}
+            onNavigateDocument={(id) => navigate(`/editor/${id}`)}
+            onEdit={(item) => {
+              setEditItem(item);
+              setEditItemName(item.title);
+              setEditModalOpen(true);
+            }}
+            onDelete={(id) => {
+              setItemToDelete(id);
+              setDeleteModalOpen(true);
+            }}
+            sidebarOpen={sidebarOpen}
+          />
+        </main>
       </div>
-    )}
 
-    <DeleteConfirmationModal
-      isOpen={deleteModalOpen}
-      onClose={() => {
-        setDeleteModalOpen(false);
-        setItemToDelete(null);
-      }}
-      onConfirm={handleDeleteItem}
-      title={itemToDelete?.type === "folder" ? "Delete Folder?" : "Delete Document?"}
-      message={`Are you sure you want to delete "${itemToDelete?.title}"? This action cannot be undone.`}
-    />
-  </div>
-);
+      {/* Error message */}
+      {error && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded shadow-lg z-50">
+          {error}
+        </div>
+      )}
+
+      {/* Modals */}
+      <CreateItemModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreate={handleCreateItem}
+        name={newItemName}
+        onNameChange={setNewItemName}
+        type={newItemType}
+        onTypeChange={setNewItemType}
+      />
+
+      {editModalOpen && editItem && (
+        <EditItemModal
+          isOpen={editModalOpen}
+          onClose={() => {
+            setEditModalOpen(false);
+            setEditItem(null);   
+          }}
+          onSave={handleUpdateItem}
+          name={editItemName}
+          onNameChange={setEditItemName}
+        />
+      )}
+
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={handleDeleteItem}
+        title={itemToDelete?.type === "folder" ? "Delete Folder?" : "Delete Document?"}
+        message={`Are you sure you want to delete "${itemToDelete?.title}"? This action cannot be undone.`}
+      />
+    </div>
+  );
 }

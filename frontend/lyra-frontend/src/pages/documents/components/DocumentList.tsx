@@ -9,6 +9,7 @@ interface DocumentListProps {
   onNavigateDocument: (id: string) => void;
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
+  sidebarOpen: boolean;  // ← add this
 }
 
 export default function DocumentList({

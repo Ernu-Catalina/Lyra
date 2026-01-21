@@ -5,6 +5,7 @@ interface FolderGridProps {
   onEnterFolder: (folderId: string) => void;
   onEdit: (folder: any) => void;
   onDelete: (folderId: string) => void;
+  sidebarOpen: boolean;
 }
 
 export default function FolderGrid({
@@ -12,37 +13,40 @@ export default function FolderGrid({
   onEnterFolder,
   onEdit,
   onDelete,
+  sidebarOpen,
 }: FolderGridProps) {
   if (folders.length === 0) return null;
 
   return (
-    <div className="mb-8">
-      <h2 className="text-xl font-semibold mb-5 text-[var(--text-primary)]">Folders</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+    <div className="mb-6">
+      <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">Folders</h2>
+      <div className={`
+        grid gap-4
+        ${sidebarOpen ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}
+      `}>
         {folders.map((folder) => (
           <div
             key={folder._id}
             onClick={() => onEnterFolder(folder._id)}
-            className="group relative flex flex-col items-center p-6 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:border-[var(--accent)]/50 hover:shadow-md transition cursor-pointer"
+            className="group flex flex-col items-center p-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl hover:border-[var(--accent)]/50 hover:shadow-md transition cursor-pointer aspect-[4/5] max-w-[180px] mx-auto"
           >
-            <Folder size={64} className="text-yellow-500 mb-4" />
-            <span className="font-medium text-center text-base line-clamp-2 group-hover:text-[var(--accent)] mb-4">
+            <Folder size={48} className="text-[var(--accent)] mb-2" />
+            <span className="font-medium text-center text-sm line-clamp-2 group-hover:text-[var(--accent)] mb-3">
               {folder.title}
             </span>
 
-            {/* Edit & Delete – always visible */}
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(folder);
                 }}
-                className="p-2 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
+                className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
                 aria-label="Edit folder"
                 title="Edit folder"
               >
-                <Edit size={20} />
+                <Edit size={18} />
               </button>
               <button
                 type="button"
@@ -50,11 +54,11 @@ export default function FolderGrid({
                   e.stopPropagation();
                   onDelete(folder._id);
                 }}
-                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition"
+                className="p-1.5 text-[var(--text-secondary)] hover:text-red-600 hover:bg-red-50/50 rounded transition"
                 aria-label="Delete folder"
                 title="Delete folder"
               >
-                <Trash2 size={20} />
+                <Trash2 size={18} />
               </button>
             </div>
           </div>
