@@ -8,6 +8,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Suppress Zotero extension errors during development
+      (function() {
+        const originalError = console.error;
+        console.error = function(...args) {
+          if (args.some(arg => typeof arg === 'string' && (arg.includes('zotero') || arg.includes('inject') || arg.includes('getAllResponseHeaders')))) {
+            return; // Suppress
+          }
+          originalError.apply(console, args);
+        };
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

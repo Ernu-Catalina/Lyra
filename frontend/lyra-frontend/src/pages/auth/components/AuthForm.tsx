@@ -1,69 +1,159 @@
 // features/auth/components/AuthForm.tsx
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import AuthLayout from "./AuthLayout";
+import AuthInput from "./AuthInput";
+import AuthButton from "./AuthButton";
+import AuthLink from "./AuthLink";
 import api from "../../../api/client";
 import { useAuth } from "../../../auth/useAuth";
 
+type Mode = "login" | "register";
+
 interface AuthFormProps {
-  mode: "login" | "register";
+  mode: Mode;
 }
 
 export default function AuthForm({ mode }: AuthFormProps) {
+  const navigate = useNavigate();
+  const isLogin = mode === "login";
   const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  const handleEmailChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEmail(val);
+    setEmailError("");
+
+    if (val && !validateEmail(val)) {
+      setEmailError("Please enter a valid email address");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    if (isLoading) return;
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
+    setFormError("");
+
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    if (!password) {
+      setFormError("Password is required");
+      return;
+    }
+
+    if (!isLogin && !name.trim()) {
+      setFormError("Full name is required");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
-      const res = await api.post(endpoint, { email, password });
-      login(res.data.access_token);
+      const endpoint = isLogin ? "/auth/login" : "/auth/register";
+      const body = isLogin ? { email, password } : { name, email, password };
+
+      const res = await api.post(endpoint, body);
+      const data = res.data;
+
+      if (res.status !== 200) {
+        throw new Error(data.detail || data.message || "Authentication failed");
+      }
+
+      // Store token (adjust according to your auth system)
+      localStorage.setItem("token", data.access_token);
+      login(data.access_token);
       navigate("/projects");
-    } catch (err: unknown) {
-      interface AxiosError { response?: { data?: { detail?: string } } }
-      const error = err as AxiosError;
-      setError(error.response?.data?.detail ?? `${mode === "login" ? "Login" : "Registration"} failed`);
+    } catch (err: any) {
+      if (!isLogin && err.message.includes("Email already registered")) {
+        setEmailError(err.message);
+      } else {
+        setFormError(err.message);
+      }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <h2>{mode === "login" ? "Login" : "Register"}</h2>
+    <AuthLayout
+      title={isLogin ? "Sign In" : "Create Account"}
+      subtitle={isLogin ? "Welcome back — let's get writing" : "Join DraftFlow and start collaborating"}
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {!isLogin && (
+          <AuthInput
+            label="Full Name"
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+          />
+        )}
 
-      <form onSubmit={handleSubmit}>
-        <input
-          placeholder="Email"
+        <AuthInput
+          label="Email Address"
+          id="email"
+          type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={handleEmailChange}
+          error={emailError}
+          required
           autoComplete="email"
         />
 
-        <input
-          placeholder="Password"
+        <AuthInput
+          label="Password"
+          id="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          required
+          autoComplete={isLogin ? "current-password" : "new-password"}
         />
 
-        <button type="submit" disabled={isLoading}>{isLoading ? "Loading..." : mode === "login" ? "Login" : "Register"}</button>
+        {formError && (
+          <p className="text-red-600 text-sm text-center font-medium">
+            {formError}
+          </p>
+        )}
+
+        <AuthButton type="submit" loading={loading}>
+          {isLogin ? "Sign In" : "Create Account"}
+        </AuthButton>
       </form>
 
-      <p>
-        {mode === "login" ? "Don't have an account?" : "Already have an account?"} <Link to={mode === "login" ? "/register" : "/login"}>{mode === "login" ? "Register" : "Login"}</Link>
-      </p>
-
-      {error && <p className="auth-error">{error}</p>}
-    </div>
+      <div className="mt-8 text-center space-y-3 text-sm">
+        {isLogin ? (
+          <>
+            <p className="text-[var(--text-secondary)]">
+              New here? <AuthLink to="/register">Create an account</AuthLink>
+            </p>
+            <p>
+              <AuthLink to="/forgot-password">Forgot your password?</AuthLink>
+            </p>
+          </>
+        ) : (
+          <p className="text-[var(--text-secondary)]">
+            Already have an account? <AuthLink to="/login">Sign in</AuthLink>
+          </p>
+        )}
+      </div>
+    </AuthLayout>
   );
 }

@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "./pages/auth/Login.page";
 import RegisterPage from "./pages/auth/Register.page";
+import ForgotPasswordForm from "./pages/auth/components/ForgotPasswordForm";
+import ResetPasswordForm from "./pages/auth/components/ResetPasswordForm";
 import ProjectsPage from "./pages/projects/Projects.page";
 import DocumentsPage from "./pages/documents/Documents.page";
 import EditorPage from "./pages/editor/Editor.page";
@@ -17,6 +19,8 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+        <Route path="/reset-password" element={<ResetPasswordForm />} />
 
         <Route
           path="/projects"

@@ -15,7 +15,7 @@ class CreateProjectRequest(BaseModel):
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
-@router.get("/")
+@router.get("")
 async def get_projects(user_id=Depends(get_current_user)):
     projects = await projects_collection.find({"user_id": ObjectId(user_id)}).to_list(100)
     return [serialize_mongo(p) for p in projects]
@@ -33,7 +33,7 @@ async def get_project(project_id: str, user_id=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Project not found")
     return serialize_mongo(project)
 
-@router.post("/")
+@router.post("")
 async def create_project(
     request: CreateProjectRequest,
     user_id=Depends(get_current_user)
