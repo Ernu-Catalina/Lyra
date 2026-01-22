@@ -91,7 +91,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   return (
     <AuthLayout
       title={isLogin ? "Sign In" : "Create Account"}
-      subtitle={isLogin ? "Welcome back — let's get writing" : "Join DraftFlow and start collaborating"}
+      subtitle={isLogin ? "Welcome back — let's get writing" : "Join Lyra"}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {!isLogin && (

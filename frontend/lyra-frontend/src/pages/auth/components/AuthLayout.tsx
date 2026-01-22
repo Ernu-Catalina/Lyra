@@ -12,14 +12,6 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
     <div className="min-h-screen bg-gradient-to-br from-[var(--bg-primary)] to-[var(--bg-secondary)] flex items-center justify-center p-4 transition-colors duration-300">
       <div className="w-full max-w-md">
         {/* Brand / Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-[var(--accent)] via-[var(--accent-dim)] to-[var(--accent)] bg-clip-text text-transparent tracking-tight">
-            DraftFlow
-          </h1>
-          <p className="mt-2 text-[var(--text-secondary)] text-lg">
-            Write better, together.
-          </p>
-        </div>
 
         {/* Main card */}
         <div className="bg-[var(--bg-secondary)]/80 backdrop-blur-xl border border-[var(--border)] rounded-2xl shadow-xl p-8 transition-colors duration-300">
@@ -32,10 +24,6 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
 
           {children}
         </div>
-
-        <p className="text-center text-[var(--text-secondary)] text-sm mt-8">
-          © {new Date().getFullYear()} DraftFlow
-        </p>
       </div>
     </div>
   );

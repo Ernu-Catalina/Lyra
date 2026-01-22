@@ -75,3 +75,10 @@ class ResetPasswordRequest(BaseModel):
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one number")
         return v
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
