@@ -85,7 +85,11 @@ export default function Documents() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   const sensors = useSensors(
-  useSensor(PointerSensor),
+  useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8, // Require 8px movement to start drag, preventing accidental drags on clicks
+    },
+  }),
   useSensor(KeyboardSensor, {
     coordinateGetter: sortableKeyboardCoordinates,
   })
@@ -96,6 +100,8 @@ const [activeTitle, setActiveTitle] = useState<string>("");
 
 const handleDragStart = (event: any) => {
   setActiveId(event.active.id as string);
+  const item = items.find(i => i._id === event.active.id);
+  setActiveTitle(item?.title || "Untitled");
 };
 
 const handleDragEnd = async (event) => {
@@ -106,7 +112,7 @@ const handleDragEnd = async (event) => {
   const overId = over.id as string;
 
   console.log("[DRAG-END] Moving item:", activeId);
-  console.log("[DRAG-END] Dropped on:", overId);
+  console.log("[DRAG-END] Dropped on:", overId, "(type:", typeof overId, ")");
   console.log("[DRAG-END] Current folder:", currentFolderId);
 
   const item = items.find(i => i._id === activeId);
@@ -285,6 +291,7 @@ function ErrorBoundary({ children, fallback }) {
     const newStack = folderStack.slice(0, -1);
     setFolderStack(newStack);
     setCurrentFolderId(newStack.length > 0 ? newStack[newStack.length - 1] : null);
+    setFolderPath(prev => prev.slice(0, -1));
   };
 
   const handleEnterFolder = (id: string, title: string) => {
@@ -463,14 +470,14 @@ function ErrorBoundary({ children, fallback }) {
           <DragOverlay dropAnimation={null}>
             {activeId ? (
               <div className="
-                flex items-center gap-3 px-5 py-3 
+                flex items-center gap-3 px-4 py-2.5 
                 bg-[var(--bg-secondary)]/95 backdrop-blur-sm 
                 border border-[var(--accent)]/30 rounded-lg 
-                shadow-2xl min-w-[240px] max-w-[320px]
+                shadow-2xl min-w-[180px] max-w-[360px] w-fit
               ">
                 <FileText size={28} className="text-[var(--accent)] flex-shrink-0" />
                 <span className="font-medium text-[var(--text-primary)] line-clamp-1">
-                  {activeTitle || "Untitled"}
+                  {activeTitle}
                 </span>
               </div>
             ) : null}

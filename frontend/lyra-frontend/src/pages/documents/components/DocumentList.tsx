@@ -37,8 +37,8 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
   } = useDraggable({ id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    opacity: isDragging ? 0.4 : 1,         
+    transform: isDragging ? undefined : CSS.Transform.toString(transform), // No transform on source when dragging
+    opacity: 1, // Keep full opacity on source
   };
 
   return (

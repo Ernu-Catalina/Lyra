@@ -15,23 +15,25 @@ interface BreadcrumbItemProps {
 }
 
 function BreadcrumbItem({ crumb, idx, onClick, currentFolderId }: BreadcrumbItemProps) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: crumb.id ?? "root",
   });
 
+  console.log(`[BREADCRUMB] Crumb "${crumb.title}" droppable id: ${crumb.id ?? "root"}, isOver: ${isOver}`);
+
   return (
-    <div className="flex items-center gap-1.5 shrink-0">
+    <div ref={setNodeRef} className="flex items-center gap-1.5 shrink-0">
       {idx > 0 && <ChevronRight size={14} className="text-[var(--border)]" />}
-      <button
-        ref={setNodeRef}
+      <div
         onClick={() => onClick(idx)}
         className={`
-          hover:text-[var(--accent)] transition px-11 py-0.5 rounded
+          hover:text-[var(--accent)] transition px-11 py-0.5 rounded cursor-pointer
           ${crumb.id === currentFolderId ? "text-[var(--accent)] font-medium" : ""}
+          ${isOver ? "bg-[var(--accent)]/10 border border-[var(--accent)]/30" : ""}
         `}
       >
         {crumb.title}
-      </button>
+      </div>
     </div>
   );
 }
