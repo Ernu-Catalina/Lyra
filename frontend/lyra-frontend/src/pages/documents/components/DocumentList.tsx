@@ -1,6 +1,5 @@
 // src/components/documents/DocumentList.tsx
-import { useDroppable } from "@dnd-kit/core";
-import { useSortable } from "@dnd-kit/sortable";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import FolderGridSystem from "./FolderGridSystem";
 import DocumentListItem from "./DocumentListItem";
@@ -34,13 +33,11 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id });
+  } = useDraggable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
     opacity: isDragging ? 0.4 : 1,         
   };
 
@@ -72,7 +69,7 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
               <SortableItem key={doc._id} id={doc._id}>
                 <DocumentListItem
                   document={doc}
-                  onNavigate={() => onNavigateDocument(doc._id)}
+                  onNavigate={() => onNavigateDocument(document._id)}
                   onEdit={() => onEdit(doc)}
                   onDelete={() => onDelete(doc._id)}
                 />

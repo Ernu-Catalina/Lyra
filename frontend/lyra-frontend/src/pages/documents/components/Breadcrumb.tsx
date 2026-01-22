@@ -26,7 +26,7 @@ function BreadcrumbItem({ crumb, idx, onClick, currentFolderId }: BreadcrumbItem
         ref={setNodeRef}
         onClick={() => onClick(idx)}
         className={`
-          hover:text-[var(--accent)] transition px-1.5 py-0.5 rounded
+          hover:text-[var(--accent)] transition px-11 py-0.5 rounded
           ${crumb.id === currentFolderId ? "text-[var(--accent)] font-medium" : ""}
         `}
       >

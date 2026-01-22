@@ -20,6 +20,7 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -27,7 +28,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { DragOverlay } from "@dnd-kit/core";
+import { FileText } from "lucide-react";
 
 interface Item {
   _id: string;
@@ -49,6 +50,7 @@ export default function Documents() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"updated-desc" | "title-asc" | "title-desc">("updated-desc");
 
@@ -89,30 +91,47 @@ export default function Documents() {
   })
 );
 
-const [activeId, setActiveId] = useState<string | null>(null);
 const [activeDocumentTitle, setActiveDocumentTitle] = useState<string>("");
+const [activeTitle, setActiveTitle] = useState<string>("");
 
-const handleDragEnd = async (event: DragEndEvent) => {
+const handleDragStart = (event: any) => {
+  setActiveId(event.active.id as string);
+};
+
+const handleDragEnd = async (event) => {
   const { active, over } = event;
   if (!over) return;
 
   const activeId = active.id as string;
   const overId = over.id as string;
 
-  if (activeId === overId) return;
+  console.log("[DRAG-END] Moving item:", activeId);
+  console.log("[DRAG-END] Dropped on:", overId);
+  console.log("[DRAG-END] Current folder:", currentFolderId);
 
   const item = items.find(i => i._id === activeId);
-  if (!item || item.type !== "document") return; // only documents
+  if (!item || item.type !== "document") return;
 
-  const newParentId = overId === "root" ? null : overId;
+  const newParent = overId === "root" ? null : overId;
+  console.log("[DRAG-END] New parent_id:", newParent);
+
+  // Optimistic update: remove from current list
+  setItems(prev => prev.filter(i => i._id !== activeId));
 
   try {
-    await api.patch(`/projects/${projectId}/documents/${activeId}`, {
-      parent_id: newParentId,
+    const response = await api.patch(`/projects/${projectId}/documents/${activeId}`, {
+      parent_id: newParent,
     });
-    fetchData();
+    console.log("[PATCH] Status:", response.status);
+    console.log("[PATCH] Response data:", response.data);
+
+    await fetchData();                    // ← refetch to confirm
+    console.log("[AFTER REFETCH] Items now:", items.length, items.map(i => i.title));
   } catch (err) {
-    setError("Failed to move document");
+    console.error("[PATCH ERROR]", err.response?.data || err.message);
+    setError("Move failed – check console");
+    // Rollback: add back to list
+    setItems(prev => [...prev, item]);
   }
 };
 
@@ -142,8 +161,11 @@ const fetchData = useCallback(async () => {
     setProject(projectRes.data);
 
     const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
+    console.log("Fetching documents with params:", params, "currentFolderId:", currentFolderId);
     const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { signal: controller.signal });
-    setItems(itemsRes.data || []);
+    const allItems = itemsRes.data || [];
+    console.log("Fetched items:", allItems.length);
+    setItems(allItems);
   } catch (err: any) {
     if (err.name === 'AbortError') return;
     console.error("Fetch failed:", err);
@@ -200,6 +222,18 @@ const fetchData = useCallback(async () => {
       setError(err.response?.data?.detail || "Failed to create item");
     }
   };
+
+function ErrorBoundary({ children, fallback }) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    if (hasError) console.error("Error boundary caught render failure");
+  }, [hasError]);
+
+  if (hasError) return fallback;
+
+  return children;
+}
 
   const handleUpdateItem = async () => {
     if (!projectId || !editItem || !editItem._id || !editItemName.trim()) {
@@ -302,6 +336,7 @@ const fetchData = useCallback(async () => {
             project={project}
             isOpen={sidebarOpen}
             onToggle={() => setSidebarOpen((prev) => !prev)}
+            isMobile={isMobile}
           />
         </aside>
           
@@ -349,6 +384,7 @@ const fetchData = useCallback(async () => {
               </label>
               <select
                 id="sort-documents"
+                name="sortBy"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                 className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] min-w-[160px]"
@@ -366,33 +402,37 @@ const fetchData = useCallback(async () => {
           className={`
             flex-1 overflow-y-auto relative
             mt-[calc(5rem+1.25rem)] lg:mt-[calc(5rem+1.25rem)] 
+            ${isMobile ? "" : ""}
             ${sidebarOpen ? "lg:pl-80 lg:xl:pl-96" : "lg:pl-14"}
             transition-all duration-300 ease-in-out
           `}
         >
+          <ErrorBoundary fallback={<div className="p-8 text-red-600">Render error — check console</div>}>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={(e) => {
               const id = e.active.id as string;
+              console.log("Drag start: active.id =", id);
               setActiveId(id);
               const item = items.find(i => i._id === id);
               setActiveTitle(item?.title || "");
             }}
             onDragEnd={(event) => {
+              console.log("Drag end: active.id =", event.active.id, "over.id =", event.over?.id);
               setActiveId(null);
               setActiveDocumentTitle("");
-              // your existing handleDragEnd logic here
+              handleDragEnd(event);
             }}
             onDragCancel={() => {
               setActiveId(null);
               setActiveDocumentTitle("");
             }}
           >
-            <SortableContext
+            {/* <SortableContext
               items={sortedAndFiltered.map((i) => i._id)}
               strategy={verticalListSortingStrategy}
-            >
+            > */}
 
           {/* Overlay for mobile sidebar */}
           {isMobile && sidebarOpen && (
@@ -435,8 +475,9 @@ const fetchData = useCallback(async () => {
               </div>
             ) : null}
           </DragOverlay>
-            </SortableContext>
+            {/* </SortableContext> */}
           </DndContext>
+          </ErrorBoundary>
         </main>
       </div>
 

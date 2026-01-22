@@ -44,6 +44,7 @@ export default function CreateItemModal({
             </label>
             <select
               id="create-item-type"
+              name="type"
               aria-label="Select item type: document or folder"
               value={type}
               onChange={(e) => onTypeChange(e.target.value as "document" | "folder")}
@@ -60,6 +61,7 @@ export default function CreateItemModal({
             </label>
             <input
               id="new-item-name"
+              name="name"
               type="text"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}

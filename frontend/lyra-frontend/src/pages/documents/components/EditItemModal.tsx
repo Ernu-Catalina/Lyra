@@ -40,6 +40,7 @@ export default function EditItemModal({
             </label>
             <input
               id="edit-item-name"
+              name="name"
               type="text"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}

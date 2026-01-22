@@ -14,9 +14,30 @@ export default function DocumentListItem({
   onEdit,
   onDelete,
 }: DocumentListItemProps) {
+  const safeNavigate = () => {
+    console.log("navigate clicked → document ID:", document?._id);
+    console.log("onNavigate type:", typeof onNavigate);
+
+    if (typeof onNavigate !== 'function') {
+      console.error("onNavigate is not a function!", onNavigate);
+      return;
+    }
+
+    try {
+      onNavigate();
+    } catch (err) {
+      console.error("Error inside onNavigate handler:", err);
+    }
+  };
+
+  if (!document) {
+    console.error("DocumentListItem received no document prop");
+    return <div className="text-red-600 p-4">Missing document data</div>;
+  }
+
   return (
     <div
-      onClick={onNavigate}
+      onClick={safeNavigate}       
       className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-[var(--accent)]/5 transition cursor-pointer group items-center"
     >
       {/* Title + icon */}

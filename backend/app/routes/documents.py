@@ -136,7 +136,6 @@ async def get_documents(
     parent_id: Optional[str] = Query(None, description="Filter by parent folder ID (null for root)"),
     user_id=Depends(get_current_user)
 ):
-    # Verify user owns the project
     project = await projects_collection.find_one({
         "_id": ObjectId(project_id),
         "user_id": ObjectId(user_id)
@@ -145,26 +144,37 @@ async def get_documents(
         raise HTTPException(status_code=403, detail="Project not found or not owned")
 
     query = {"project_id": ObjectId(project_id)}
+
+    # ── Robust parent_id handling ─────────────────────────────────────
     if parent_id is not None:
-        query["parent_id"] = ensure_objectid(parent_id) if parent_id else None
+        if parent_id == "null" or parent_id == "":
+            query["parent_id"] = None
+        else:
+            try:
+                oid = ObjectId(parent_id)
+                query["parent_id"] = {"$in": [oid, parent_id]}  # Handle both ObjectId and string
+            except Exception as e:
+                print(f"[DEBUG] Invalid parent_id '{parent_id}': {e}")
+                query["parent_id"] = None  # fallback to root instead of error
+    else:
+        # Default to root when no parent_id provided
+        query["parent_id"] = None
+
+    print(f"[DEBUG GET DOCUMENTS] Query: {query}")
 
     items = await documents_collection.find(query).sort("title", 1).to_list(100)
-    result = []
+    print(f"[DEBUG] Found {len(items)} items for query {query}")
 
+    result = []
     for item in items:
         item_dict = serialize_mongo(item)
-
-        # Safely get type (fallback to "document" if missing)
         item_type = item_dict.get("type", "document")
         item_dict["type"] = item_type
 
         if item_type == "document":
             chapters = item_dict.get("chapters", [])
-            chapter_count = len(chapters)
-            total_words = sum(ch.get("wordcount", 0) for ch in chapters)
-
-            item_dict["chapter_count"] = chapter_count
-            item_dict["word_count"] = total_words
+            item_dict["chapter_count"] = len(chapters)
+            item_dict["word_count"] = sum(ch.get("wordcount", 0) for ch in chapters)
 
         result.append(item_dict)
 

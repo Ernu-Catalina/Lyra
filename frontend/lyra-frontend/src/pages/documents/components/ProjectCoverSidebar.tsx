@@ -6,9 +6,10 @@ interface ProjectCoverSidebarProps {
   project: Project | null;
   isOpen: boolean;
   onToggle: () => void;
+  isMobile: boolean;
 }
 
-export default function ProjectCoverSidebar({ project, isOpen, onToggle }: ProjectCoverSidebarProps) {
+export default function ProjectCoverSidebar({ project, isOpen, onToggle, isMobile }: ProjectCoverSidebarProps) {
   return (
     <aside
       className={`
