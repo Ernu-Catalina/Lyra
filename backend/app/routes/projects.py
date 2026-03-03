@@ -1,4 +1,5 @@
 # app/routers/projects.py
+import re
 from fastapi import APIRouter, Depends, Form, HTTPException
 from app.database import projects_collection
 from app.utils.auth import get_current_user
@@ -41,9 +42,19 @@ async def create_project(
     if not request.name.strip():
         raise HTTPException(status_code=422, detail="Project name is required")
 
+    name = request.name.strip()
+    # ensure unique per user (case-insensitive)
+    escaped = re.escape(name)
+    existing = await projects_collection.find_one({
+        "user_id": ObjectId(user_id),
+        "name": {"$regex": f"^{escaped}$", "$options": "i"}
+    })
+    if existing:
+        raise HTTPException(status_code=409, detail="A project with that name already exists")
+
     project = {
         "user_id": ObjectId(user_id),
-        "name": request.name.strip(),
+        "name": name,
         "cover_image_url": request.cover_image_url,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -63,7 +74,29 @@ async def update_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    update_data = {k: v for k, v in data.items() if v is not None}
+    # whitelist allowed updatable fields
+    allowed = {"name", "cover_image_url", "pinned"}
+    update_data: dict = {}
+    for k, v in data.items():
+        if k in allowed and v is not None:
+            update_data[k] = v
+
+    if "name" in update_data:
+        if not isinstance(update_data["name"], str):
+            raise HTTPException(status_code=400, detail="Invalid project name")
+        name_val = update_data["name"].strip()
+        if not name_val:
+            raise HTTPException(status_code=400, detail="Project name is required")
+        escaped = re.escape(name_val)
+        conflict = await projects_collection.find_one({
+            "user_id": ObjectId(user_id),
+            "name": {"$regex": f"^{escaped}$", "$options": "i"},
+            "_id": {"$ne": ObjectId(project_id)}
+        })
+        if conflict:
+            raise HTTPException(status_code=409, detail="A project with that name already exists")
+        update_data["name"] = name_val
+
     if update_data:
         update_data["updated_at"] = datetime.utcnow()
         await projects_collection.update_one(

@@ -1,3 +1,4 @@
+import re
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from bson import ObjectId
@@ -75,11 +76,24 @@ async def create_document(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    title = data.title.strip()
+    parent = ensure_objectid(data.parent_id) if data.parent_id else None
+
+    # check for duplicates in same folder (case-insensitive)
+    escaped = re.escape(title)
+    conflict = await documents_collection.find_one({
+        "project_id": ObjectId(project_id),
+        "parent_id": parent,
+        "title": {"$regex": f"^{escaped}$", "$options": "i"}
+    })
+    if conflict:
+        raise HTTPException(status_code=409, detail="An item with that name already exists in this folder")
+
     document = {
         "project_id": ObjectId(project_id),
-        "title": data.title.strip(),
+        "title": title,
         "type": data.type if hasattr(data, "type") and data.type in ["document", "folder"] else "document",
-        "parent_id": ensure_objectid(data.parent_id) if data.parent_id else None,
+        "parent_id": parent,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "total_wordcount": 0,
@@ -403,6 +417,28 @@ async def update_document(
         raise HTTPException(404, "Document or folder not found or not owned")
 
     update_data = {k: v for k, v in data.items() if v is not None}
+
+    # if title or parent_id change, ensure no duplicates
+    if "title" in update_data or "parent_id" in update_data:
+        new_title = update_data.get("title", doc.get("title", "")).strip()
+        new_parent = update_data.get("parent_id", doc.get("parent_id"))
+        new_parent = ensure_objectid(new_parent) if new_parent else None
+
+        # escape title before regex
+        escaped_title = re.escape(new_title)
+        conflict = await documents_collection.find_one({
+            "project_id": ObjectId(project_id),
+            "parent_id": new_parent,
+            "title": {"$regex": f"^{escaped_title}$", "$options": "i"},
+            "_id": {"$ne": ObjectId(document_id)}
+        })
+        if conflict:
+            raise HTTPException(status_code=409, detail="An item with that name already exists in this folder")
+
+        update_data["title"] = new_title
+        if "parent_id" in update_data:
+            update_data["parent_id"] = new_parent
+
     if update_data:
         update_data["updated_at"] = datetime.utcnow()
         await documents_collection.update_one(

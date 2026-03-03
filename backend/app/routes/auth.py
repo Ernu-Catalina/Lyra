@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query, Body
-from app.database import users_collection, reset_codes_collection
+from fastapi import APIRouter, HTTPException, Query, Body, Depends
+from app.database import users_collection, reset_codes_collection, projects_collection, documents_collection
 from app.utils.security import hash_password, verify_password
+from app.utils.auth import get_current_user
 from app.services.auth_service import create_access_token
 from app.services.email_service import send_email
 from app.schemas.auth import AuthRequest, RegisterRequest, ResetPasswordRequest, ForgotPasswordRequest, VerifyCodeRequest, UserSettings
 from datetime import datetime, timedelta
+from bson import ObjectId
 import secrets
 import hashlib
 
@@ -138,3 +140,82 @@ async def reset_password(data: dict = Body(...)):
     )
 
     return {"message": "Password reset successfully. Please log in."}
+
+@router.delete("/delete-account")
+async def delete_account(user_id=Depends(get_current_user)):
+    """
+    Delete authenticated user's account and all associated data.
+    Cascades delete: user -> projects -> documents (with embedded chapters/scenes)
+    Returns 204 No Content on success.
+    """
+    try:
+        user_oid = ObjectId(user_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    # verify user exists
+    user = await users_collection.find_one({"_id": user_oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # get all projects owned by this user
+    projects = await projects_collection.find({"user_id": user_oid}).to_list(None)
+    project_ids = [p["_id"] for p in projects]
+    
+    # delete all documents that belong to these projects
+    if project_ids:
+        await documents_collection.delete_many({"project_id": {"$in": project_ids}})
+    
+    # delete all projects owned by this user
+    await projects_collection.delete_many({"user_id": user_oid})
+    
+    # delete reset codes for this user
+    await reset_codes_collection.delete_many({"user_id": user_oid})
+    
+    # delete the user
+    await users_collection.delete_one({"_id": user_oid})
+    
+    return None
+
+@router.get("/users/me")
+async def get_current_user_info(user_id=Depends(get_current_user)):
+    """Fetch current user with all settings"""
+    try:
+        user_oid = ObjectId(user_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    user = await users_collection.find_one({"_id": user_oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Return user info without password hash
+    return {
+        "_id": str(user["_id"]),
+        "name": user.get("name", ""),
+        "email": user.get("email", ""),
+        "settings": user.get("settings", UserSettings().model_dump())
+    }
+
+@router.patch("/users/me/settings")
+async def update_user_settings(user_id=Depends(get_current_user), settings: UserSettings = Body(...)):
+    """Update current user's settings"""
+    try:
+        user_oid = ObjectId(user_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+    
+    user = await users_collection.find_one({"_id": user_oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update settings in database
+    await users_collection.update_one(
+        {"_id": user_oid},
+        {"$set": {"settings": settings.model_dump()}}
+    )
+    
+    return {
+        "_id": str(user["_id"]),
+        "settings": settings.model_dump()
+    }

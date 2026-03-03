@@ -9,6 +9,7 @@ import DocumentList from "../documents/components/DocumentList";
 import EditItemModal from "../documents/components/EditItemModal";
 import CreateItemModal from "../documents/components/CreateItemModal";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
+import MoveConflictModal from "../documents/components/MoveConflictModal";
 import { ChevronLeft, Menu } from "lucide-react";
 import CreateButton from "../../common_components/CreateButton";
 import { Project } from "../../types/document";
@@ -61,6 +62,15 @@ export default function Documents() {
   { id: null, title: project?.name || "Project Root" },
 ]);
 
+  // state for move conflicts during drag & drop
+  const [moveConflict, setMoveConflict] = useState<{
+    active: Item;
+    existing: Item;
+    originalDocument: any; // full document data for rollback
+    newParent: string | null;
+    targetItems: Item[];
+  } | null>(null);
+
   useEffect(() => {
     if (project) {
       setFolderPath(prev => [{ id: null, title: project.name }, ...prev.slice(1)]);
@@ -111,32 +121,49 @@ const handleDragEnd = async (event) => {
   const activeId = active.id as string;
   const overId = over.id as string;
 
-  console.log("[DRAG-END] Moving item:", activeId);
-  console.log("[DRAG-END] Dropped on:", overId, "(type:", typeof overId, ")");
-  console.log("[DRAG-END] Current folder:", currentFolderId);
-
   const item = items.find(i => i._id === activeId);
   if (!item || item.type !== "document") return;
 
   const newParent = overId === "root" ? null : overId;
-  console.log("[DRAG-END] New parent_id:", newParent);
+  if (item.parent_id === newParent) return; // no movement
 
-  // Optimistic update: remove from current list
-  setItems(prev => prev.filter(i => i._id !== activeId));
-
+  // fetch target folder contents to detect duplicates
+  let targetItems: Item[] = [];
   try {
-    const response = await api.patch(`/projects/${projectId}/documents/${activeId}`, {
+    const params = newParent ? `?parent_id=${newParent}` : "";
+    const res = await api.get(`/projects/${projectId}/documents${params}`);
+    targetItems = res.data || [];
+  } catch (fetchErr) {
+    console.error("[FETCH TARGET ITEMS ERROR]", fetchErr);
+    setError("Cannot load target folder contents");
+    return;
+  }
+
+  const conflict = targetItems.find(i => i.title.toLowerCase() === item.title.toLowerCase());
+  if (conflict) {
+    // fetch full document details of the conflicting item for proper rollback
+    try {
+      const fullDocRes = await api.get(`/projects/${projectId}/documents/${conflict._id}`);
+      const originalDocument = fullDocRes.data;
+      setMoveConflict({ active: item, existing: conflict, originalDocument, newParent, targetItems });
+    } catch (docFetchErr) {
+      console.error("[FETCH CONFLICT DOCUMENT ERROR]", docFetchErr);
+      setMoveConflict({ active: item, existing: conflict, originalDocument: conflict, newParent, targetItems });
+    }
+    return;
+  }
+
+  // proceed with move
+  setItems(prev => prev.filter(i => i._id !== activeId));
+  try {
+    await api.patch(`/projects/${projectId}/documents/${activeId}`, {
       parent_id: newParent,
     });
-    console.log("[PATCH] Status:", response.status);
-    console.log("[PATCH] Response data:", response.data);
-
-    await fetchData();                    // ← refetch to confirm
-    console.log("[AFTER REFETCH] Items now:", items.length, items.map(i => i.title));
-  } catch (err) {
+    await fetchData();
+  } catch (err: any) {
     console.error("[PATCH ERROR]", err.response?.data || err.message);
-    setError("Move failed – check console");
-    // Rollback: add back to list
+    const msg = err.response?.data?.detail || "Move failed – check console";
+    setError(msg);
     setItems(prev => [...prev, item]);
   }
 };
@@ -154,6 +181,20 @@ const isDescendant = (parentId: string | null, childId: string): boolean => {
   }
   return false;
 };
+
+// compute a non-conflicting copy name given the existing titles
+function generateCopiedName(original: string, existingNames: string[]): string {
+  const base = original;
+  let candidate = `${base} (copy)`;
+  let counter = 2;
+  const lower = (s: string) => s.toLowerCase();
+  const existLower = existingNames.map(lower);
+  while (existLower.includes(candidate.toLowerCase())) {
+    candidate = `${base} (${counter})`;
+    counter += 1;
+  }
+  return candidate;
+}
 
 const fetchData = useCallback(async () => {
   if (!projectId) return;
@@ -214,6 +255,16 @@ const fetchData = useCallback(async () => {
       return;
     }
 
+    // local duplicate check
+    const nameLower = newItemName.trim().toLowerCase();
+    const dup = items.find(
+      (i) => i.title.toLowerCase() === nameLower && i.parent_id === currentFolderId
+    );
+    if (dup) {
+      setError("An item with that name already exists in this folder");
+      return;
+    }
+
     try {
       await api.post(`/projects/${projectId}/documents`, {
         title: newItemName.trim(),
@@ -247,6 +298,16 @@ function ErrorBoundary({ children, fallback }) {
       return;
     }
 
+    // local duplicate check (same parent)
+    const nameLower = editItemName.trim().toLowerCase();
+    const dup = items.find(
+      (i) => i.title.toLowerCase() === nameLower && i.parent_id === editItem.parent_id && i._id !== editItem._id
+    );
+    if (dup) {
+      setError("An item with that name already exists in this folder");
+      return;
+    }
+
     try {
       await api.patch(`/projects/${projectId}/documents/${editItem._id}`, {
         title: editItemName.trim(),
@@ -256,7 +317,8 @@ function ErrorBoundary({ children, fallback }) {
       setError("");
       fetchData();
     } catch (err: any) {
-      setError("Failed to update item");
+      const msg = err.response?.data?.detail || "Failed to update item";
+      setError(msg);
     }
   };
 
@@ -270,6 +332,96 @@ function ErrorBoundary({ children, fallback }) {
       fetchData();
     } catch (err: any) {
       setError("Failed to delete item");
+    }
+  };
+
+  // conflict resolution helpers
+  const handleCancelMove = () => {
+    // simply clear conflict state; items list is managed by handleDragEnd/fetchData
+    setMoveConflict(null);
+  };
+
+  const handleOverwriteMove = async () => {
+    if (!projectId || !moveConflict) return;
+    try {
+      await api.delete(`/projects/${projectId}/documents/${moveConflict.existing._id}`);
+      try {
+        await api.patch(`/projects/${projectId}/documents/${moveConflict.active._id}`, {
+          parent_id: moveConflict.newParent,
+        });
+        setMoveConflict(null);
+        fetchData();
+      } catch (patchErr: any) {
+        console.error("[PATCH ERROR AFTER DELETE]", patchErr);
+        // attempt rollback: restore the deleted document with its full original content
+        try {
+          const originalDoc = moveConflict.originalDocument;
+          let restored = false;
+          
+          // try restore endpoint first (if backend supports it)
+          try {
+            await api.post(
+              `/projects/${projectId}/documents/${moveConflict.existing._id}/restore`,
+              {}
+            );
+            restored = true;
+          } catch (restoreErr: any) {
+            // restore endpoint not available, fall back to recreate via POST
+            if (restoreErr.response?.status !== 404) {
+              throw restoreErr;
+            }
+          }
+          
+          // if restore endpoint not available, recreate with POST
+          if (!restored) {
+            const restorePayload: any = {
+              title: originalDoc.title,
+              type: originalDoc.type,
+              parent_id: originalDoc.parent_id || null,
+            };
+            // include chapters if document type is not folder
+            if (originalDoc.type !== "folder" && originalDoc.chapters) {
+              restorePayload.chapters = originalDoc.chapters;
+            }
+            await api.post(`/projects/${projectId}/documents`, restorePayload);
+          }
+          
+          setError("Failed to move item – original was restored, please try again.");
+          fetchData();
+        } catch (rbErr: any) {
+          console.error("[ROLLBACK ERROR]", rbErr);
+          const msg =
+            "Item was deleted but move failed; original could not be restored. Please contact support or retry.";
+          setError(msg);
+          handleCancelMove();
+          return;
+        }
+        handleCancelMove();
+      }
+    } catch (err: any) {
+      console.error("[OVERWRITE ERROR]", err);
+      const msg = err.response?.data?.detail || "Failed to overwrite item";
+      setError(msg);
+      handleCancelMove();
+    }
+  };
+
+  const handleRenameMove = async () => {
+    if (!projectId || !moveConflict) return;
+    const existingNames = moveConflict.targetItems.map(i => i.title);
+    const newName = generateCopiedName(moveConflict.active.title, existingNames);
+    try {
+      await api.patch(`/projects/${projectId}/documents/${moveConflict.active._id}`, {
+        parent_id: moveConflict.newParent,
+        title: newName,
+      });
+      setMoveConflict(null);
+      fetchData();
+    } catch (err: any) {
+      console.error("[RENAME MOVE ERROR]", err);
+      const msg = err.response?.data?.detail || "Failed to move with rename";
+      setError(msg);
+      handleCancelMove();
     }
   };
 
@@ -466,6 +618,7 @@ function ErrorBoundary({ children, fallback }) {
               setDeleteModalOpen(true);
             }}
             sidebarOpen={sidebarOpen}
+            currentFolderId={currentFolderId}
           />
           <DragOverlay dropAnimation={null}>
             {activeId ? (
@@ -516,6 +669,17 @@ function ErrorBoundary({ children, fallback }) {
           onSave={handleUpdateItem}
           name={editItemName}
           onNameChange={setEditItemName}
+        />
+      )}
+
+      {moveConflict && (
+        <MoveConflictModal
+          isOpen={!!moveConflict}
+          conflictingName={moveConflict.existing.title}
+          suggestedName={generateCopiedName(moveConflict.active.title, moveConflict.targetItems.map(i => i.title))}
+          onCancel={handleCancelMove}
+          onOverwrite={handleOverwriteMove}
+          onRename={handleRenameMove}
         />
       )}
 
