@@ -18,6 +18,7 @@ const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
         <input
           ref={ref}
           id={id}
+          {...props}
           className={`
             w-full px-4 py-3 rounded-lg bg-[var(--bg-secondary)] 
             border border-[var(--border)] 
@@ -28,7 +29,6 @@ const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
           `}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          {...props}
         />
         {error && (
           <p id={`${id}-error`} className="text-red-600 text-sm mt-1">

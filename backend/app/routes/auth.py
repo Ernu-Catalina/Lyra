@@ -1,17 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Body
 from app.database import users_collection, reset_codes_collection
 from app.utils.security import hash_password, verify_password
-from app.services.auth_service import create_access_token, send_email
-from app.schemas.auth import AuthRequest
-from app.schemas.auth import RegisterRequest
-from app.schemas.auth import ResetPasswordRequest
-from app.schemas.auth import ForgotPasswordRequest
-from app.schemas.auth import VerifyCodeRequest
-from fastapi import Query
-from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Body
+from app.services.auth_service import create_access_token
 from app.services.email_service import send_email
-from app.database import reset_codes_collection, users_collection
+from app.schemas.auth import AuthRequest, RegisterRequest, ResetPasswordRequest, ForgotPasswordRequest, VerifyCodeRequest, UserSettings
 from datetime import datetime, timedelta
 import secrets
 import hashlib
@@ -31,9 +23,11 @@ async def register(data: RegisterRequest):
         "password_hash": hashed_pw,
         "created_at": datetime.utcnow()
     }
+    # attach default settings
+    user["settings"] = UserSettings().model_dump()
     result = await users_collection.insert_one(user)
     token = create_access_token(str(result.inserted_id))
-    return {"access_token": token, "message": "Account created"}
+    return {"access_token": token, "message": "Account created", "settings": user["settings"]}
 
 
 @router.post("/login")

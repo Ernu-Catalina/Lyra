@@ -23,6 +23,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [nameError, setNameError] = useState("");
   const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,15 +37,24 @@ export default function AuthForm({ mode }: AuthFormProps) {
     const val = e.target.value;
     setEmail(val);
     setEmailError("");
+  };
 
-    if (val && !validateEmail(val)) {
-      setEmailError("Please enter a valid email address");
-    }
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    setPasswordError("");
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+    setNameError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
+    setEmailError("");
+    setPasswordError("");
+    setNameError("");
 
     if (!validateEmail(email)) {
       setEmailError("Please enter a valid email address");
@@ -51,17 +62,16 @@ export default function AuthForm({ mode }: AuthFormProps) {
     }
 
     if (!password) {
-      setFormError("Password is required");
+      setPasswordError("Password is required");
       return;
     }
 
     if (!isLogin && !name.trim()) {
-      setFormError("Full name is required");
+      setNameError("Full name is required");
       return;
     }
 
     setLoading(true);
-
     try {
       const endpoint = isLogin ? "/auth/login" : "/auth/register";
       const body = isLogin ? { email, password } : { name, email, password };
@@ -78,6 +88,22 @@ export default function AuthForm({ mode }: AuthFormProps) {
       login(data.access_token);
       navigate("/projects");
     } catch (err: any) {
+      if (err.response?.status === 422 && err.response.data?.errors) {
+        const errs: any[] = err.response.data.errors;
+        const fieldErrors: Record<string, string[]> = {};
+        errs.forEach((e) => {
+          const loc = Array.isArray(e.loc) ? e.loc : [e.loc];
+          const key = loc[loc.length - 1];
+          const msg = e.msg;
+          fieldErrors[key] = fieldErrors[key] || [];
+          fieldErrors[key].push(msg);
+        });
+        if (fieldErrors.email) setEmailError(fieldErrors.email.join(" "));
+        if (fieldErrors.password) setPasswordError(fieldErrors.password.join(" "));
+        if (fieldErrors.name) setNameError(fieldErrors.name.join(" "));
+        return;
+      }
+
       if (!isLogin && err.message.includes("Email already registered")) {
         setEmailError(err.message);
       } else {
@@ -100,7 +126,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
             id="name"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleNameChange}
+            error={nameError}
             required
             autoComplete="name"
           />
@@ -122,13 +149,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
           id="password"
           type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={handlePasswordChange}
+          error={passwordError}
           required
           autoComplete={isLogin ? "current-password" : "new-password"}
         />
 
         {formError && (
-          <p className="text-red-600 text-sm text-center font-medium">
+          <p className="text-[var(--text-secondary)] text-sm text-center font-medium">
             {formError}
           </p>
         )}

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -21,17 +21,33 @@ app.include_router(projects.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    safe_errors = [
+        {
+            "loc": e["loc"],
+            "msg": e["msg"],
+            "type": e["type"],
+            "ctx": {k: str(v) for k, v in e.get("ctx", {}).items()} if "ctx" in e else None,
+        }
+        for e in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
-        content={"detail": "Validation error", "errors": exc.errors()},
+        content={"detail": "Validation error", "errors": safe_errors},
     )
 
 @app.exception_handler(ValidationError)
 async def pydantic_validation_exception_handler(request, exc):
+    safe_errors = []
+    for error in exc.errors():
+        safe_error = error.copy()
+        if "ctx" in safe_error and isinstance(safe_error["ctx"], dict) and "error" in safe_error["ctx"]:
+            safe_error["ctx"]["error"] = str(safe_error["ctx"]["error"])
+        safe_errors.append(safe_error)
+
     return JSONResponse(
         status_code=422,
-        content={"detail": "Validation error", "errors": exc.errors()},
+        content={"detail": "Validation error", "errors": safe_errors},
     )
 
 @app.exception_handler(Exception)

@@ -1,5 +1,20 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import Annotated
+from typing import Annotated, List
+
+class UserSettings(BaseModel):
+    theme: str = Field(default="light", description="light | dark | system")
+    wordcount_display: List[str] = Field(
+        default=["document"],
+        description="chapter, scene, document — any combination"
+    )
+    wordcount_format: str = Field(
+        default="exact",
+        description="exact | rounded | abbreviated"
+    )
+    default_view: str = Field(
+        default="document",
+        description="chapter | scene | document"
+    )
 
 class RegisterRequest(BaseModel):
     name: Annotated[
@@ -41,11 +56,9 @@ class RegisterRequest(BaseModel):
             raise ValueError("Password must contain at least one letter")
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one number")
-        # Optional: add more rules (uppercase, special chars, etc.)
         return v
 
     class Config:
-        # Optional: extra example for Swagger/OpenAPI docs
         json_schema_extra = {
             "example": {
                 "name": "Cataly Smith",
