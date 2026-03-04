@@ -1,3 +1,11 @@
+# Before starting the FastAPI server make sure MongoDB is running locally:
+# 1. Create the data directory if it doesn't exist:
+#      mkdir C:\\data\\db
+# 2. Open an Administrator command prompt and run:
+#      "C:\\Program Files\\MongoDB\\Server\\8.2\\bin\\mongod.exe" --dbpath C:\\data\\db
+#    Leave that window open while the server is running.
+# 3. Then start the backend with uvicorn (e.g. uvicorn app.main:app --reload).
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,6 +13,10 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from app.routes import auth, projects, documents
+from app import database
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Lyra API", redirect_slashes=True)
 
@@ -60,3 +72,16 @@ async def general_exception_handler(request, exc):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def verify_db_connection():
+    """Ping MongoDB on application startup and raise if unavailable."""
+    try:
+        # motor AsyncIOMotorClient allows using .command with "ping"
+        await database.db.command("ping")
+        logger.info("MongoDB connection successful")
+    except Exception as exc:
+        logger.error("MongoDB connection failed during startup: %s", exc)
+        # fail fast so the service does not run with no database
+        raise
