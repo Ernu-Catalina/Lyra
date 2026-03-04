@@ -38,9 +38,9 @@ export default function DeleteAccountModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl max-w-md w-full p-6 shadow-2xl border border-red-500/30">
+      <div className="bg-[var(--bg-secondary)] rounded-xl max-w-md w-full p-6 shadow-2xl border border-[var(--accent)]/30">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-red-600">Delete Your Account?</h2>
+          <h2 className="text-xl font-bold text-[var(--accent)]">Delete Your Account?</h2>
           <button
             type="button"
             onClick={onClose}
@@ -66,8 +66,8 @@ export default function DeleteAccountModal({
             disabled={isDeleteDisabled}
             className={`flex-1 py-2.5 rounded-lg transition font-medium ${
               isDeleteDisabled
-                ? "bg-red-600/50 text-white/50 cursor-not-allowed"
-                : "bg-red-600 text-white hover:bg-red-700"
+                ? "bg-[var(--accent)]/50 text-white/50 cursor-not-allowed"
+                : "bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90"
             }`}
           >
             {isLoading ? "Deleting..." : `Delete Account${countdown > 0 ? ` (${countdown}s)` : ""}`}

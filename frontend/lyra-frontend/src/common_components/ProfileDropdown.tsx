@@ -51,7 +51,7 @@ export default function ProfileDropdown({ onSettings, onLogout }: ProfileDropdow
               onLogout();
               setOpen(false);
             }}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-[var(--accent)] hover:bg-[var(--bg-secondary)] flex items-center gap-2"
           >
             <LogOut size={16} /> Log Out
           </button>

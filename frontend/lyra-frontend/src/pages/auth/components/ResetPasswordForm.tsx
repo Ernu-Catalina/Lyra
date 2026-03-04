@@ -105,7 +105,7 @@ export default function ResetPasswordForm() {
           autoComplete="new-password"
         />
 
-        {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+        {error && <p className="text-[var(--accent)] text-sm text-center">{error}</p>}
 
         <AuthButton type="submit" loading={loading}>
           Reset Password

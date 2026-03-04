@@ -1,5 +1,5 @@
 // src/pages/Documents.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, MouseEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import { useAuth } from "../../auth/useAuth";
@@ -44,6 +44,7 @@ interface Item {
 
 export default function Documents() {
   const { projectId } = useParams<{ projectId: string }>();
+  console.log("Documents page mounted, projectId:", projectId);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -54,6 +55,14 @@ export default function Documents() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"updated-desc" | "title-asc" | "title-desc">("updated-desc");
+
+  // clipboard for copy/cut operations
+  const [clipboard, setClipboard] = useState<Array<{id: string; type: "document" | "folder"; title: string; action: "copy" | "cut"}>>([]);
+  const [contextMenu, setContextMenu] = useState<
+    | { x: number; y: number; type: "root" | "item"; item?: Item | null }
+    | null
+  >(null);
+  const [toast, setToast] = useState("");
 
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop default: open
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -114,7 +123,7 @@ const handleDragStart = (event: any) => {
   setActiveTitle(item?.title || "Untitled");
 };
 
-const handleDragEnd = async (event) => {
+const handleDragEnd = async (event: DragEndEvent) => {
   const { active, over } = event;
   if (!over) return;
 
@@ -196,6 +205,102 @@ function generateCopiedName(original: string, existingNames: string[]): string {
   return candidate;
 }
 
+// helper to show toast messages
+const showToast = (msg: string) => {
+  setToast(msg);
+  setTimeout(() => setToast(""), 3000);
+};
+
+// clipboard operations
+const handleCopy = (item: Item) => {
+  setClipboard((prev) => [...prev, { id: item._id, type: item.type, title: item.title, action: "copy" }]);
+  showToast("Copied to clipboard");
+};
+
+const handleCut = (item: Item) => {
+  setClipboard((prev) => [...prev, { id: item._id, type: item.type, title: item.title, action: "cut" }]);
+  showToast("Cut to clipboard");
+};
+
+// paste into target folder (null = project root)
+const handlePaste = async (targetFolderId: string | null) => {
+  if (clipboard.length === 0) return;
+  // load existing items in target to detect conflicts
+  let existing: Item[] = [];
+  try {
+    const params = targetFolderId ? `?parent_id=${targetFolderId}` : "";
+    const res = await api.get(`/projects/${projectId}/documents${params}`);
+    existing = res.data || [];
+  } catch (e) {
+    console.error("[PASTE FETCH ERROR]", e);
+  }
+  let pastedCount = 0;
+  for (const clip of clipboard) {
+    let finalName = clip.title;
+    const conflict = existing.find((i) => i.title.toLowerCase() === finalName.toLowerCase());
+    if (conflict) {
+      const choice = window.prompt(
+        `Item "${finalName}" already exists. Type cancel/skip/overwrite/rename:`,
+        "rename"
+      );
+      if (!choice || choice.toLowerCase() === "cancel") {
+        return; // abort entire paste
+      }
+      if (choice.toLowerCase() === "skip") {
+        continue;
+      }
+      if (choice.toLowerCase() === "overwrite") {
+        try {
+          await api.delete(`/projects/${projectId}/documents/${conflict._id}`);
+        } catch {}
+      }
+      if (choice.toLowerCase() === "rename") {
+        finalName = generateCopiedName(finalName, existing.map((i) => i.title));
+      }
+    }
+    let origData: any = null;
+    try {
+      const r = await api.get(`/projects/${projectId}/documents/${clip.id}`);
+      origData = r.data;
+    } catch (err) {
+      console.error(err);
+    }
+    const payload: any = { title: finalName, type: clip.type, parent_id: targetFolderId };
+    if (origData) {
+      if (origData.chapters) payload.chapters = origData.chapters;
+    }
+    try {
+      await api.post(`/projects/${projectId}/documents`, payload);
+      if (clip.action === "cut") {
+        await api.delete(`/projects/${projectId}/documents/${clip.id}`);
+      }
+      pastedCount++;
+    } catch (err) {
+      console.error("[PASTE ERROR]", err);
+      setError("Paste failed");
+    }
+  }
+  if (pastedCount > 0) {
+    showToast(`Pasted ${pastedCount} item${pastedCount > 1 ? "s" : ""}`);
+  }
+  setClipboard([]);
+  fetchData();
+};
+
+// open context menu
+const openContextMenu = (e: MouseEvent, item?: Item | null) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setContextMenu({ x: e.clientX, y: e.clientY, type: item ? "item" : "root", item: item ?? null });
+};
+
+// close on click outside
+useEffect(() => {
+  const handleClick = () => setContextMenu(null);
+  window.addEventListener("click", handleClick);
+  return () => window.removeEventListener("click", handleClick);
+}, []);
+
 const fetchData = useCallback(async () => {
   if (!projectId) return;
   setLoading(true);
@@ -230,7 +335,11 @@ const fetchData = useCallback(async () => {
 }, [projectId, currentFolderId, logout, navigate]);
 
   useEffect(() => {
-    fetchData();
+    try {
+      fetchData();
+    } catch (e) {
+      console.error("fetchData effect error", e);
+    }
   }, [fetchData]);
 
   useEffect(() => {
@@ -460,7 +569,10 @@ function ErrorBoundary({ children, fallback }) {
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
 
-  return (
+  // prepare render with try/catch so any synchronous error doesn't blow up silently
+  let content;
+  try {
+    content = (
       <div key={projectId} className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* Fixed Navigation Bar */}
       <header className="sticky top-0 z-50 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
@@ -558,6 +670,11 @@ function ErrorBoundary({ children, fallback }) {
             
         {/* Main content – now starts below the fixed controls */}
         <main
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openContextMenu(e, null);
+          }}
           className={`
             flex-1 overflow-y-auto relative
             mt-[calc(5rem+1.25rem)] lg:mt-[calc(5rem+1.25rem)] 
@@ -566,7 +683,7 @@ function ErrorBoundary({ children, fallback }) {
             transition-all duration-300 ease-in-out
           `}
         >
-          <ErrorBoundary fallback={<div className="p-8 text-red-600">Render error — check console</div>}>
+          <ErrorBoundary fallback={<div className="p-8 text-[var(--accent)]">Render error — check console</div>}>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -619,6 +736,7 @@ function ErrorBoundary({ children, fallback }) {
             }}
             sidebarOpen={sidebarOpen}
             currentFolderId={currentFolderId}
+            onContextMenu={openContextMenu}
           />
           <DragOverlay dropAnimation={null}>
             {activeId ? (
@@ -641,10 +759,110 @@ function ErrorBoundary({ children, fallback }) {
         </main>
       </div>
 
+      {/* context menu */}
+      {contextMenu && (
+        <div
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          className="fixed z-50 bg-[var(--bg-secondary)] border border-[var(--border)] rounded shadow-lg py-1 text-[var(--text-primary)]"
+        >
+          {contextMenu.type === "item" && contextMenu.item && (
+            <>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
+                onClick={() => {
+                  handleCopy(contextMenu.item!);
+                  setContextMenu(null);
+                }}
+              >
+                Copy
+              </button>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
+                onClick={() => {
+                  handleCut(contextMenu.item!);
+                  setContextMenu(null);
+                }}
+              >
+                Cut
+              </button>
+              {contextMenu.item.type === "folder" && (
+                <>
+                  <hr className="my-1 border-[var(--border)]" />
+                  <button
+                    className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)] disabled:opacity-50"
+                    disabled={clipboard.length === 0}
+                    onClick={() => {
+                      handlePaste(contextMenu.item!._id);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Paste into folder
+                  </button>
+                </>
+              )}
+              <hr className="my-1 border-[var(--border)]" />
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
+                onClick={() => {
+                  setEditItem(contextMenu.item!);
+                  setEditItemName(contextMenu.item!.title);
+                  setEditModalOpen(true);
+                  setContextMenu(null);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
+                onClick={() => {
+                  setItemToDelete(contextMenu.item!._id);
+                  setDeleteModalOpen(true);
+                  setContextMenu(null);
+                }}
+              >
+                Delete
+              </button>
+            </>
+          )}
+          {contextMenu.type === "root" && (
+            <>
+              <button
+                className="block w-full text-left px-4 py-2 text-[var(--text-secondary)] disabled:opacity-50"
+                disabled
+              >
+                Copy
+              </button>
+              <button
+                className="block w-full text-left px-4 py-2 text-[var(--text-secondary)] disabled:opacity-50"
+                disabled
+              >
+                Cut
+              </button>
+              <hr className="my-1 border-[var(--border)]" />
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)] disabled:opacity-50"
+                disabled={clipboard.length === 0}
+                onClick={() => {
+                  const target = currentFolderId;
+                  if (clipboard.length > 0) handlePaste(target);
+                  setContextMenu(null);
+                }}
+              >
+                Paste
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {/* Error message */}
       {error && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded shadow-lg z-50">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[var(--bg-secondary)] border border-[var(--accent)] text-[var(--accent)] px-6 py-3 rounded shadow-lg z-50">
           {error}
+        </div>
+      )}
+      {toast && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-[var(--bg-secondary)] border border-[var(--accent)] text-[var(--accent)] px-6 py-3 rounded shadow-lg z-50">
+          {toast}
         </div>
       )}
 

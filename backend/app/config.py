@@ -10,9 +10,5 @@ class Settings(BaseSettings):
     DB_NAME: str = "lyra"
     JWT_SECRET: str = "CHANGE_ME"
     JWT_ALGORITHM: str = "HS256"
-    MAILJET_API_KEY: Optional[str] = None
-    MAILJET_SECRET_KEY: Optional[str] = None
-    MAILJET_FROM_EMAIL: Optional[str] = None
-    MAILJET_FROM_NAME: str = "Lyra"
 
 settings = Settings()

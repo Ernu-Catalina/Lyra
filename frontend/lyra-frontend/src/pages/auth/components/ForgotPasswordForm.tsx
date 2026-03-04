@@ -71,7 +71,7 @@ export default function ForgotPasswordForm() {
       <AuthLayout title="Reset your password" subtitle="Enter your email to receive a reset code">
         <form onSubmit={handleSubmit} className="space-y-5">
           <AuthInput label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          {error && <p className="text-[var(--accent)] text-sm text-center">{error}</p>}
           {message && <p className="text-green-400 text-sm text-center">{message}</p>}
           <AuthButton type="submit" loading={loading}>Send Reset Code</AuthButton>
         </form>
@@ -88,7 +88,7 @@ export default function ForgotPasswordForm() {
         <CodeInput value={code} onChange={setCode} />
         <AuthInput label="New Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         <AuthInput label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+        {error && <p className="text-[var(--accent)] text-sm text-center">{error}</p>}
         {message && <p className="text-green-400 text-sm text-center">{message}</p>}
         <AuthButton type="submit" loading={loading}>Reset Password</AuthButton>
       </form>

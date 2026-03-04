@@ -31,7 +31,7 @@ const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
           aria-describedby={error ? `${id}-error` : undefined}
         />
         {error && (
-          <p id={`${id}-error`} className="text-red-600 text-sm mt-1">
+          <p id={`${id}-error`} className="text-[var(--accent)] text-sm mt-1">
             {error}
           </p>
         )}

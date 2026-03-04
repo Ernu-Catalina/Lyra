@@ -1,11 +1,13 @@
 // src/components/documents/DocumentListItem.tsx
 import { FileText, Edit, Trash2 } from "lucide-react";
+import type { MouseEvent } from "react";
 
 interface DocumentListItemProps {
   document: any;
   onNavigate: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onContextMenu?: (e: MouseEvent, item: any) => void;
 }
 
 export default function DocumentListItem({
@@ -32,12 +34,21 @@ export default function DocumentListItem({
 
   if (!document) {
     console.error("DocumentListItem received no document prop");
-    return <div className="text-red-600 p-4">Missing document data</div>;
+    return <div className="text-[var(--accent)] p-4">Missing document data</div>;
   }
 
   return (
     <div
-      onClick={safeNavigate}       
+      onClick={safeNavigate}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu && onContextMenu(e, {
+          _id: document._id,
+          title: document.title,
+          type: document.type,
+        });
+      }}
       className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-[var(--accent)]/5 transition cursor-pointer group items-center"
     >
       {/* Title + icon */}
@@ -83,7 +94,7 @@ export default function DocumentListItem({
             e.stopPropagation();
             onDelete();
           }}
-          className="p-1.5 text-[var(--accent)] hover:text-[var(--accent)] hover:bg-red-50 rounded transition"
+          className="p-1.5 text-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
           aria-label="Delete document"
           title="Delete document"
         >

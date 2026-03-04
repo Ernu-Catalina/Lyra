@@ -1,5 +1,6 @@
 import { Folder, Edit, Trash2 } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
+import type { MouseEvent } from "react";
 
 interface FolderGridProps {
   folders: any[];
@@ -8,6 +9,7 @@ interface FolderGridProps {
   onDelete: (folderId: string) => void;
   sidebarOpen: boolean;
   currentFolderId?: string | null;
+  onContextMenu?: (e: MouseEvent, item?: any) => void;
 }
 
 function FolderItem({
@@ -16,12 +18,14 @@ function FolderItem({
   onEdit,
   onDelete,
   currentFolderId,
+  onContextMenu,
 }: {
   folder: any;
   onEnterFolder: (folderId: string, folderTitle: string) => void;
   onEdit: (folder: any) => void;
   onDelete: (folderId: string) => void;
   currentFolderId?: string | null;
+  onContextMenu?: (e: React.MouseEvent, item?: any) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: folder._id,
@@ -31,6 +35,11 @@ function FolderItem({
     <div
       ref={setNodeRef}
       onClick={() => onEnterFolder(folder._id, folder.title)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu && onContextMenu(e, folder);
+      }}
       className={`
         group flex flex-col items-center justify-between p-4 
         bg-[var(--bg-secondary)] border rounded-xl 
@@ -114,6 +123,7 @@ export default function FolderGrid({
             onEdit={onEdit}
             onDelete={onDelete}
             currentFolderId={currentFolderId}
+            onContextMenu={onContextMenu}
           />
         ))}
       </div>

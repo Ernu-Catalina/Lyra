@@ -6,6 +6,8 @@ import DocumentListItem from "./DocumentListItem";
 import DocumentHeader from "./DocumentHeader";
 import type { Item } from "../../types/document";  // ← Item can be folder or document
 
+import type { MouseEvent } from "react";
+
 interface DocumentListProps {
   items: Item[];
   onEnterFolder: (id: string, title: string) => void;   // ← now needs title
@@ -14,6 +16,7 @@ interface DocumentListProps {
   onDelete: (id: string) => void;
   sidebarOpen: boolean;
   currentFolderId: string | null;   // ← add this
+  onContextMenu?: (e: MouseEvent, item?: Item) => void;
 }
 
 export default function DocumentList({
@@ -23,6 +26,7 @@ export default function DocumentList({
   onEdit,
   onDelete,
   currentFolderId,
+  onContextMenu,
 }: DocumentListProps) {
   const folders = items.filter((i) => i.type === "folder");
   const documents = items.filter((i) => i.type === "document");
@@ -58,6 +62,7 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
         onDelete={onDelete}
         sidebarOpen={false}
         currentFolderId={currentFolderId}
+        onContextMenu={onContextMenu}
       />
 
       {/* Documents List */}
@@ -69,9 +74,10 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
               <SortableItem key={doc._id} id={doc._id}>
                 <DocumentListItem
                   document={doc}
-                  onNavigate={() => onNavigateDocument(document._id)}
+                  onNavigate={() => onNavigateDocument(doc._id)}
                   onEdit={() => onEdit(doc)}
                   onDelete={() => onDelete(doc._id)}
+                  onContextMenu={onContextMenu}
                 />
               </SortableItem>
             ))}

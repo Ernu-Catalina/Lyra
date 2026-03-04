@@ -39,7 +39,7 @@ export default function DeleteConfirmationModal({
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+            className="flex-1 py-2.5 bg-[var(--accent)] text-white rounded-lg hover:bg-[var(--accent)]/90 transition font-medium"
           >
             Delete
           </button>

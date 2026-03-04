@@ -1,5 +1,7 @@
 import FolderGrid from "./FolderGrid";
 
+import type { MouseEvent } from "react";
+
 interface FolderGridSystemProps {
   folders: any[];
   onEnterFolder: (id: string, title: string) => void;  // ← changed
@@ -7,6 +9,7 @@ interface FolderGridSystemProps {
   onDelete: (id: string) => void;
   sidebarOpen: boolean;
   currentFolderId?: string | null;
+  onContextMenu?: (e: MouseEvent, item?: any) => void;
 }
 
 export default function FolderGridSystem({
@@ -25,6 +28,7 @@ export default function FolderGridSystem({
       onDelete={onDelete}
       sidebarOpen={sidebarOpen}
       currentFolderId={currentFolderId}
+      onContextMenu={onContextMenu}
     />
   );
 }
