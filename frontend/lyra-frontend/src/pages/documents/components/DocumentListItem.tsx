@@ -1,20 +1,16 @@
 // src/components/documents/DocumentListItem.tsx
-import { FileText, Edit, Trash2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import type { MouseEvent } from "react";
 
 interface DocumentListItemProps {
   document: any;
   onNavigate: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
   onContextMenu?: (e: MouseEvent, item: any) => void;
 }
 
 export default function DocumentListItem({
   document,
   onNavigate,
-  onEdit,
-  onDelete,
   onContextMenu,
 }: DocumentListItemProps) {
   const safeNavigate = () => {
@@ -44,63 +40,39 @@ export default function DocumentListItem({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onContextMenu && onContextMenu(e, {
+        onContextMenu?.(e, {
           _id: document._id,
           title: document.title,
           type: document.type,
         });
       }}
-      className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-[var(--accent)]/5 transition cursor-pointer group items-center"
+      className="
+        grid grid-cols-[3fr_1fr_1fr_1fr] gap-6 px-6 py-4 
+        hover:bg-[var(--accent)]/5 transition cursor-pointer 
+        group items-center border-b border-[var(--border)]/30 last:border-b-0
+      "
     >
-      {/* Title + icon */}
-      <div className="col-span-4 flex items-center gap-3">
-        <FileText size={20} className="text-[var(--accent)]" />
+      {/* Title + icon – takes most space (3fr) */}
+      <div className="flex items-center gap-4">
+        <FileText size={20} className="text-[var(--accent)] flex-shrink-0" />
         <span className="font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)] line-clamp-1 flex-1">
           {document.title}
         </span>
       </div>
 
-      {/* Last Modified */}
-      <div className="col-span-3 text-[var(--text-secondary)] text-sm">
+      {/* Last Modified – right-aligned */}
+      <div className="text-right text-[var(--text-secondary)] text-sm">
         {new Date(document.updated_at).toLocaleDateString()}
       </div>
 
-      {/* Chapters */}
-      <div className="col-span-2 text-center text-[var(--text-secondary)]">
+      {/* Chapters – centered, right-aligned */}
+      <div className="text-right text-[var(--text-secondary)] text-sm">
         {document.chapter_count ?? "—"}
       </div>
 
-      {/* Words */}
-      <div className="col-span-2 text-center text-[var(--text-secondary)]">
+      {/* Words – centered, right-aligned */}
+      <div className="text-right text-[var(--text-secondary)] text-sm">
         {document.word_count ?? "—"}
-      </div>
-
-      {/* Edit & Delete Buttons */}
-      <div className="col-span-1 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
-          aria-label="Edit document"
-          title="Edit document"
-        >
-          <Edit size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="p-1.5 text-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
-          aria-label="Delete document"
-          title="Delete document"
-        >
-          <Trash2 size={16} />
-        </button>
       </div>
     </div>
   );
