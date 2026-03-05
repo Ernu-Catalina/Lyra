@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   // user settings from backend
   const [wordcountDisplay, setWordcountDisplay] = useState<string[]>([]);
@@ -82,6 +83,35 @@ export default function SettingsPage() {
     };
     patch();
   }, [wordcountDisplay, wordcountFormat, defaultView, loadingSettings]);
+
+  useEffect(() => {
+  if (loadingSettings) return;
+  
+  let timeout: NodeJS.Timeout;
+  
+  const patch = async () => {
+    setIsSaving(true);
+    setSaveError("");
+    try {
+      await api.patch("/users/me/settings", {
+        wordcount_display: wordcountDisplay,
+        wordcount_format: wordcountFormat,
+        default_view: defaultView,
+      });
+      // Optional: show success toast
+    } catch (err: any) {
+      console.error("Failed to save settings", err);
+      setSaveError(err.response?.data?.detail || "Could not save settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Debounce saves (avoid spamming on every keystroke/click)
+  timeout = setTimeout(patch, 800);
+
+  return () => clearTimeout(timeout);
+}, [wordcountDisplay, wordcountFormat, defaultView, loadingSettings]);
 
   const handleToggleWordcount = (option: string) => {
     setWordcountDisplay((prev) =>

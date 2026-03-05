@@ -104,6 +104,7 @@ export default function FolderGrid({
   onDelete,
   sidebarOpen,
   currentFolderId,
+  onContextMenu,
 }: FolderGridProps) {
   if (folders.length === 0) return null;
 

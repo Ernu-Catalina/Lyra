@@ -4,12 +4,12 @@ import type { MouseEvent } from "react";
 
 interface FolderGridSystemProps {
   folders: any[];
-  onEnterFolder: (id: string, title: string) => void;  // ← changed
+  onEnterFolder: (id: string, title: string) => void;
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
   sidebarOpen: boolean;
   currentFolderId?: string | null;
-  onContextMenu?: (e: MouseEvent, item?: any) => void;
+  onContextMenu?: (e: MouseEvent, item?: any) => void;   // ← fixed: now accepts it
 }
 
 export default function FolderGridSystem({
@@ -19,6 +19,7 @@ export default function FolderGridSystem({
   onDelete,
   sidebarOpen,
   currentFolderId,
+  onContextMenu,   // ← now destructured
 }: FolderGridSystemProps) {
   return (
     <FolderGrid
@@ -26,9 +27,9 @@ export default function FolderGridSystem({
       onEnterFolder={onEnterFolder}
       onEdit={onEdit}
       onDelete={onDelete}
-      sidebarOpen={sidebarOpen}
+      sidebarOpen={sidebarOpen}          // ← use real value
       currentFolderId={currentFolderId}
-      onContextMenu={onContextMenu}
+      onContextMenu={onContextMenu}      // ← now passed safely
     />
   );
 }

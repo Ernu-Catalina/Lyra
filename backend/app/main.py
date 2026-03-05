@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
-from app.routes import auth, projects, documents
+from app.routes import auth, projects, documents, users
 from app import database
 import logging
 
@@ -31,6 +31,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

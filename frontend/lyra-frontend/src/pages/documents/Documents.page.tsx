@@ -315,6 +315,11 @@ const fetchData = useCallback(async () => {
     const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
     console.log("Fetching documents with params:", params, "currentFolderId:", currentFolderId);
     const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { signal: controller.signal });
+    console.log("Documents fetch result:", {
+  project: projectRes.data,
+  itemsCount: itemsRes.data?.length || 0,
+  items: itemsRes.data
+});
     const allItems = itemsRes.data || [];
     console.log("Fetched items:", allItems.length);
     setItems(allItems);
@@ -569,8 +574,23 @@ function ErrorBoundary({ children, fallback }) {
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
 
-  // prepare render with try/catch so any synchronous error doesn't blow up silently
-    const content = (
+  return (
+    <main className="...">
+  {loading && <div className="p-8 text-center text-xl">Loading project...</div>}
+  {error && (
+    <div className="p-8 bg-red-100 border border-red-400 text-red-700 rounded m-4">
+      <h2 className="text-2xl font-bold mb-4">Error loading project</h2>
+      <p className="text-lg mb-4">{error}</p>
+      <pre className="bg-red-50 p-4 rounded overflow-auto max-h-60">{error}</pre>
+      <button 
+        onClick={() => { setError(""); fetchData(); }}
+        className="mt-4 px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Retry
+      </button>
+    </div>
+  )}
+  {!loading && !error && (
       <div key={projectId} className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* Fixed Navigation Bar */}
       <header className="sticky top-0 z-50 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
@@ -907,6 +927,7 @@ function ErrorBoundary({ children, fallback }) {
         }}
         onConfirm={handleDeleteItem}
       />
-    </div>
+    </div> )}
+</main>
   );
 }
