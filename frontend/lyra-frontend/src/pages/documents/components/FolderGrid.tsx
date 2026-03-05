@@ -39,7 +39,7 @@ function FolderItem({
         onContextMenu && onContextMenu(e, folder);
       }}
       className={`
-        group flex flex-col items-center justify-between p-4 
+        group flex flex-col items-center justify-between p-5 
         bg-[var(--bg-secondary)] border rounded-xl 
         transition cursor-pointer aspect-[5/5] max-w-[180px] mx-auto
         ${
@@ -57,9 +57,14 @@ function FolderItem({
 
         <span
           className={`
-            font-medium text-center text-sm line-clamp-2 px-1
+            font-medium text-center text-sm 
+            line-clamp-2                 /* allow max 2 lines */
+            break-words                  /* force wrap long words */
+            leading-tight                /* tighter line spacing for 2 lines */
+            px-1 py-1
             ${isOver ? "text-[var(--accent)] font-semibold" : "group-hover:text-[var(--accent)]"}
           `}
+          title={folder.title}           
         >
           {folder.title}
         </span>
@@ -83,7 +88,7 @@ export default function FolderGrid({
     <div className="mb-8">
       <div
         className={`
-          grid gap-4
+          grid gap-2
           ${sidebarOpen ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}
         `}
       >

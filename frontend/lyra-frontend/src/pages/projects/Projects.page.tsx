@@ -8,6 +8,7 @@ import CreateButton from "../../common_components/CreateButton";
 import { ProjectCard } from "./components/ProjectCard";
 import { CreateProjectModal } from "./components/CreateProjectModal";
 import { EditProjectModal } from "./components/EditProjectModal";
+import DeleteConfirmationModal from "../documents/components/DeleteConfirmationModal";
 
 export interface Project {
   _id: string;
@@ -28,6 +29,8 @@ export default function ProjectsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newCoverUrl, setNewCoverUrl] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [editName, setEditName] = useState("");
@@ -95,17 +98,25 @@ export default function ProjectsPage() {
     }
   };
 
-  const deleteProject = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this project? This cannot be undone.")) return;
-
-    try {
-      await api.delete(`/projects/${id}`);
-      setError("");
-      fetchProjects();
-    } catch (err: any) {
-      setError("Failed to delete project");
-    }
+  const deleteProject = (id: string) => {
+    setProjectToDelete(id);
+    setDeleteModalOpen(true);
   };
+
+  const confirmDeleteProject = async () => {
+  if (!projectToDelete) return;
+
+  try {
+    await api.delete(`/projects/${projectToDelete}`);
+    setError("");
+    fetchProjects();
+  } catch (err: any) {
+    setError("Failed to delete project");
+  } finally {
+    setDeleteModalOpen(false);
+    setProjectToDelete(null);
+  }
+};
 
   const togglePin = async (project: Project) => {
     const newPinned = !project.pinned;
@@ -231,6 +242,17 @@ return (
         setName={setEditName}
         coverUrl={editCoverUrl}
         setCoverUrl={setEditCoverUrl}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={confirmDeleteProject}
+        title="Delete Project?"
+        message="Are you sure you want to delete this project? All documents and data inside will be permanently removed. This action cannot be undone."
       />
     </div>
   );
