@@ -1,4 +1,5 @@
-import { Folder, Edit, Trash2 } from "lucide-react";
+// src/components/documents/FolderGrid.tsx
+import { Folder } from "lucide-react";
 import { useDroppable } from "@dnd-kit/core";
 import type { MouseEvent } from "react";
 
@@ -15,14 +16,10 @@ interface FolderGridProps {
 function FolderItem({
   folder,
   onEnterFolder,
-  currentFolderId,
   onContextMenu,
 }: {
   folder: any;
   onEnterFolder: (folderId: string, folderTitle: string) => void;
-  onEdit: (folder: any) => void;
-  onDelete: (folderId: string) => void;
-  currentFolderId?: string | null;
   onContextMenu?: (e: React.MouseEvent, item?: any) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -36,35 +33,41 @@ function FolderItem({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onContextMenu && onContextMenu(e, folder);
+        onContextMenu?.(e, folder);
       }}
       className={`
-        group flex flex-col items-center justify-between p-5 
-        bg-[var(--bg-secondary)] border rounded-xl 
-        transition cursor-pointer aspect-[5/5] max-w-[180px] mx-auto
+        group relative flex flex-col items-center justify-between
+        p-4 sm:p-5
+        bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
+        transition-all duration-200 cursor-pointer
+        w-[150px] h-[150px]              /* fixed size - adjust if you prefer larger/smaller */
+        overflow-hidden                   /* prevent content overflow */
+        shadow-sm hover:shadow-md
         ${
           isOver
             ? "border-2 border-[var(--accent)] shadow-lg scale-[1.04] ring-1 ring-[var(--accent)]/30"
-            : "border-[var(--border)] hover:border-[var(--accent)]/50 hover:shadow-md"
+            : "hover:border-[var(--accent)]/60 hover:scale-[1.02]"
         }
       `}
     >
-      <div className="flex flex-col items-center flex-grow justify-center">
+      <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
         <Folder
-          size={60}
-          className={`mb-3 ${isOver ? "text-[var(--accent)]" : "text-[var(--accent)]/80"}`}
+          size={56}
+          className={`mb-3 transition-colors ${
+            isOver ? "text-[var(--accent)]" : "text-[var(--accent)]/70 group-hover:text-[var(--accent)]"
+          }`}
         />
 
         <span
           className={`
-            font-medium text-center text-sm 
-            line-clamp-2                 /* allow max 2 lines */
-            break-words                  /* force wrap long words */
-            leading-tight                /* tighter line spacing for 2 lines */
-            px-1 py-1
+            font-medium text-center text-sm leading-tight
+            line-clamp-2                      /* max 2 lines */
+            break-all                         /* force-break long unbreakable words */
+            px-2 py-1 w-full
+            overflow-hidden text-ellipsis     /* ellipsis when text overflows clamp */
             ${isOver ? "text-[var(--accent)] font-semibold" : "group-hover:text-[var(--accent)]"}
           `}
-          title={folder.title}           
+          title={folder.title}               /* full name on hover */
         >
           {folder.title}
         </span>
@@ -88,8 +91,11 @@ export default function FolderGrid({
     <div className="mb-8">
       <div
         className={`
-          grid gap-2
-          ${sidebarOpen ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}
+          grid gap-4 sm:gap-5 md:gap-6 justify-items-center
+          ${sidebarOpen 
+            ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+            : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8"
+          }
         `}
       >
         {folders.map((folder) => (
