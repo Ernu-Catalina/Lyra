@@ -105,6 +105,7 @@ export default function Documents() {
     existingItem: Item;
     targetFolderId: string | null;
     suggestedName: string;
+    onResolve: () => void;
   } | null>(null);
 
   // ────────────────────────────────────────────────
@@ -231,8 +232,38 @@ export default function Documents() {
     showToast("Cut to clipboard");
   };
 
+  const generateCopiedName = useCallback((original: string, existingNames: string[]): string => {
+    const base = original;
+    let candidate = `${base} (copy)`;
+    let counter = 2;
+    const lower = (s: string) => s.toLowerCase();
+    const existLower = existingNames.map(lower);
+    while (existLower.includes(candidate.toLowerCase())) {
+      candidate = `${base} (${counter})`;
+      counter += 1;
+    }
+    return candidate;
+  }, []);
+
   const handlePaste = async (targetFolderId: string | null) => {
-    if (clipboard.length === 0) return;
+  if (clipboard.length === 0) return;
+
+  // We'll process clipboard items one by one, pausing on conflict
+  const remainingClipboard = [...clipboard];
+  setClipboard([]); // clear immediately to prevent duplicate pastes
+
+  let pastedCount = 0;
+
+  const processNext = async () => {
+    if (remainingClipboard.length === 0) {
+      if (pastedCount > 0) {
+        showToast(`Pasted ${pastedCount} item${pastedCount > 1 ? "s" : ""}`);
+      }
+      fetchData();
+      return;
+    }
+
+    const clip = remainingClipboard.shift()!;
 
     let existing: Item[] = [];
     try {
@@ -241,53 +272,56 @@ export default function Documents() {
       existing = res.data || [];
     } catch (e) {
       console.error("[PASTE FETCH ERROR]", e);
+      setError("Could not check for conflicts");
+      processNext(); // continue anyway
+      return;
     }
 
-    let pastedCount = 0;
-    for (const clip of clipboard) {
-      let finalName = clip.title;
-      const conflict = existing.find((i) => i.title.toLowerCase() === finalName.toLowerCase());
+    let finalName = clip.title;
+    const conflict = existing.find((i) => i.title.toLowerCase() === finalName.toLowerCase());
 
-      if (conflict) {
-        const suggested = generateCopiedName(clip.title, existing.map((i) => i.title));
-        setPasteConflict({
-          clipboardItem: clip,
-          existingItem: conflict,
-          targetFolderId,
-          suggestedName: suggested,
-        });
-        return; // pause paste until modal resolved
-      }
-
-      let origData: any = null;
-      try {
-        const r = await api.get(`/projects/${projectId}/documents/${clip.id}`);
-        origData = r.data;
-      } catch (err) {
-        console.error(err);
-      }
-
-      const payload: any = { title: finalName, type: clip.type, parent_id: targetFolderId };
-      if (origData?.chapters) payload.chapters = origData.chapters;
-
-      try {
-        await api.post(`/projects/${projectId}/documents`, payload);
-        if (clip.action === "cut") {
-          await api.delete(`/projects/${projectId}/documents/${clip.id}`);
-        }
-        pastedCount++;
-      } catch (err) {
-        console.error("[PASTE ERROR]", err);
-        setError("Paste failed");
-      }
+    if (conflict) {
+      // Conflict → pause and show modal
+      const suggested = generateCopiedName(clip.title, existing.map((i) => i.title));
+      setPasteConflict({
+        clipboardItem: clip,
+        existingItem: conflict,
+        targetFolderId,
+        suggestedName: suggested,
+        onResolve: processNext, // ← key: resume after modal choice
+      });
+      return;
     }
 
-    if (pastedCount > 0) {
-      showToast(`Pasted ${pastedCount} item${pastedCount > 1 ? "s" : ""}`);
+    // No conflict → paste immediately
+    let origData: any = null;
+    try {
+      const r = await api.get(`/projects/${projectId}/documents/${clip.id}`);
+      origData = r.data;
+    } catch (err) {
+      console.error(err);
     }
-    setClipboard([]);
-    fetchData();
+
+    const payload: any = { title: finalName, type: clip.type, parent_id: targetFolderId };
+    if (origData?.chapters) payload.chapters = origData.chapters;
+
+    try {
+      await api.post(`/projects/${projectId}/documents`, payload);
+      if (clip.action === "cut") {
+        await api.delete(`/projects/${projectId}/documents/${clip.id}`);
+      }
+      pastedCount++;
+      processNext(); // continue to next item
+    } catch (err) {
+      console.error("[PASTE ERROR]", err);
+      setError("Paste failed for one item");
+      processNext(); // continue anyway
+    }
   };
+
+  // Start processing
+  processNext();
+};
 
   const openContextMenu = (e: MouseEvent, item?: Item | null) => {
     e.preventDefault();
@@ -404,54 +438,78 @@ export default function Documents() {
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  const { active, over } = event;
+  if (!over) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+  const activeId = active.id as string;
+  const overId = over.id as string;
 
-    const item = items.find((i) => i._id === activeId);
-    if (!item || item.type !== "document") return;
+  const item = items.find(i => i._id === activeId);
+  if (!item || item.type !== "document") return;
 
-    const newParent = overId === "root" ? null : overId;
-    if (item.parent_id === newParent) return;
+  const newParent = overId === "root" ? null : overId;
+  if (item.parent_id === newParent) return;
 
-    let targetItems: Item[] = [];
+  // Clear active state immediately (important for DragOverlay)
+  setActiveId(null);
+  setActiveTitle("");
+
+  // Optimistic update: remove from current list
+  setItems(prev => prev.filter(i => i._id !== activeId));
+
+  let targetItems: Item[] = [];
+  try {
+    const params = newParent ? `?parent_id=${newParent}` : "";
+    const res = await api.get(`/projects/${projectId}/documents${params}`);
+    targetItems = res.data || [];
+  } catch (err) {
+    console.error("[FETCH TARGET ERROR]", err);
+    setError("Cannot check target folder");
+    // Rollback on fetch fail
+    setItems(prev => [...prev, item]);
+    return;
+  }
+
+  const conflict = targetItems.find(i => i.title.toLowerCase() === item.title.toLowerCase());
+  if (conflict) {
     try {
-      const params = newParent ? `?parent_id=${newParent}` : "";
-      const res = await api.get(`/projects/${projectId}/documents${params}`);
-      targetItems = res.data || [];
-    } catch (fetchErr) {
-      console.error("[FETCH TARGET ITEMS ERROR]", fetchErr);
-      setError("Cannot load target folder contents");
-      return;
-    }
-
-    const conflict = targetItems.find((i) => i.title.toLowerCase() === item.title.toLowerCase());
-    if (conflict) {
-      try {
-        const fullDocRes = await api.get(`/projects/${projectId}/documents/${conflict._id}`);
-        const originalDocument = fullDocRes.data;
-        setMoveConflict({ active: item, existing: conflict, originalDocument, newParent, targetItems });
-      } catch (docFetchErr) {
-        console.error("[FETCH CONFLICT DOCUMENT ERROR]", docFetchErr);
-        setMoveConflict({ active: item, existing: conflict, originalDocument: conflict, newParent, targetItems });
-      }
-      return;
-    }
-
-    setItems((prev) => prev.filter((i) => i._id !== activeId));
-    try {
-      await api.patch(`/projects/${projectId}/documents/${activeId}`, {
-        parent_id: newParent,
+      const fullDocRes = await api.get(`/projects/${projectId}/documents/${conflict._id}`);
+      const originalDocument = fullDocRes.data;
+      setMoveConflict({
+        active: item,
+        existing: conflict,
+        originalDocument,
+        newParent,
+        targetItems,
       });
-      await fetchData();
-    } catch (err: any) {
-      console.error("[PATCH ERROR]", err.response?.data || err.message);
-      setError(err.response?.data?.detail || "Move failed – check console");
-      setItems((prev) => [...prev, item]);
+    } catch (err) {
+      console.error("[FETCH CONFLICT DOC ERROR]", err);
+      setMoveConflict({
+        active: item,
+        existing: conflict,
+        originalDocument: conflict,
+        newParent,
+        targetItems,
+      });
     }
-  };
+    // Do NOT rollback here — wait for user choice in modal
+    return;
+  }
+
+  // No conflict → perform move
+  try {
+    await api.patch(`/projects/${projectId}/documents/${activeId}`, {
+      parent_id: newParent,
+    });
+    // Refresh full list (includes new position + any server-side changes)
+    await fetchData();
+  } catch (err: any) {
+    console.error("[PATCH MOVE ERROR]", err);
+    setError(err.response?.data?.detail || "Move failed");
+    // Rollback: put item back
+    setItems(prev => [...prev, item]);
+  }
+};
 
   // ────────────────────────────────────────────────
   // RENDER
@@ -814,39 +872,77 @@ export default function Documents() {
           isOpen={!!pasteConflict}
           conflictingName={pasteConflict.existingItem.title}
           suggestedName={pasteConflict.suggestedName}
-          onCancel={() => setPasteConflict(null)}
+          onCancel={() => {
+            setPasteConflict(null);
+            pasteConflict.onResolve();
+          }}
           onOverwrite={async () => {
             try {
               await api.delete(`/projects/${projectId}/documents/${pasteConflict.existingItem._id}`);
+            
               const clip = pasteConflict.clipboardItem;
-              const payload = { title: clip.title, type: clip.type, parent_id: pasteConflict.targetFolderId };
+              const payload: any = {
+                title: clip.title,
+                type: clip.type,
+                parent_id: pasteConflict.targetFolderId,
+              };
+            
+              let origData: any = null;
+              try {
+                const r = await api.get(`/projects/${projectId}/documents/${clip.id}`);
+                origData = r.data;
+                if (origData?.chapters) payload.chapters = origData.chapters;
+              } catch (err) {
+                console.error("Could not fetch original data:", err);
+              }
+            
               await api.post(`/projects/${projectId}/documents`, payload);
+            
               if (clip.action === "cut") {
                 await api.delete(`/projects/${projectId}/documents/${clip.id}`);
               }
+            
               showToast("Pasted with overwrite");
             } catch (err) {
+              console.error("[PASTE OVERWRITE ERROR]", err);
               setError("Paste overwrite failed");
             } finally {
               setPasteConflict(null);
-              fetchData();
+              pasteConflict.onResolve();
             }
           }}
           onRename={async () => {
             try {
               const clip = pasteConflict.clipboardItem;
               const finalName = pasteConflict.suggestedName;
-              const payload = { title: finalName, type: clip.type, parent_id: pasteConflict.targetFolderId };
+              const payload: any = {
+                title: finalName,
+                type: clip.type,
+                parent_id: pasteConflict.targetFolderId,
+              };
+            
+              let origData: any = null;
+              try {
+                const r = await api.get(`/projects/${projectId}/documents/${clip.id}`);
+                origData = r.data;
+                if (origData?.chapters) payload.chapters = origData.chapters;
+              } catch (err) {
+                console.error("Could not fetch original data:", err);
+              }
+            
               await api.post(`/projects/${projectId}/documents`, payload);
+            
               if (clip.action === "cut") {
                 await api.delete(`/projects/${projectId}/documents/${clip.id}`);
               }
+            
               showToast("Pasted with new name");
             } catch (err) {
+              console.error("[PASTE RENAME ERROR]", err);
               setError("Paste rename failed");
             } finally {
               setPasteConflict(null);
-              fetchData();
+              pasteConflict.onResolve();
             }
           }}
         />
