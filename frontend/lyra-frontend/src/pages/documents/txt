@@ -1,0 +1,42 @@
+{pasteConflict && (
+        <MoveConflictModal
+          isOpen={!!pasteConflict}
+          conflictingName={pasteConflict.existingItem.title}
+          suggestedName={pasteConflict.suggestedName}
+          onCancel={() => setPasteConflict(null)}
+          onOverwrite={async () => {
+            try {
+              await api.delete(`/projects/${projectId}/documents/${pasteConflict.existingItem._id}`);
+              const clip = pasteConflict.clipboardItem;
+              const payload = { title: clip.title, type: clip.type, parent_id: pasteConflict.targetFolderId };
+              await api.post(`/projects/${projectId}/documents`, payload);
+              if (clip.action === "cut") {
+                await api.delete(`/projects/${projectId}/documents/${clip.id}`);
+              }
+              showToast("Pasted with overwrite");
+            } catch (err) {
+              setError("Paste overwrite failed");
+            } finally {
+              setPasteConflict(null);
+              fetchData();
+            }
+          }}
+          onRename={async () => {
+            try {
+              const clip = pasteConflict.clipboardItem;
+              const finalName = pasteConflict.suggestedName;
+              const payload = { title: finalName, type: clip.type, parent_id: pasteConflict.targetFolderId };
+              await api.post(`/projects/${projectId}/documents`, payload);
+              if (clip.action === "cut") {
+                await api.delete(`/projects/${projectId}/documents/${clip.id}`);
+              }
+              showToast("Pasted with new name");
+            } catch (err) {
+              setError("Paste rename failed");
+            } finally {
+              setPasteConflict(null);
+              fetchData();
+            }
+          }}
+        />
+      )}

@@ -35,5 +35,6 @@ export interface Item {
   updated_at: string;
   chapter_count?: number;
   word_count?: number;
-  parent_id: string | null;     // ← make non-optional for clarity
+  parent_id: string | null;  
+  pinned?: boolean;
 }
