@@ -15,8 +15,6 @@ interface FolderGridProps {
 function FolderItem({
   folder,
   onEnterFolder,
-  onEdit,
-  onDelete,
   currentFolderId,
   onContextMenu,
 }: {
@@ -43,7 +41,7 @@ function FolderItem({
       className={`
         group flex flex-col items-center justify-between p-4 
         bg-[var(--bg-secondary)] border rounded-xl 
-        transition cursor-pointer aspect-[4/5] max-w-[180px] mx-auto
+        transition cursor-pointer aspect-[5/5] max-w-[180px] mx-auto
         ${
           isOver
             ? "border-2 border-[var(--accent)] shadow-lg scale-[1.04] ring-1 ring-[var(--accent)]/30"
@@ -65,33 +63,6 @@ function FolderItem({
         >
           {folder.title}
         </span>
-      </div>
-
-      <div className="flex gap-3 opacity-60 group-hover:opacity-100 transition-opacity mt-3">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(folder);
-          }}
-          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
-          aria-label="Edit folder"
-          title="Edit folder"
-        >
-          <Edit size={18} />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(folder._id);
-          }}
-          className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition"
-          aria-label="Delete folder"
-          title="Delete folder"
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
     </div>
   );
