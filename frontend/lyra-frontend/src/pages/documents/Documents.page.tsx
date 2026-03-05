@@ -80,6 +80,13 @@ export default function Documents() {
     targetItems: Item[];
   } | null>(null);
 
+  const [pasteConflict, setPasteConflict] = useState<{
+    clipboardItem: { id: string; type: "document" | "folder"; title: string; action: "copy" | "cut" };
+    existingItem: Item;
+    targetFolderId: string | null;
+    suggestedName: string;
+  } | null>(null);
+
   useEffect(() => {
     if (project) {
       setFolderPath(prev => [{ id: null, title: project.name }, ...prev.slice(1)]);
@@ -239,24 +246,14 @@ const handlePaste = async (targetFolderId: string | null) => {
     let finalName = clip.title;
     const conflict = existing.find((i) => i.title.toLowerCase() === finalName.toLowerCase());
     if (conflict) {
-      const choice = window.prompt(
-        `Item "${finalName}" already exists. Type cancel/skip/overwrite/rename:`,
-        "rename"
-      );
-      if (!choice || choice.toLowerCase() === "cancel") {
-        return; // abort entire paste
-      }
-      if (choice.toLowerCase() === "skip") {
-        continue;
-      }
-      if (choice.toLowerCase() === "overwrite") {
-        try {
-          await api.delete(`/projects/${projectId}/documents/${conflict._id}`);
-        } catch {}
-      }
-      if (choice.toLowerCase() === "rename") {
-        finalName = generateCopiedName(finalName, existing.map((i) => i.title));
-      }
+      const suggested = generateCopiedName(clip.title, existing.map(i => i.title));
+      setPasteConflict({
+        clipboardItem: clip,
+        existingItem: conflict,
+        targetFolderId,
+        suggestedName: suggested,
+      });
+      return; // stop current paste loop — resume after modal choice
     }
     let origData: any = null;
     try {
@@ -927,6 +924,51 @@ function ErrorBoundary({ children, fallback }) {
         }}
         onConfirm={handleDeleteItem}
       />
+      {pasteConflict && (
+        <MoveConflictModal
+          isOpen={!!pasteConflict}
+          conflictingName={pasteConflict.existingItem.title}
+          suggestedName={pasteConflict.suggestedName}
+          onCancel={() => {
+            setPasteConflict(null);
+            // Optionally resume paste or abort
+          }}
+          onOverwrite={async () => {
+            try {
+              await api.delete(`/projects/${projectId}/documents/${pasteConflict.existingItem._id}`);
+              const clip = pasteConflict.clipboardItem;
+              const payload = { title: clip.title, type: clip.type, parent_id: pasteConflict.targetFolderId };
+              await api.post(`/projects/${projectId}/documents`, payload);
+              if (clip.action === "cut") {
+                await api.delete(`/projects/${projectId}/documents/${clip.id}`);
+              }
+              showToast("Pasted with overwrite");
+            } catch (err) {
+              setError("Paste overwrite failed");
+            } finally {
+              setPasteConflict(null);
+              fetchData();
+            }
+          }}
+          onRename={async () => {
+            try {
+              const clip = pasteConflict.clipboardItem;
+              const finalName = pasteConflict.suggestedName;
+              const payload = { title: finalName, type: clip.type, parent_id: pasteConflict.targetFolderId };
+              await api.post(`/projects/${projectId}/documents`, payload);
+              if (clip.action === "cut") {
+                await api.delete(`/projects/${projectId}/documents/${clip.id}`);
+              }
+              showToast("Pasted with new name");
+            } catch (err) {
+              setError("Paste rename failed");
+            } finally {
+              setPasteConflict(null);
+              fetchData();
+            }
+          }}
+        />
+      )}
     </div> )}
 </main>
   );
