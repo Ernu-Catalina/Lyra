@@ -15,6 +15,7 @@ export default function DocumentListItem({
   onNavigate,
   onEdit,
   onDelete,
+  onContextMenu,
 }: DocumentListItemProps) {
   const safeNavigate = () => {
     console.log("navigate clicked → document ID:", document?._id);
