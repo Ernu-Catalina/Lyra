@@ -570,9 +570,7 @@ function ErrorBoundary({ children, fallback }) {
     });
 
   // prepare render with try/catch so any synchronous error doesn't blow up silently
-  let content;
-  try {
-    content = (
+    const content = (
       <div key={projectId} className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* Fixed Navigation Bar */}
       <header className="sticky top-0 z-50 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
