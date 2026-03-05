@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import FolderGridSystem from "./FolderGridSystem";
 import DocumentListItem from "./DocumentListItem";
 import DocumentHeader from "./DocumentHeader";
-import type { Item } from "../../types/document";  // ← Item can be folder or document
+import type { Item } from "../../../types/document";  // ← Item can be folder or document
 
 import type { MouseEvent } from "react";
 

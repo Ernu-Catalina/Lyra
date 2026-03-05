@@ -29,7 +29,6 @@ export default function Documents() {
   // ────────────────────────────────────────────────
   const [project, setProject] = useState<Project | null>(null);
   const [items, setItems] = useState<Item[]>([]);           // current folder items
-  const [pinnedDocs, setPinnedDocs] = useState<Item[]>([]); // always root-level pinned documents
 
   // Loading & error
   const [loading, setLoading] = useState(true);
@@ -139,13 +138,6 @@ export default function Documents() {
       const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { signal: controller.signal });
       const allItems = itemsRes.data || [];
       setItems(allItems);
-
-      // Fetch pinned documents (always from root)
-      const pinnedRes = await api.get(`/projects/${projectId}/documents`, {
-        params: { pinned_only: true },
-      });
-      const pinned = pinnedRes.data.filter((item: Item) => item.type === "document" && item.pinned);
-      setPinnedDocs(pinned);
     } catch (err: any) {
       if (err.name === "AbortError") return;
       console.error("Fetch failed:", err);
@@ -165,31 +157,6 @@ export default function Documents() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // ────────────────────────────────────────────────
-  // PINNING LOGIC
-  // ────────────────────────────────────────────────
-  const togglePin = async (item: Item) => {
-    if (item.type !== "document") return;
-
-    const newPinned = !item.pinned;
-    const currentPinnedCount = pinnedDocs.length;
-
-    if (newPinned && currentPinnedCount >= 3) {
-      setError("You can pin up to 3 documents only.");
-      return;
-    }
-
-    try {
-      await api.patch(`/projects/${projectId}/documents/${item._id}`, {
-        pinned: newPinned,
-      });
-      setError("");
-      fetchData(); // refresh everything
-    } catch (err: any) {
-      setError("Failed to update pin status");
-    }
-  };
 
   // ────────────────────────────────────────────────
   // CLIPBOARD & CONTEXT MENU HANDLERS
@@ -480,31 +447,9 @@ export default function Documents() {
           `}
         >
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 max-w-screen-xl mx-auto">
-            {/* Left: Create + Pinned */}
+            {/* Left: Create*/}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
               <CreateButton onClick={() => setCreateModalOpen(true)} label="Create" />
-
-              {/* Pinned documents bar */}
-              {pinnedDocs.length > 0 && (
-                <div className="flex items-center gap-3 flex-wrap">
-                  {pinnedDocs.map((doc) => (
-                    <button
-                      key={doc._id}
-                      onClick={() => navigate(`/editor/${doc._id}`)}
-                      className="
-                        flex items-center gap-2 px-3 py-1.5
-                        bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20
-                        border border-[var(--accent)]/30 rounded-lg
-                        text-sm font-medium text-[var(--accent)]
-                        transition
-                      "
-                    >
-                      <FileText size={16} />
-                      <span className="line-clamp-1 max-w-[140px]">{doc.title}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Right: Sort */}
@@ -620,17 +565,6 @@ export default function Documents() {
                   Paste into folder
                 </button>
               )}
-
-              {contextMenu.item.type === "document" && (
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
-                  onClick={() => { togglePin(contextMenu.item!); setContextMenu(null); }}
-                >
-                  {contextMenu.item.pinned ? "Unpin" : "Pin"}
-                </button>
-              )}
-
-              <hr className="my-1 border-[var(--border)]" />
 
               <button
                 className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"

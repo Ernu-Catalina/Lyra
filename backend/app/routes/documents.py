@@ -198,7 +198,6 @@ async def get_documents(
 async def get_documents(
     project_id: str,
     parent_id: Optional[str] = Query(None, description="Filter by parent folder ID (null for root)"),
-    pinned_only: Optional[bool] = Query(None, description="If true, return only pinned documents from root"),  # ← NEW
     user_id=Depends(get_current_user)
 ):
     project = await projects_collection.find_one({
@@ -209,28 +208,6 @@ async def get_documents(
         raise HTTPException(status_code=403, detail="Project not found or not owned")
 
     query = {"project_id": ObjectId(project_id)}
-
-    # ── If pinned_only is true, ignore parent_id and filter pinned documents ───────
-    if pinned_only:
-        query["type"] = "document"
-        query["pinned"] = True
-        query["parent_id"] = None  # pinned are always from root
-    else:
-        # existing parent_id logic
-        if parent_id is not None:
-            if parent_id == "null" or parent_id == "":
-                query["parent_id"] = None
-            else:
-                try:
-                    oid = ObjectId(parent_id)
-                    query["parent_id"] = {"$in": [oid, parent_id]}
-                except Exception as e:
-                    print(f"[DEBUG] Invalid parent_id '{parent_id}': {e}")
-                    query["parent_id"] = None
-        else:
-            query["parent_id"] = None
-
-    print(f"[DEBUG GET DOCUMENTS] Query: {query}")
 
     items = await documents_collection.find(query).sort("title", 1).to_list(100)
     print(f"[DEBUG] Found {len(items)} items for query {query}")
@@ -245,8 +222,6 @@ async def get_documents(
             chapters = item_dict.get("chapters", [])
             item_dict["chapter_count"] = len(chapters)
             item_dict["word_count"] = sum(ch.get("wordcount", 0) for ch in chapters)
-            # Ensure pinned field is included (default False if missing)
-            item_dict["pinned"] = item_dict.get("pinned", False)
 
         result.append(item_dict)
 
@@ -475,13 +450,6 @@ async def update_document(
         raise HTTPException(404, "Document or folder not found or not owned")
 
     update_data = {k: v for k, v in data.items() if v is not None}
-
-    # ── Validation for pinned (only documents, boolean) ───────────────
-    if "pinned" in update_data:
-        if doc["type"] != "document":
-            raise HTTPException(400, "Only documents can be pinned")
-        if not isinstance(update_data["pinned"], bool):
-            raise HTTPException(400, "Pinned must be a boolean")
 
     # if title or parent_id change, ensure no duplicates
     if "title" in update_data or "parent_id" in update_data:

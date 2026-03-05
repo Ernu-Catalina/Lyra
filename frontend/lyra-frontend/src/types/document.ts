@@ -36,5 +36,4 @@ export interface Item {
   chapter_count?: number;
   word_count?: number;
   parent_id: string | null;  
-  pinned?: boolean;
 }
