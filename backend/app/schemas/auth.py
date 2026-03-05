@@ -19,26 +19,17 @@ class UserSettings(BaseModel):
 class RegisterRequest(BaseModel):
     name: Annotated[
         str,
-        Field(
-            min_length=1,
-            max_length=100,
-            description="Full name of the user",
-            examples=["Cataly Smith"]
-        )
+        Field(min_length=1, max_length=100, description="Full name of the user")
     ]
-
     email: EmailStr = Field(
         ...,
-        description="User's email address (will be used as unique login identifier)",
-        examples=["cataly@example.com"]
+        description="User's email address (must be valid and unique)",
     )
-
     password: str = Field(
         ...,
         min_length=8,
         max_length=128,
-        description="User's password (must contain at least one letter and one number)",
-        examples=["SecurePass123"]
+        description="User's password (must contain at least one letter and one number)"
     )
 
     @field_validator("name", mode="before")
@@ -48,6 +39,15 @@ class RegisterRequest(BaseModel):
         if not name_stripped:
             raise ValueError("Name cannot be empty or only whitespace")
         return name_stripped
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_and_validate_email(cls, v: str) -> str:
+        email = v.strip().lower()
+        if not email:
+            raise ValueError("Email cannot be empty")
+        # EmailStr already validates format, but we can add extra check if desired
+        return email
 
     @field_validator("password", mode="before")
     @classmethod

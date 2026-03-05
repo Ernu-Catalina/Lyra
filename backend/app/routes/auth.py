@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Body, Depends
+import pymongo
+from pymongo.errors import DuplicateKeyError
 from app.database import users_collection, reset_codes_collection, projects_collection, documents_collection
 from app.utils.security import hash_password, verify_password
 from app.utils.auth import get_current_user
@@ -15,21 +17,32 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register")
 async def register(data: RegisterRequest):
-    if await users_collection.find_one({"email": data.email.lower()}):
-        raise HTTPException(400, "Email already registered. Please log in.")
+    try:
+        if await users_collection.find_one({"email": data.email.lower()}):
+            raise HTTPException(400, "Email already registered. Please log in.")
+        
+        hashed_pw = hash_password(data.password)
+        user = {
+            "name": data.name,
+            "email": data.email.lower(),
+            "password_hash": hashed_pw,
+            "created_at": datetime.utcnow(),
+            "settings": UserSettings().model_dump()
+        }
+        result = await users_collection.insert_one(user)
+        
+        token = create_access_token(str(result.inserted_id))
+        return {
+            "access_token": token,
+            "message": "Account created successfully",
+            "settings": user["settings"]
+        }
     
-    hashed_pw = hash_password(data.password)
-    user = {
-        "name": data.name,
-        "email": data.email.lower(),
-        "password_hash": hashed_pw,
-        "created_at": datetime.utcnow()
-    }
-    # attach default settings
-    user["settings"] = UserSettings().model_dump()
-    result = await users_collection.insert_one(user)
-    token = create_access_token(str(result.inserted_id))
-    return {"access_token": token, "message": "Account created", "settings": user["settings"]}
+    except pymongo.errors.DuplicateKeyError:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered. Please use a different email or log in."
+        )
 
 
 @router.post("/login")

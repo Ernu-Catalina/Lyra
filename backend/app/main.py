@@ -81,6 +81,7 @@ async def verify_db_connection():
     try:
         # motor AsyncIOMotorClient allows using .command with "ping"
         await database.db.command("ping")
+        await database.create_indexes()
         logger.info("MongoDB connection successful")
     except Exception as exc:
         logger.error("MongoDB connection failed during startup: %s", exc)

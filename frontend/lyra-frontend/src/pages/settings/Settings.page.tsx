@@ -43,7 +43,7 @@ export default function SettingsPage() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await api.get("/users/me");
+        const res = await api.get("/me");
         if (cancelled) return;
         const s = res.data.settings || {};
         if (Array.isArray(s.wordcount_display)) setWordcountDisplay(s.wordcount_display);
@@ -70,7 +70,7 @@ export default function SettingsPage() {
     if (loadingSettings) return;
     const patch = async () => {
       try {
-        await api.patch("/users/me/settings", {
+        await api.patch("/me/settings", {
           wordcount_display: wordcountDisplay,
           wordcount_format: wordcountFormat,
           default_view: defaultView,
@@ -93,7 +93,7 @@ export default function SettingsPage() {
     setIsSaving(true);
     setSaveError("");
     try {
-      await api.patch("/users/me/settings", {
+      await api.patch("/me/settings", {
         wordcount_display: wordcountDisplay,
         wordcount_format: wordcountFormat,
         default_view: defaultView,
@@ -126,7 +126,7 @@ export default function SettingsPage() {
       case "abbreviated":
         return "1k";
       default:
-        return "1234";
+        return "1257";
     }
   };
 
