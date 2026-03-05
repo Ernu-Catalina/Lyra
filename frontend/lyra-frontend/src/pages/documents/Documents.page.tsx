@@ -696,7 +696,7 @@ function ErrorBoundary({ children, fallback }) {
                 name="sortBy"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm text-sm text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] outline-none min-w-[180px] appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px_12px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMiA0TDYgOEwxMCA0IiBzdHJva2U9IiM2YjcyODAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+')] cursor-pointer"
+                className="px-2 py-1.5 pr-7 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm text-sm text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] outline-none min-w-[180px] appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px_12px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMiA0TDYgOEwxMCA0IiBzdHJva2U9IiM2YjcyODAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+')] cursor-pointer"
               >
                 <option value="updated-desc">Recently updated</option>
                 <option value="wordcount-desc">Word count (high to low)</option>
