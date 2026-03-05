@@ -40,7 +40,7 @@ function FolderItem({
         p-4 sm:p-5
         bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
         transition-all duration-200 cursor-pointer
-        w-[150px] h-[150px]              /* fixed size - adjust if you prefer larger/smaller */
+        w-[150px] h-[140px]              /* fixed size - adjust if you prefer larger/smaller */
         overflow-hidden                   /* prevent content overflow */
         shadow-sm hover:shadow-md
         ${
@@ -50,10 +50,10 @@ function FolderItem({
         }
       `}
     >
-      <div className="flex flex-col items-center justify-center flex-grow w-full h-full">
+      <div className="flex flex-col items-center justify-center w-full space-y-4">
         <Folder
           size={56}
-          className={`mb-3 transition-colors ${
+          className={`transition-colors ${
             isOver ? "text-[var(--accent)]" : "text-[var(--accent)]/70 group-hover:text-[var(--accent)]"
           }`}
         />
@@ -63,11 +63,12 @@ function FolderItem({
             font-medium text-center text-sm leading-tight
             line-clamp-2                      /* max 2 lines */
             break-all                         /* force-break long unbreakable words */
-            px-2 py-1 w-full
+            px-2 w-full
             overflow-hidden text-ellipsis     /* ellipsis when text overflows clamp */
+            bg-[var(--bg-secondary)]
             ${isOver ? "text-[var(--accent)] font-semibold" : "group-hover:text-[var(--accent)]"}
           `}
-          title={folder.title}               /* full name on hover */
+          title={folder.title}              
         >
           {folder.title}
         </span>
