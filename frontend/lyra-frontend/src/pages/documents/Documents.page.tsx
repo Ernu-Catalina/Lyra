@@ -14,21 +14,6 @@ import { ChevronLeft, Menu, FileText } from "lucide-react";
 import CreateButton from "../../common_components/CreateButton";
 import { Project, Item } from "../../types/document";
 import Breadcrumb from "./components/Breadcrumb";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
-import type { DragEndEvent } from "@dnd-kit/core";
 
 // ────────────────────────────────────────────────
 // TYPES & INTERFACES (already defined elsewhere, just referenced)
@@ -66,10 +51,6 @@ export default function Documents() {
   const [folderPath, setFolderPath] = useState<Array<{ id: string | null; title: string }>>([
     { id: null, title: "Project Root" },
   ]);
-
-  // Drag & drop
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeTitle, setActiveTitle] = useState<string>("");
 
   // Clipboard & context menu
   const [clipboard, setClipboard] = useState<
@@ -111,10 +92,6 @@ export default function Documents() {
   // ────────────────────────────────────────────────
   // HOOKS & SENSORS
   // ────────────────────────────────────────────────
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
 
   // Update folder path when project loads
   useEffect(() => {
@@ -429,89 +406,6 @@ export default function Documents() {
   };
 
   // ────────────────────────────────────────────────
-  // DRAG & DROP HANDLERS
-  // ────────────────────────────────────────────────
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id as string);
-    const item = items.find((i) => i._id === event.active.id);
-    setActiveTitle(item?.title || "Untitled");
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-  const { active, over } = event;
-  if (!over) return;
-
-  const activeId = active.id as string;
-  const overId = over.id as string;
-
-  const item = items.find(i => i._id === activeId);
-  if (!item || item.type !== "document") return;
-
-  const newParent = overId === "root" ? null : overId;
-  if (item.parent_id === newParent) return;
-
-  // Clear active state immediately (important for DragOverlay)
-  setActiveId(null);
-  setActiveTitle("");
-
-  // Optimistic update: remove from current list
-  setItems(prev => prev.filter(i => i._id !== activeId));
-
-  let targetItems: Item[] = [];
-  try {
-    const params = newParent ? `?parent_id=${newParent}` : "";
-    const res = await api.get(`/projects/${projectId}/documents${params}`);
-    targetItems = res.data || [];
-  } catch (err) {
-    console.error("[FETCH TARGET ERROR]", err);
-    setError("Cannot check target folder");
-    // Rollback on fetch fail
-    setItems(prev => [...prev, item]);
-    return;
-  }
-
-  const conflict = targetItems.find(i => i.title.toLowerCase() === item.title.toLowerCase());
-  if (conflict) {
-    try {
-      const fullDocRes = await api.get(`/projects/${projectId}/documents/${conflict._id}`);
-      const originalDocument = fullDocRes.data;
-      setMoveConflict({
-        active: item,
-        existing: conflict,
-        originalDocument,
-        newParent,
-        targetItems,
-      });
-    } catch (err) {
-      console.error("[FETCH CONFLICT DOC ERROR]", err);
-      setMoveConflict({
-        active: item,
-        existing: conflict,
-        originalDocument: conflict,
-        newParent,
-        targetItems,
-      });
-    }
-    // Do NOT rollback here — wait for user choice in modal
-    return;
-  }
-
-  // No conflict → perform move
-  try {
-    await api.patch(`/projects/${projectId}/documents/${activeId}`, {
-      parent_id: newParent,
-    });
-    // Refresh full list (includes new position + any server-side changes)
-    await fetchData();
-  } catch (err: any) {
-    console.error("[PATCH MOVE ERROR]", err);
-    setError(err.response?.data?.detail || "Move failed");
-    // Rollback: put item back
-    setItems(prev => [...prev, item]);
-  }
-};
-
-  // ────────────────────────────────────────────────
   // RENDER
   // ────────────────────────────────────────────────
   const sortedAndFiltered = [...items]
@@ -667,17 +561,6 @@ export default function Documents() {
             </div>
           )}
 
-          {!loading && !error && (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragCancel={() => {
-                setActiveId(null);
-                setActiveTitle("");
-              }}
-            >
               {isMobile && sidebarOpen && (
                 <div
                   className="fixed inset-0 bg-black/50 z-30 lg:hidden pointer-events-auto"
@@ -704,24 +587,6 @@ export default function Documents() {
                 currentFolderId={currentFolderId}
                 onContextMenu={openContextMenu}
               />
-
-              <DragOverlay dropAnimation={null}>
-                {activeId && (
-                  <div className="
-                    flex items-center gap-3 px-4 py-2.5
-                    bg-[var(--bg-secondary)]/95 backdrop-blur-sm
-                    border border-[var(--accent)]/30 rounded-lg
-                    shadow-2xl min-w-[180px] max-w-[360px] w-fit
-                  ">
-                    <FileText size={28} className="text-[var(--accent)] flex-shrink-0" />
-                    <span className="font-medium text-[var(--text-primary)] line-clamp-1">
-                      {activeTitle}
-                    </span>
-                  </div>
-                )}
-              </DragOverlay>
-            </DndContext>
-          )}
         </main>
       </div>
 
