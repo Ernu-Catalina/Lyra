@@ -54,7 +54,9 @@ export default function Documents() {
   const [error, setError] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"updated-desc" | "title-asc" | "title-desc">("updated-desc");
+  const [sortBy, setSortBy] = useState<
+  "updated-desc" | "title-asc" | "title-desc" | "wordcount-desc" | "wordcount-asc"
+>("updated-desc");
 
   // clipboard for copy/cut operations
   const [clipboard, setClipboard] = useState<Array<{id: string; type: "document" | "folder"; title: string; action: "copy" | "cut"}>>([]);
@@ -566,9 +568,30 @@ function ErrorBoundary({ children, fallback }) {
   const sortedAndFiltered = [...items]
     .filter((item) => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
-      if (sortBy === "title-asc") return a.title.localeCompare(b.title);
-      if (sortBy === "title-desc") return b.title.localeCompare(a.title);
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      // Folders always sort alphabetically (stable and intuitive)
+      if (a.type !== b.type) {
+        if (a.type === "folder") return -1;
+        if (b.type === "folder") return 1;
+      }
+    
+      // Documents (or folders if same type) sort based on selected option
+      switch (sortBy) {
+        case "title-asc":
+          return a.title.localeCompare(b.title);
+        case "title-desc":
+          return b.title.localeCompare(a.title);
+        case "wordcount-desc":
+          // Use word_count || 0 for documents; folders get 0 or Infinity depending on preference
+          const wordA = a.word_count ?? 0;
+          const wordB = b.word_count ?? 0;
+          return wordB - wordA; // descending (highest first)
+        case "wordcount-asc":
+          const wordAscA = a.word_count ?? 0;
+          const wordAscB = b.word_count ?? 0;
+          return wordAscA - wordAscB; // ascending (lowest first)
+        default: // "updated-desc"
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      }
     });
 
   return (
@@ -664,7 +687,7 @@ function ErrorBoundary({ children, fallback }) {
               <CreateButton onClick={() => setCreateModalOpen(true)} label="Create" />
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <label htmlFor="sort-documents" className="text-sm text-[var(--text-secondary)]">
                 Sort by:
               </label>
@@ -673,9 +696,11 @@ function ErrorBoundary({ children, fallback }) {
                 name="sortBy"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm focus:ring-2 focus:ring-[var(--accent)] min-w-[160px]"
+                className="px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm text-sm text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)] outline-none min-w-[180px] appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px_12px] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMiA0TDYgOEwxMCA0IiBzdHJva2U9IiM2YjcyODAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+')] cursor-pointer"
               >
                 <option value="updated-desc">Recently updated</option>
+                <option value="wordcount-desc">Word count (high to low)</option>
+                <option value="wordcount-asc">Word count (low to high)</option>
                 <option value="title-asc">Title (A–Z)</option>
                 <option value="title-desc">Title (Z–A)</option>
               </select>
