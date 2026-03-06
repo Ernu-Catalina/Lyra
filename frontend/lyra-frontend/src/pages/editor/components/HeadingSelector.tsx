@@ -6,14 +6,15 @@ interface HeadingSelectorProps {
 }
 
 export function HeadingSelector({ value, onChange }: HeadingSelectorProps) {
-  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    onChange(e.target.value);
-  };
-
   return (
     <select
       value={value}
-      onChange={handleChange}
+      onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
+      className="
+        px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)]
+        rounded-md text-sm text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)]
+        outline-none min-w-[140px]
+      "
       aria-label="Text style"
     >
       <option value="paragraph">Normal</option>

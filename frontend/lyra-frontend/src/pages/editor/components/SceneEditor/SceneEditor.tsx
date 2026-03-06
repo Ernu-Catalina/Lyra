@@ -1,6 +1,5 @@
-// src/components/organisms/SceneEditor/SceneEditor.tsx
 import { forwardRef, useEffect, useImperativeHandle } from "react";
-import { useEditor, EditorContent, Editor } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Heading from "@tiptap/extension-heading";
@@ -12,7 +11,6 @@ interface SceneEditorProps {
   onEditorReady?: (editor: Editor | null) => void;
 }
 
-// Use forwardRef + expose Editor instance
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
   ({ content, onChange, editable = true, onEditorReady }, ref) => {
     const editor = useEditor({
@@ -26,31 +24,37 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       ],
       content,
       editable,
+      editorProps: {
+        attributes: {
+          class: "prose prose-invert max-w-none focus:outline-none min-h-[60vh] px-4 py-6",
+        },
+      },
       onUpdate: ({ editor }) => {
         onChange(editor.getHTML());
-      }
+      },
     });
 
-    // Expose the editor instance to parent via ref
     useImperativeHandle(ref, () => editor, [editor]);
 
     useEffect(() => {
       onEditorReady?.(editor);
     }, [editor, onEditorReady]);
 
-    // Sync external content → editor (without loop)
+    // Sync external content changes
     useEffect(() => {
-      if (!editor) return;
-
-      // Avoid triggering onUpdate unnecessarily
+      if (!editor || !content) return;
       if (content !== editor.getHTML()) {
-        editor.commands.setContent(content, {
-          emitUpdate: false,
-        });
+        editor.commands.setContent(content, false);
       }
     }, [content, editor]);
 
-    return <EditorContent editor={editor} />;
+    if (!editor) return null;
+
+    return (
+      <div className="bg-[var(--bg-primary)] rounded-lg border border-[var(--border)] shadow-sm">
+        <EditorContent editor={editor} />
+      </div>
+    );
   }
 );
 

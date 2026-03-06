@@ -1,4 +1,3 @@
-// features/editor/hooks/useDocumentOutline.ts
 import { useState, useEffect, useCallback } from "react";
 import api from "../../../api/client";
 import { useAuth } from "../../../auth/useAuth";
@@ -14,22 +13,32 @@ export function useDocumentOutline(
   const [error, setError] = useState("");
 
   const reloadOutline = useCallback(async () => {
-    if (!projectId || !documentId) return;
+    if (!projectId || !documentId) {
+      console.warn("Missing projectId or documentId → skipping outline fetch", { projectId, documentId });
+      setLoading(false);
+      setError("Missing project or document ID");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
+      console.log(`Fetching outline: /projects/${projectId}/documents/${documentId}/outline`);
       const res = await api.get<DocumentOutline>(
         `/projects/${projectId}/documents/${documentId}/outline`
       );
+      console.log("Outline fetched:", res.data);
       setOutline(res.data);
-    } catch (err: unknown) {
-      const e = err as { response?: { status?: number } };
-      if (e.response?.status === 401) {
+    } catch (err: any) {
+      console.error("Outline fetch failed:", err);
+      const status = err.response?.status;
+      if (status === 401) {
         logout();
+      } else if (status === 404) {
+        setError("Document outline not found (404)");
       } else {
-        setError("Failed to load document outline");
+        setError(err.response?.data?.detail || "Failed to load document outline");
       }
     } finally {
       setLoading(false);
@@ -40,10 +49,5 @@ export function useDocumentOutline(
     reloadOutline();
   }, [reloadOutline]);
 
-  return {
-    outline,
-    loading,
-    error,
-    reloadOutline,
-  };
+  return { outline, loading, error, reloadOutline };
 }

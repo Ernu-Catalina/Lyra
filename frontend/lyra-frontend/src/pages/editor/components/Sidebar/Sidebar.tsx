@@ -1,13 +1,7 @@
-// src/components/organisms/Sidebar/Sidebar.tsx
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import type { DragEndEvent } from "@dnd-kit/core";
-import type { Chapter } from "../../../types/document";
-
+import {SidebarHeader} from "./SidebarHeader";
 import ChapterBlock from "./ChapterBlock";
-
-import { SidebarHeader } from "./SidebarHeader";
-
+import type { Chapter } from "../../../../types/document";
+import type { DragEndEvent } from "@dnd-kit/core";
 
 interface SidebarProps {
   title: string;
@@ -16,10 +10,8 @@ interface SidebarProps {
   openChapterIds: Set<string>;
   onToggleChapter: (chapterId: string) => void;
   onSceneClick: (chapterId: string, sceneId: string) => void;
-  onLoadChapter: (chapterId: string) => void;
   onAddChapter: () => void;
   onAddScene: (chapterId: string) => void;
-  onReorderScenes: (chapterId: string, event: DragEndEvent) => void;
 }
 
 export default function Sidebar({
@@ -29,37 +21,26 @@ export default function Sidebar({
   openChapterIds,
   onToggleChapter,
   onSceneClick,
-  onLoadChapter,
   onAddChapter,
   onAddScene,
-  onReorderScenes,
 }: SidebarProps) {
   return (
-    <aside >
+    <div className="flex flex-col h-full">
       <SidebarHeader documentTitle={title} onAddChapter={onAddChapter} />
 
-      <div >
-        <DndContext collisionDetection={closestCenter}>
-          <SortableContext
-            items={chapters.map((c) => c.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {chapters.map((chapter) => (
-              <ChapterBlock
-                key={chapter.id}
-                chapter={chapter}
-                isOpen={openChapterIds.has(chapter.id)}
-                activeSceneId={activeSceneId}
-                onToggle={() => onToggleChapter(chapter.id)}
-                onAddScene={() => onAddScene(chapter.id)}
-                onSceneClick={(sceneId) => onSceneClick(chapter.id, sceneId)}
-                onLoadChapter={() => onLoadChapter(chapter.id)}
-                onReorderScenes={(e) => onReorderScenes(chapter.id, e)}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        {chapters.map((chapter) => (
+          <ChapterBlock
+            key={chapter.id}
+            chapter={chapter}
+            isOpen={openChapterIds.has(chapter.id)}
+            activeSceneId={activeSceneId}
+            onToggle={() => onToggleChapter(chapter.id)}
+            onAddScene={() => onAddScene(chapter.id)}
+            onSceneClick={(sceneId) => onSceneClick(chapter.id, sceneId)}
+          />
+        ))}
       </div>
-    </aside>
+    </div>
   );
 }

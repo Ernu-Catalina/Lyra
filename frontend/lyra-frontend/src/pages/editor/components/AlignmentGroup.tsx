@@ -1,5 +1,6 @@
 import { Editor } from "@tiptap/react";
 import { ToolbarButton } from "./ToolbarButton";
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from "lucide-react";
 
 interface AlignmentGroupProps {
   editor: Editor | null;
@@ -8,33 +9,25 @@ interface AlignmentGroupProps {
 export function AlignmentGroup({ editor }: AlignmentGroupProps) {
   if (!editor) return null;
 
-  const isLeft = editor.isActive({ textAlign: "left" });
-  const isCenter = editor.isActive({ textAlign: "center" });
-  const isRight = editor.isActive({ textAlign: "right" });
+  const alignments = [
+    { align: "left", Icon: AlignLeft, label: "Align left" },
+    { align: "center", Icon: AlignCenter, label: "Align center" },
+    { align: "right", Icon: AlignRight, label: "Align right" },
+    { align: "justify", Icon: AlignJustify, label: "Justify" },
+  ];
 
   return (
-    <div style={{ display: "flex", gap: "0.25rem" }}>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
-        active={isLeft}
-        title="Align left"
-      >
-        ←
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
-        active={isCenter}
-        title="Align center"
-      >
-        ↔
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
-        active={isRight}
-        title="Align right"
-      >
-        →
-      </ToolbarButton>
+    <div className="flex items-center gap-1">
+      {alignments.map(({ align, Icon, label }) => (
+        <ToolbarButton
+          key={align}
+          onClick={() => editor.chain().focus().setTextAlign(align).run()}
+          active={editor.isActive({ textAlign: align })}
+          title={label}
+        >
+          <Icon size={18} />
+        </ToolbarButton>
+      ))}
     </div>
   );
 }

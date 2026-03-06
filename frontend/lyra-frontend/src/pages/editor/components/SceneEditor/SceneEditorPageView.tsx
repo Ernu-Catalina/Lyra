@@ -1,4 +1,3 @@
-// src/components/organisms/SceneEditor/SceneEditorPageView.tsx
 import type { ReactNode } from "react";
 
 interface SceneEditorPageViewProps {
@@ -7,8 +6,10 @@ interface SceneEditorPageViewProps {
 
 export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
   return (
-    <div>
-      {children}
+    <div className="h-full bg-[var(--bg-primary)] p-4 md:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] shadow-lg overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }

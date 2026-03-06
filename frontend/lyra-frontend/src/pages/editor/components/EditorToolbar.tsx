@@ -1,8 +1,8 @@
-// src/components/organisms/EditorToolbar.tsx
 import { Editor } from "@tiptap/react";
 import { ToolbarButton } from "./ToolbarButton";
 import { HeadingSelector } from "./HeadingSelector";
 import { AlignmentGroup } from "./AlignmentGroup";
+import { Bold, Italic } from "lucide-react";
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -12,20 +12,24 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) return null;
 
   return (
-    <div>
+    <div className="flex items-center gap-1.5 flex-wrap p-2 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}
+        title="Bold"
       >
-        <strong>B</strong>
+        <Bold size={18} />
       </ToolbarButton>
 
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleItalic().run()}
         active={editor.isActive("italic")}
+        title="Italic"
       >
-        <em>I</em>
+        <Italic size={18} />
       </ToolbarButton>
+
+      <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
       <HeadingSelector
         value={
@@ -38,10 +42,12 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           if (level === "paragraph") {
             editor.chain().focus().setParagraph().run();
           } else {
-            editor.chain().focus().toggleHeading({ level: Number(level) as 1|2|3|4 }).run();
+            editor.chain().focus().toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 }).run();
           }
         }}
       />
+
+      <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
       <AlignmentGroup editor={editor} />
     </div>
