@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 export function useActiveScene() {
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
-  const [editorMode, setEditorMode] = useState<"scene" | "chapter">("scene");
+  const [editorMode, setEditorMode] = useState<"scene" | "chapter" | "document">("scene");
 
   const selectScene = useCallback((chapterId: string, sceneId: string) => {
     setActiveChapterId(chapterId);
@@ -31,5 +31,6 @@ export function useActiveScene() {
     selectScene,
     selectChapter,
     clearSelection,
+    setEditorMode
   };
 }

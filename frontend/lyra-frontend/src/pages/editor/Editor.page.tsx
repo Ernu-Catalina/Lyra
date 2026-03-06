@@ -17,6 +17,8 @@ import { countWordsFromHtml } from "./utils/wordcount";
 import { composeChapter } from "./utils/chapterComposer";
 import type { Editor } from "@tiptap/react";
 import { formatWordCount } from "./utils/wordcount";
+import { DocumentOutline } from "../../types/document";
+import { WordCountFooter } from "./components/WordCountFooter";
 
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
@@ -24,7 +26,9 @@ export default function EditorPage() {
   const { logout } = useAuth();   
 
   const { outline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
-  const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter } = useActiveScene();
+
+  const [userDefaultView, setUserDefaultView] = useState<"document" | "chapter" | "scene">("scene");
+  const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter, setEditorMode } = useActiveScene();
 
   const [sceneContent, setSceneContent] = useState("");
   const [lastSavedContent, setLastSavedContent] = useState("");
@@ -46,10 +50,27 @@ export default function EditorPage() {
   documentFormat: "exact",
 });
 
+// ── Word count warning threshold ─────────────────────────────────────────
+  const documentWordCount = outline?.total_wordcount || 0;
+  const [showDocumentWarning, setShowDocumentWarning] = useState(false);
+
+  const handleDocumentTitleClick = () => {
+    setEditorMode("document");
+    if (documentWordCount > 50000) {
+      setShowDocumentWarning(true);
+      setTimeout(() => setShowDocumentWarning(false), 8000);
+    }
+  };
+
     const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  function getChapterWordCount(outline: DocumentOutline | null, chapterId: string | null): number {
+  if (!outline || !chapterId) return 0;
+  return outline.chapters.find(c => c.id === chapterId)?.wordcount || 0;
+}
 
   // Fetch user settings on mount
 useEffect(() => {
@@ -65,6 +86,33 @@ useEffect(() => {
     })
     .catch(console.error);
 }, []);
+
+useEffect(() => {
+    api.get("/me").then(res => {
+      const view = res.data.settings?.default_view;
+      if (["document", "chapter", "scene"].includes(view)) {
+        setUserDefaultView(view);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Apply default view when outline first loads
+  useEffect(() => {
+    if (loading || !outline || outline.chapters.length === 0) return;
+
+    // If no active chapter/scene yet → apply default
+    if (!activeChapterId && !activeSceneId) {
+      if (userDefaultView === "document") {
+        setEditorMode("document");
+      } else if (userDefaultView === "chapter" && outline.chapters[0]) {
+        selectChapter(outline.chapters[0].id);
+        setEditorMode("chapter");
+      } else if (outline.chapters[0]?.scenes[0]) {
+        selectScene(outline.chapters[0].id, outline.chapters[0].scenes[0].id);
+        setEditorMode("scene");
+      }
+    }
+  }, [loading, outline, userDefaultView, selectChapter, selectScene, setEditorMode]);
 
 // Compute word counts
 const sceneWC = sceneWordcount;
@@ -283,14 +331,18 @@ useEffect(() => {
             </div>
           )
         }
-        footer={
-          footerText ? (
-            <div className="text-center text-sm text-[var(--text-secondary)]  bg-[var(--bg-secondary)]/50">
-              {footerText}
-            </div>
-          ) : null
-        }
+        footer={<WordCountFooter 
+          sceneCount={sceneWordcount}
+          chapterCount={getChapterWordCount(outline, activeChapterId)}
+          documentCount={outline?.total_wordcount || 0}
+        />}
       />
+        {/* Temporary warning overlay */}
+        {showDocumentWarning && (
+          <div className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-amber-800/90 text-white px-6 py-3 rounded-lg shadow-xl z-50 animate-fade-out">
+            We do not recommend editing in Document view for performance reasons.
+          </div>
+        )}
     </div>
   );
 }
