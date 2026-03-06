@@ -7,11 +7,12 @@ import SceneEditor from "./components/SceneEditor/SceneEditor";
 import { ChapterEditorView } from "./components/ChapterEditorView";
 import { useDocumentOutline } from "./hooks/useDocumentOutline";
 import { useActiveScene } from "./hooks/useActiveScene";
-import { useAutosave } from "./hooks/useAutosaveScene";
+import { useAutosaveScene } from "./hooks/useAutosaveScene";
 import { countWordsFromHtml } from "./utils/wordcount";
 import { composeChapter } from "./utils/chapterComposer";
 import type { Editor } from "@tiptap/react";
 import { useEffect, useState} from "react";
+import api from "../../api/client";
 
 export default function EditorPage() {
   const { projectId, documentId } = useParams();
@@ -24,18 +25,45 @@ export default function EditorPage() {
   const [chapterEditorContent, setChapterEditorContent] = useState("");
   const [openChapterIds, setOpenChapterIds] = useState<Set<string>>(new Set());
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-console.log("EditorPage mounted → params:", { projectId, documentId });
-console.log("Outline hook:", { loading, error, outline });
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleAddChapter = async () => {
+    if (!projectId || !documentId) {
+      showToast("Cannot add chapter: missing project or document ID");
+      return;
+    }
+
+    try {
+      await api.post(`/projects/${projectId}/documents/${documentId}/chapters`, {
+        title: "New Chapter",
+      });
+
+      showToast("Chapter created successfully");
+      reloadOutline(); // Refresh the outline → new chapter appears in sidebar
+    } catch (err: any) {
+      console.error("Failed to add chapter:", err);
+      const detail = err.response?.data?.detail || "Failed to create chapter";
+      showToast(detail);
+    }
+  };
 
   // Autosave only in scene mode
-  useAutosave({
+  useAutosaveScene({
+    projectId,
     documentId,
     activeChapterId: activeChapterId ?? undefined,
     activeSceneId: activeSceneId ?? undefined,
     content: sceneContent,
     shouldSave: editorMode === "scene" && sceneContent !== lastSavedContent,
-    onSaved: (saved) => setLastSavedContent(saved),
+    onSaved: (saved) => {
+      setLastSavedContent(saved);
+      showToast("Scene saved");
+    },
   });
 
   // Load scene content when active scene changes
@@ -84,7 +112,7 @@ console.log("Outline hook:", { loading, error, outline });
           openChapterIds={openChapterIds}
           onToggleChapter={toggleChapter}
           onSceneClick={(chapterId, sceneId) => selectScene(chapterId, sceneId)}
-          onAddChapter={() => {/* TODO: implement */}}
+          onAddChapter={handleAddChapter}
           onAddScene={(chapterId) => {/* TODO: implement */}}
         />
       }
@@ -119,5 +147,6 @@ console.log("Outline hook:", { loading, error, outline });
         ) : null
       }
     />
+    
   );
 }

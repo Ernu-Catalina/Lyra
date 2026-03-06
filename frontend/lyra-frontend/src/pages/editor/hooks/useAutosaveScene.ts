@@ -1,32 +1,47 @@
-// src/features/editor/hooks/useAutosave.ts
+// src/pages/editor/hooks/useAutosaveScene.ts
 import { useEffect } from "react";
 import api from "../../../api/client";
 
-export function useAutosave(
-  projectId: string | undefined,
-  documentId: string | undefined,
-  chapterId: string | undefined,
-  sceneId: string | undefined,
-  content: string,
-  enabled: boolean = true,
-  delay: number = 1000,
-  onSave?: (content: string) => void
-) {
-  useEffect(() => {
-    if (!enabled || !projectId || !documentId || !chapterId || !sceneId || !content) return;
+interface AutosaveProps {
+  projectId?: string;
+  documentId?: string;
+  activeChapterId?: string;
+  activeSceneId?: string;
+  content: string;
+  shouldSave: boolean;
+  debounceMs?: number;
+  onSaved?: (savedContent: string) => void;
+}
 
-    const timeout = setTimeout(async () => {
+export function useAutosaveScene({
+  projectId,
+  documentId,
+  activeChapterId,
+  activeSceneId,
+  content,
+  shouldSave,
+  debounceMs = 1500,
+  onSaved,
+}: AutosaveProps) {
+  useEffect(() => {
+    if (!shouldSave || !projectId || !documentId || !activeChapterId || !activeSceneId) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
       try {
-        await api.patch(
-          `/projects/${projectId}/documents/${documentId}/chapters/${chapterId}/scenes/${sceneId}`,
+        console.log("Autosaving scene:", { activeSceneId, contentLength: content.length });
+        await api.put(
+          `/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`,
           { content }
         );
-        onSave?.(content);
+        onSaved?.(content);
+        console.log("Scene autosaved successfully");
       } catch (err) {
-        console.error("Autosave failed", err);
+        console.error("Autosave failed:", err);
       }
-    }, delay);
+    }, debounceMs);
 
-    return () => clearTimeout(timeout);
-  }, [content, projectId, documentId, chapterId, sceneId, enabled, delay]);
+    return () => clearTimeout(timer);
+  }, [content, shouldSave, projectId, documentId, activeChapterId, activeSceneId, debounceMs, onSaved]);
 }

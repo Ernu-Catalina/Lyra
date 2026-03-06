@@ -39,10 +39,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           editor.isActive("heading", { level: 4 }) ? "4" : "paragraph"
         }
         onChange={(level) => {
+          editor.chain().focus().run(); // ensure focus
           if (level === "paragraph") {
-            editor.chain().focus().setParagraph().run();
+            editor.commands.setParagraph();
           } else {
-            editor.chain().focus().toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 }).run();
+            editor.commands.toggleHeading({ level: Number(level) as 1 | 2 | 3 | 4 });
           }
         }}
       />
