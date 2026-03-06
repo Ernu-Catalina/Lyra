@@ -28,7 +28,7 @@ export default function Sidebar({
     <div className="flex flex-col h-full">
       <SidebarHeader documentTitle={title} onAddChapter={onAddChapter} />
 
-      <div className="flex-1 overflow-y-auto px-3 py-2">
+      <div className="flex-1 overflow-y-auto px-1 py-1">
         {chapters.map((chapter) => (
           <ChapterBlock
             key={chapter.id}
