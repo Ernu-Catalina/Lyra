@@ -1,15 +1,9 @@
-// features/editor/utils/wordcount.ts
-/**
- * Simple word count utility.
- * Counts words in plain text or HTML (strips tags roughly).
- */
 export function countWords(text: string): number {
   if (!text.trim()) return 0;
 
-  // Very basic HTML strip — good enough for most editor content
   const plain = text
-    .replace(/<[^>]+>/g, " ")           // remove tags
-    .replace(/\s+/g, " ")               // collapse whitespace
+    .replace(/<[^>]+>/g, " ")           
+    .replace(/\s+/g, " ")              
     .trim();
 
   if (!plain) return 0;
@@ -17,18 +11,42 @@ export function countWords(text: string): number {
   return plain.split(" ").filter(Boolean).length;
 }
 
-/**
- * More accurate version if using TipTap/ProseMirror JSON or HTML
- * (you can improve this later with better parsing)
- */
+export function formatWordCount(count: number, format: string): string {
+  if (count === 0) return "0";
+
+  switch (format) {
+    case "exact":
+      return count.toString();
+
+    case "exact_separated":
+      return count.toLocaleString("en-US");
+
+    case "rounded_up":
+      if (count < 1000) return count.toString();
+      const k = Math.ceil(count / 100) / 10;
+      return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
+
+    case "truncated":
+      if (count < 1000) return count.toString();
+      const t = Math.floor(count / 100) / 10;
+      return t % 1 === 0 ? `${t}K` : `${t.toFixed(1)}K`;
+
+    case "thousands_rounded_up":
+      return Math.ceil(count / 1000).toString() + "K";
+
+    case "thousands_truncated":
+      return Math.floor(count / 1000).toString() + "K";
+
+    default:
+      return count.toString();
+  }
+}
+
 export function countWordsFromHtml(html: string): number {
-  // For now, same as above — can later use DOMParser or TipTap helpers
+  // your existing implementation
   return countWords(html);
 }
 
-/**
- * Estimate word count delta after edit (optimistic UI / autosave preview)
- */
 export function estimateWordDelta(
   previous: string,
   current: string

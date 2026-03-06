@@ -30,7 +30,9 @@ export function EditorLayout({ sidebar, toolbar, editor, footer }: EditorLayoutP
         {/* Footer – word count etc. */}
         {footer && (
           <footer className="border-t border-[var(--border)] bg-[var(--bg-secondary)] text-sm text-[var(--text-secondary)]">
-            {footer}
+            <div className="max-w-4xl mx-auto px-6 py-3 text-center">
+              {footer}
+            </div>
           </footer>
         )}
       </div>

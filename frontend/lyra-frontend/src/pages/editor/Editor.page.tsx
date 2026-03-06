@@ -16,11 +16,12 @@ import { useAutosaveScene } from "./hooks/useAutosaveScene";
 import { countWordsFromHtml } from "./utils/wordcount";
 import { composeChapter } from "./utils/chapterComposer";
 import type { Editor } from "@tiptap/react";
+import { formatWordCount } from "./utils/wordcount";
 
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
-  const navigate = useNavigate(); // ← ADD THIS
-  const { logout } = useAuth();   // ← ADD THIS (provides logout function)
+  const navigate = useNavigate(); 
+  const { logout } = useAuth();   
 
   const { outline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
   const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter } = useActiveScene();
@@ -33,11 +34,59 @@ export default function EditorPage() {
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
   const [projectName, setProjectName] = useState<string>("Loading...");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [userSettings, setUserSettings] = useState<{
+  wordcountDisplay: string[];
+  sceneFormat: string;
+  chapterFormat: string;
+  documentFormat: string;
+}>({
+  wordcountDisplay: ["scene"],
+  sceneFormat: "exact",
+  chapterFormat: "exact",
+  documentFormat: "exact",
+});
 
     const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Fetch user settings on mount
+useEffect(() => {
+  api.get("/me")
+    .then((res) => {
+      const s = res.data.settings || {};
+      setUserSettings({
+        wordcountDisplay: Array.isArray(s.wordcount_display) ? s.wordcount_display : ["scene"],
+        sceneFormat: s.scene_wordcount_format || "exact",
+        chapterFormat: s.chapter_wordcount_format || "exact",
+        documentFormat: s.document_wordcount_format || "exact",
+      });
+    })
+    .catch(console.error);
+}, []);
+
+// Compute word counts
+const sceneWC = sceneWordcount;
+const chapterWC = outline && activeChapterId
+  ? outline.chapters.find(c => c.id === activeChapterId)?.wordcount || 0
+  : 0;
+const documentWC = outline?.total_wordcount || 0;
+
+// Format based on user settings
+const parts: string[] = [];
+
+if (userSettings.wordcountDisplay.includes("scene") && editorMode === "scene") {
+  parts.push(`Scene: ${formatWordCount(sceneWC, userSettings.sceneFormat)}`);
+}
+if (userSettings.wordcountDisplay.includes("chapter")) {
+  parts.push(`Chapter: ${formatWordCount(chapterWC, userSettings.chapterFormat)}`);
+}
+if (userSettings.wordcountDisplay.includes("document")) {
+  parts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
+}
+
+const footerText = parts.length > 0 ? parts.join(" | ") : null;
 
   // Fetch project name once (for nav bar)
   useEffect(() => {
@@ -235,9 +284,9 @@ useEffect(() => {
           )
         }
         footer={
-          editorMode === "scene" && sceneWordcount > 0 ? (
-            <div className="text-right text-sm text-[var(--text-secondary)] px-6 py-3 border-t border-[var(--border)] bg-[var(--bg-secondary)]/50">
-              Scene word count: {sceneWordcount.toLocaleString()}
+          footerText ? (
+            <div className="text-center text-sm text-[var(--text-secondary)]  bg-[var(--bg-secondary)]/50">
+              {footerText}
             </div>
           ) : null
         }
