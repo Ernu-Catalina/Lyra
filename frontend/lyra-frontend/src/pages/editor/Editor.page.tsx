@@ -1,4 +1,9 @@
-import { useParams } from "react-router-dom";
+// src/pages/editor/Editor.page.tsx
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../auth/useAuth"; // ← ADD THIS IMPORT
+import api from "../../api/client";
+import NavigationBar from "../../common_components/NavigationBar";
 import { EditorLayout } from "./components/EditorLayout";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { EditorToolbar } from "./components/EditorToolbar";
@@ -11,11 +16,12 @@ import { useAutosaveScene } from "./hooks/useAutosaveScene";
 import { countWordsFromHtml } from "./utils/wordcount";
 import { composeChapter } from "./utils/chapterComposer";
 import type { Editor } from "@tiptap/react";
-import { useEffect, useState} from "react";
-import api from "../../api/client";
 
 export default function EditorPage() {
-  const { projectId, documentId } = useParams();
+  const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
+  const navigate = useNavigate(); // ← ADD THIS
+  const { logout } = useAuth();   // ← ADD THIS (provides logout function)
+
   const { outline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
   const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter } = useActiveScene();
 
@@ -25,12 +31,27 @@ export default function EditorPage() {
   const [chapterEditorContent, setChapterEditorContent] = useState("");
   const [openChapterIds, setOpenChapterIds] = useState<Set<string>>(new Set());
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+  const [projectName, setProjectName] = useState<string>("Loading...");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
+    const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Fetch project name once (for nav bar)
+  useEffect(() => {
+    if (!projectId) return;
+
+    api.get(`/projects/${projectId}`)
+      .then((res) => {
+        setProjectName(res.data.name || "Untitled Project");
+      })
+      .catch((err) => {
+        console.error("Failed to fetch project name:", err);
+        setProjectName("Project");
+      });
+  }, [projectId]);
 
   const handleAddChapter = async () => {
     if (!projectId || !documentId) {
@@ -99,54 +120,77 @@ export default function EditorPage() {
     });
   };
 
+
   if (loading) return <div className="flex items-center justify-center h-screen">Loading document…</div>;
   if (error || !outline) return <div className="text-red-500 p-8">{error || "Failed to load outline"}</div>;
 
   return (
-    <EditorLayout
-      sidebar={
-        <Sidebar
-          title={outline.title}
-          chapters={outline.chapters}
-          activeSceneId={activeSceneId}
-          openChapterIds={openChapterIds}
-          onToggleChapter={toggleChapter}
-          onSceneClick={(chapterId, sceneId) => selectScene(chapterId, sceneId)}
-          onAddChapter={handleAddChapter}
-          onAddScene={(chapterId) => {/* TODO: implement */}}
-        />
-      }
-      toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}
-      editor={
-        editorMode === "scene" ? (
-          <SceneEditorPageView>
-            <SceneEditor
-              content={sceneContent}
-              onChange={(html) => {
-                setSceneContent(html);
-                setSceneWordcount(countWordsFromHtml(html));
-              }}
-              onEditorReady={setEditorInstance}
-            />
-          </SceneEditorPageView>
-        ) : activeChapterId && outline.chapters.find((c) => c.id === activeChapterId) ? (
-          <ChapterEditorView
-            chapter={outline.chapters.find((c) => c.id === activeChapterId)!}
-            initialContent={chapterEditorContent}
-            onContentChange={setChapterEditorContent}
+    <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
+      {/* Navigation Bar – fixed at top */}
+      <NavigationBar
+        title={projectName} // ← NOW uses project name (not document title)
+        onLogout={() => {
+          logout();
+          navigate("/login");
+        }}
+        onSettings={() => navigate("/settings")}
+        isEditorView={true}
+        onExport={() => {
+          console.log("Export clicked – implement document export here");
+          // Future: generate PDF/DOCX/JSON export
+        }}
+      />
+
+      {/* Rest of editor content */}
+      <EditorLayout
+        sidebar={
+          <Sidebar
+            title={outline.title}
+            chapters={outline.chapters}
+            activeSceneId={activeSceneId}
+            openChapterIds={openChapterIds}
+            onToggleChapter={toggleChapter}
+            onSceneClick={(chapterId, sceneId) => selectScene(chapterId, sceneId)}
+            onAddChapter={handleAddChapter}
+            onAddScene={(chapterId) => {
+              console.log("Add scene in chapter", chapterId);
+              // TODO: implement scene creation API call
+            }}
           />
-        ) : (
-          <div className="p-8 text-center text-[var(--text-secondary)]">Select a chapter or scene</div>
-        )
-      }
-      footer={
-        editorMode === "scene" && sceneWordcount > 0 ? (
-          <div className="text-right text-sm text-[var(--text-secondary)] px-4 py-2">
-            Scene word count: {sceneWordcount}
-          </div>
-        ) : null
-      }
-    />
-    
+        }
+        toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}
+        editor={
+          editorMode === "scene" ? (
+            <SceneEditorPageView>
+              <SceneEditor
+                content={sceneContent}
+                onChange={(html) => {
+                  setSceneContent(html);
+                  setSceneWordcount(countWordsFromHtml(html));
+                }}
+                onEditorReady={setEditorInstance}
+              />
+            </SceneEditorPageView>
+          ) : activeChapterId && outline.chapters.find((c) => c.id === activeChapterId) ? (
+            <ChapterEditorView
+              chapter={outline.chapters.find((c) => c.id === activeChapterId)!}
+              initialContent={chapterEditorContent}
+              onContentChange={setChapterEditorContent}
+            />
+          ) : (
+            <div className="p-8 text-center text-[var(--text-secondary)]">
+              Select a chapter or scene to begin editing
+            </div>
+          )
+        }
+        footer={
+          editorMode === "scene" && sceneWordcount > 0 ? (
+            <div className="text-right text-sm text-[var(--text-secondary)] px-6 py-3 border-t border-[var(--border)] bg-[var(--bg-secondary)]/50">
+              Scene word count: {sceneWordcount.toLocaleString()}
+            </div>
+          ) : null
+        }
+      />
+    </div>
   );
 }
