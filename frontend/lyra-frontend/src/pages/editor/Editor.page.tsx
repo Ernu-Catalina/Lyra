@@ -73,6 +73,27 @@ export default function EditorPage() {
     }
   };
 
+  const handleAddScene = async (chapterId: string) => {
+    if (!projectId || !documentId || !chapterId) {
+      showToast("Cannot add scene: missing IDs");
+      return;
+    }
+
+    try {
+      await api.post(
+        `/projects/${projectId}/documents/${documentId}/chapters/${chapterId}/scenes`,
+        { title: "New Scene" }
+      );
+
+      showToast("Scene created successfully");
+      reloadOutline(); // Refresh sidebar to show new scene
+    } catch (err: any) {
+      console.error("Failed to add scene:", err);
+      const detail = err.response?.data?.detail || "Failed to create scene";
+      showToast(detail);
+    }
+  };
+
   // Autosave only in scene mode
   useAutosaveScene({
     projectId,
@@ -87,19 +108,52 @@ export default function EditorPage() {
     },
   });
 
-  // Load scene content when active scene changes
-  useEffect(() => {
-    if (!documentId || !activeChapterId || !activeSceneId) return;
+  // Auto-create chapter + scene when document is empty
+useEffect(() => {
+  if (loading || error || !outline || outline.chapters.length > 0) return;
 
-    api.get(`/projects/.../documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`)
+  const initializeEmptyDocument = async () => {
+    try {
+      // 1. Create first chapter
+      const chapterRes = await api.post(
+        `/projects/${projectId}/documents/${documentId}/chapters`,
+        { title: "Chapter 1" }
+      );
+      const newChapterId = chapterRes.data.id; // assuming backend returns { id, title, ... }
+
+      // 2. Create first scene in that chapter
+      await api.post(
+        `/projects/${projectId}/documents/${documentId}/chapters/${newChapterId}/scenes`,
+        { title: "Scene 1" }
+      );
+
+      showToast("Empty document initialized with Chapter 1 and Scene 1");
+      reloadOutline(); // Load the new structure
+    } catch (err: any) {
+      console.error("Failed to initialize empty document:", err);
+      showToast("Failed to initialize document");
+    }
+  };
+
+  initializeEmptyDocument();
+}, [loading, error, outline, projectId, documentId, reloadOutline, showToast]);
+
+// Load scene content when active scene changes
+  useEffect(() => {
+    if (!projectId || !documentId || !activeChapterId || !activeSceneId) return;
+  
+    api.get(`/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`)
       .then((res) => {
         const content = res.data.content ?? "";
         setSceneContent(content);
         setLastSavedContent(content);
         setSceneWordcount(countWordsFromHtml(content));
       })
-      .catch(console.error);
-  }, [documentId, activeChapterId, activeSceneId]);
+      .catch((err) => {
+        console.error("Failed to load scene:", err);
+        showToast("Failed to load scene content");
+      });
+  }, [projectId, documentId, activeChapterId, activeSceneId]);
 
   // Compose chapter content when active chapter changes
   useEffect(() => {
@@ -152,10 +206,7 @@ export default function EditorPage() {
             onToggleChapter={toggleChapter}
             onSceneClick={(chapterId, sceneId) => selectScene(chapterId, sceneId)}
             onAddChapter={handleAddChapter}
-            onAddScene={(chapterId) => {
-              console.log("Add scene in chapter", chapterId);
-              // TODO: implement scene creation API call
-            }}
+            onAddScene={handleAddScene}
           />
         }
         toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}

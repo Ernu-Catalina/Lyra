@@ -133,12 +133,27 @@ async def create_scene(
         "content": ""
     }
 
+    # Update the document
     await documents_collection.update_one(
         {"_id": ObjectId(document_id), "chapters.id": chapter_id},
         {"$push": {"chapters.$.scenes": scene}, "$set": {"updated_at": datetime.utcnow()}}
     )
 
-    return scene
+    # Recalculate wordcounts (to return accurate values)
+    chapter_wordcount = sum(s["wordcount"] for s in chapter["scenes"]) + scene["wordcount"]
+    document_wordcount = sum(c["wordcount"] for c in document["chapters"]) + chapter_wordcount
+
+    # Return full shape expected by SceneResponse
+    return {
+        "scene_id": scene["id"],
+        "chapter_id": chapter_id,
+        "scene_wordcount": scene["wordcount"],
+        "chapter_wordcount": chapter_wordcount,
+        "document_wordcount": document_wordcount,
+        "title": scene["title"],
+        "order": scene["order"],
+        "content": scene["content"]
+    }
 
 
 # ────────────────────────────────────────────────
