@@ -54,7 +54,17 @@ export default function EditorPage() {
   const documentWordCount = outline?.total_wordcount || 0;
   const [showDocumentWarning, setShowDocumentWarning] = useState(false);
 
-  const handleDocumentTitleClick = () => {
+    const handleChapterClick = (chapterId: string) => {
+    selectChapter(chapterId);
+    setEditorMode("chapter");
+  };
+
+  const handleSceneClick = (chapterId: string, sceneId: string) => {
+    selectScene(chapterId, sceneId);
+    setEditorMode("scene");
+  };
+
+  const handleDocumentClick = () => {
     setEditorMode("document");
     if (documentWordCount > 50000) {
       setShowDocumentWarning(true);
@@ -299,11 +309,14 @@ useEffect(() => {
             title={outline.title}
             chapters={outline.chapters}
             activeSceneId={activeSceneId}
+            activeChapterId={activeChapterId}
             openChapterIds={openChapterIds}
             onToggleChapter={toggleChapter}
-            onSceneClick={(chapterId, sceneId) => selectScene(chapterId, sceneId)}
+            onSceneClick={handleSceneClick}
             onAddChapter={handleAddChapter}
             onAddScene={handleAddScene}
+            onChapterClick={handleChapterClick}
+            onDocumentClick={handleDocumentClick}
           />
         }
         toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}

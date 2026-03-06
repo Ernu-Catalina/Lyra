@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 interface SidebarHeaderProps {
   documentTitle: string;
   onAddChapter: () => void;
+  onDocumentClick: () => void;
 }
 
 export function SidebarHeader({ documentTitle, onAddChapter }: SidebarHeaderProps) {
