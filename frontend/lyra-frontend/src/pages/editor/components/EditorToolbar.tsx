@@ -12,7 +12,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) return null;
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap p-2 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+    <div className="flex items-center gap-1.5 flex-wrap bg-[var(--bg-secondary)]">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}
