@@ -518,7 +518,7 @@ export default function Documents() {
               <DocumentList
                 items={sortedAndFiltered}
                 onEnterFolder={enterFolder}
-                onNavigateDocument={(id) => navigate(`/editor/${id}`)}
+                onNavigateDocument={(id) => navigate(`/projects/${projectId}/documents/${id}`)}
                 onEdit={(item) => {
                   setEditItem(item);
                   setEditItemName(item.title);

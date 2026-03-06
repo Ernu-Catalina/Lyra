@@ -4,7 +4,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { ContextMenuTrigger } from "../../../common_components/ContextMenuTrigger";
 import type { MenuItem } from "../../../common_components/ContextMenuTrigger";
 import type { Scene } from "../../types/document";
-import styles from "./SceneListItem.module.css";
 
 interface Props {
   scene: Scene;
@@ -46,7 +45,6 @@ export default function SceneListItem({ scene, isActive, onClick, onRename, onDe
         style={style}
         {...attributes}
         {...listeners}
-        className={`${styles.item} ${isActive ? styles.active : ""}`}
         onClick={onClick}
       >
         ✦ {scene.title}

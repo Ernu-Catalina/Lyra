@@ -8,7 +8,6 @@ import ChapterBlock from "./ChapterBlock";
 
 import { SidebarHeader } from "./SidebarHeader";
 
-import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
   title: string;
@@ -36,10 +35,10 @@ export default function Sidebar({
   onReorderScenes,
 }: SidebarProps) {
   return (
-    <aside className={styles.sidebar}>
+    <aside >
       <SidebarHeader documentTitle={title} onAddChapter={onAddChapter} />
 
-      <div className={styles.content}>
+      <div >
         <DndContext collisionDetection={closestCenter}>
           <SortableContext
             items={chapters.map((c) => c.id)}

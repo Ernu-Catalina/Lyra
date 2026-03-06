@@ -2,7 +2,6 @@
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Scene } from "../../../types/document";
 import SceneListItem from "../SceneListItem";
-import styles from "./SceneList.module.css";
 
 interface SceneListProps {
   scenes: Scene[];
@@ -16,7 +15,7 @@ export function SceneList({ scenes, activeSceneId, onSceneClick }: SceneListProp
       items={scenes.map(s => s.id)}
       strategy={verticalListSortingStrategy}
     >
-      <ul className={styles.list}>
+      <ul>
         {scenes.map(scene => (
           <SceneListItem
             key={scene.id}

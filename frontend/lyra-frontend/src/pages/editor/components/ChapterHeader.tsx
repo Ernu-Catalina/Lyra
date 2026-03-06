@@ -2,7 +2,6 @@
 import { DragHandle } from "../../../common_components/DragHandle";
 import { ChevronToggle } from "../../../common_components/ChevronToggle";
 import { ContextMenuTrigger } from "../../../common_components/ContextMenuTrigger";
-import styles from "./ChapterHeader.module.css";
 import type { MenuItem } from "../../../common_components/ContextMenuTrigger";
 import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 
@@ -60,17 +59,17 @@ if (onDelete) {
 
   return (
     <ContextMenuTrigger menuItems={menuItems}>
-      <div className={`${styles.header} ${isActive ? styles.active : ""}`}>
-        <div className={styles.left}>
+      <div >
+        <div >
           <div {...dragAttributes} {...dragListeners}>
             <DragHandle />
           </div>
-          <span className={styles.title} onClick={onToggle}>
+          <span onClick={onToggle}>
             {title}
           </span>
         </div>
 
-        <div className={styles.right}>
+        <div>
           <ChevronToggle isOpen={isOpen} onClick={onToggle} />
         </div>
       </div>

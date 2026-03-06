@@ -1,6 +1,5 @@
 // src/components/templates/EditorLayout.tsx
 import type { ReactNode } from "react";
-import styles from "./EditorLayout.module.css";
 
 interface EditorLayoutProps {
   sidebar: ReactNode;
@@ -16,17 +15,17 @@ export function EditorLayout({
   footer,
 }: EditorLayoutProps) {
   return (
-    <div className={styles.container}>
+    <div>
       {sidebar}
 
-      <div className={styles.mainArea}>
-        {toolbar && <div className={styles.toolbarWrapper}>{toolbar}</div>}
+      <div>
+        {toolbar && <div>{toolbar}</div>}
 
-        <main className={styles.editorContent}>
+        <main>
           {editor}
         </main>
 
-        {footer && <footer className={styles.footer}>{footer}</footer>}
+        {footer && <footer>{footer}</footer>}
       </div>
     </div>
   );

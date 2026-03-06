@@ -10,7 +10,6 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import type { Chapter } from "../../../types/document";   // ← removed unused Scene
 import { ChapterHeader } from "../ChapterHeader";  // ← named import
 import SceneListItem from "../SceneListItem";
-import styles from "./ChapterBlock.module.css";
 
 interface ChapterBlockProps {
   chapter: Chapter;
@@ -47,7 +46,7 @@ export default function ChapterBlock({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={styles.block}>
+    <div ref={setNodeRef} style={style}>
       <ChapterHeader
         title={chapter.title}
         isOpen={isOpen}
@@ -63,7 +62,7 @@ export default function ChapterBlock({
             items={chapter.scenes.map((s) => s.id)}
             strategy={verticalListSortingStrategy}
           >
-            <ul className={styles.sceneList}>
+            <ul >
               {chapter.scenes.map((scene) => (
                 <SceneListItem
                   key={scene.id}

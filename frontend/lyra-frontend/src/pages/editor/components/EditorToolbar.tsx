@@ -3,7 +3,6 @@ import { Editor } from "@tiptap/react";
 import { ToolbarButton } from "./ToolbarButton";
 import { HeadingSelector } from "./HeadingSelector";
 import { AlignmentGroup } from "./AlignmentGroup";
-import styles from "./EditorToolbar.module.css";
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -13,7 +12,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) return null;
 
   return (
-    <div className={styles.toolbar}>
+    <div>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}

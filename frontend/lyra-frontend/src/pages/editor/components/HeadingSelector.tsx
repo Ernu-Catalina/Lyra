@@ -1,5 +1,4 @@
 import type { ChangeEvent } from "react";
-import styles from "./HeadingSelector.module.css";
 
 interface HeadingSelectorProps {
   value: string;
@@ -15,7 +14,6 @@ export function HeadingSelector({ value, onChange }: HeadingSelectorProps) {
     <select
       value={value}
       onChange={handleChange}
-      className={styles.select}
       aria-label="Text style"
     >
       <option value="paragraph">Normal</option>

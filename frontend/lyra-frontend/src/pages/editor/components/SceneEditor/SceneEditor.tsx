@@ -4,7 +4,6 @@ import { useEditor, EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Heading from "@tiptap/extension-heading";
-import styles from "./SceneEditor.module.css";
 
 interface SceneEditorProps {
   content: string;
@@ -29,12 +28,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       editable,
       onUpdate: ({ editor }) => {
         onChange(editor.getHTML());
-      },
-      editorProps: {
-        attributes: {
-          class: styles.editor,
-        },
-      },
+      }
     });
 
     // Expose the editor instance to parent via ref
