@@ -1,3 +1,4 @@
+// src/components/Sidebar/SidebarHeader.tsx
 import { Plus } from "lucide-react";
 
 interface SidebarHeaderProps {
@@ -7,15 +8,28 @@ interface SidebarHeaderProps {
 
 export function SidebarHeader({ documentTitle, onAddChapter }: SidebarHeaderProps) {
   return (
-    <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-      <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">{documentTitle}</h2>
-      <button
-        onClick={onAddChapter}
-        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] rounded-lg transition"
-      >
-        <Plus size={16} />
-        <span>Add Chapter</span>
-      </button>
+    <div className="px-4 py-1 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+      <div className="flex items-center justify-between">
+        {/* Document title – left side */}
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] truncate max-w-[70%]">
+          {documentTitle}
+        </h2>
+
+        {/* [+ Chapter] button – right side, inline */}
+        <button
+          onClick={onAddChapter}
+          className="
+            flex items-center gap-1 px-2.5 py-1.5 
+            text-sm font-medium text-[var(--accent)] 
+            hover:bg-[var(--accent)]/10 rounded-md transition-colors
+            focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30
+          "
+          title="Add new chapter"
+        >
+          <Plus size={16} />
+          <span>Chapter</span>
+        </button>
+      </div>
     </div>
   );
 }
