@@ -10,10 +10,10 @@ interface ChapterHeaderProps {
 export function ChapterHeader({ title, isOpen, onToggle, onAddScene }: ChapterHeaderProps) {
   return (
     <div
-      className="flex items-center justify-between py-2 px-3 hover:bg-[var(--bg-secondary)]/50 rounded-md cursor-pointer group"
+      className="flex items-center justify-between py-1 px-3 hover:bg-[var(--bg-secondary)]/50 rounded-md cursor-pointer group"
       onClick={onToggle}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <span className="font-medium text-[var(--text-primary)]">{title}</span>
       </div>
