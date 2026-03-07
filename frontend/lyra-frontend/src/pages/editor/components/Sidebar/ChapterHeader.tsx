@@ -27,7 +27,7 @@ export function ChapterHeader({
         {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         {/* Title text – switches to chapter view when clicked */}
         <span
-          className={`font-medium text-[var(--text-primary)] cursor-pointer ${isActive ? "font-bold" : ""}`}
+          className={`font-medium text-[var(--text-primary)] cursor-pointer ${isActive ? "font-bold" : "font-medium"}`}
           onClick={(e) => {
             e.stopPropagation(); // Prevent triggering onToggle
             onChapterClick();
