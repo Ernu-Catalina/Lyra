@@ -1,13 +1,43 @@
-// features/editor/utils/chapterComposer.ts
+// src/utils/chapterComposer.ts
 import type { Scene } from "../../../types/document";
 
-const SEPARATOR = `<p style="text-align:center;">***</p>`;
-
-export function composeChapter(scenes: Scene[]): string {
+export function composeChapter(scenes: Scene[]) {
   const ordered = [...scenes].sort((a, b) => a.order - b.order);
-  return ordered.map((s) => s.content ?? "").join(SEPARATOR);
+
+  return {
+    type: "doc",
+    content: ordered.flatMap((scene) => [
+      {
+        type: "scene",
+        attrs: { id: scene.id, title: scene.title },
+        content: [
+          {
+            type: "paragraph",
+            content: scene.content
+              ? [{ type: "text", text: scene.content }]
+              : [],
+          },
+        ],
+      },
+      { type: "paragraph" }, // optional separator
+    ]),
+  };
 }
 
-export function splitChapterContent(html: string): string[] {
-  return html.split(/<p[^>]*>\s*\*\*\*\s*<\/p>/i);
+// Optional: reverse function (for saving)
+export function extractScenesFromJson(json: any): Partial<Scene>[] {
+  const scenes: Partial<Scene>[] = [];
+
+  json.content?.forEach((node: any) => {
+    if (node.type === "scene") {
+      const content = node.content?.[0]?.content?.[0]?.text || "";
+      scenes.push({
+        id: node.attrs.id,
+        title: node.attrs.title,
+        content,
+      });
+    }
+  });
+
+  return scenes;
 }

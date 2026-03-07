@@ -1,22 +1,24 @@
-// src/components/Sidebar/SidebarHeader.tsx
 import { Plus } from "lucide-react";
 
 interface SidebarHeaderProps {
   documentTitle: string;
   onAddChapter: () => void;
-  onDocumentClick: () => void;
+  onDocumentClick: () => void;           // ← must be present
 }
 
-export function SidebarHeader({ documentTitle, onAddChapter }: SidebarHeaderProps) {
+export function SidebarHeader({ documentTitle, onAddChapter, onDocumentClick }: SidebarHeaderProps) {
   return (
-    <div className="px-4 py-2 bg-[var(--bg-secondary)]">
+    <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
       <div className="flex items-center justify-between">
-        {/* Document title – left side */}
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] truncate max-w-[70%]">
+        {/* Document title – clickable to switch to document view */}
+        <h2 
+          className="text-lg font-semibold text-[var(--text-primary)] cursor-pointer hover:text-[var(--accent)] transition truncate max-w-[70%]"
+          onClick={onDocumentClick}                // ← ADD THIS
+        >
           {documentTitle}
         </h2>
 
-        {/* [+ Chapter] button – right side, inline */}
+        {/* [+ Chapter] button */}
         <button
           onClick={onAddChapter}
           className="

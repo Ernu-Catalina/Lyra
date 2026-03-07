@@ -202,6 +202,13 @@ const footerText = parts.length > 0 ? parts.join(" | ") : null;
     }
   };
 
+  const handleSceneUpdateFromChapter = (sceneId: string, content: string) => {
+  // Find and update local outline or trigger save
+  console.log(`Scene ${sceneId} updated from chapter view:`, content);
+  // TODO: call API to update single scene or batch save
+  reloadOutline(); // temporary – refresh after batch
+};
+
   // Autosave only in scene mode
   useAutosaveScene({
     projectId,
@@ -339,6 +346,7 @@ useEffect(() => {
               chapter={outline.chapters.find((c) => c.id === activeChapterId)!}
               initialContent={chapterEditorContent}
               onContentChange={setChapterEditorContent}
+              onSceneUpdate={handleSceneUpdateFromChapter}
             />
           ) : editorMode === "document" ? (
             outline ? <DocumentEditorView outline={outline} /> : <div>Loading...</div>
