@@ -1,10 +1,10 @@
-// src/components/SceneEditor/SceneEditor.tsx
+// src/pages/editor/components/SceneEditor/SceneEditor.tsx
 import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Heading from "@tiptap/extension-heading";
-import { SceneNode } from "../../extensions/SceneNode"; // ← NEW IMPORT
+import { SceneNode } from "../../extensions/SceneNode";
 
 interface SceneEditorProps {
   content: string | object; // now accepts HTML or JSON
