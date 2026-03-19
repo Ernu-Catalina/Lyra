@@ -55,15 +55,17 @@ export default function EditorPage() {
   const documentWordCount = outline?.total_wordcount || 0;
   const [showDocumentWarning, setShowDocumentWarning] = useState(false);
 
-    const handleChapterClick = (chapterId: string) => {
-    selectChapter(chapterId);
-    setEditorMode("chapter");
-  };
+const handleSceneClick = (chapterId: string, sceneId: string) => {
+  console.log("Scene clicked:", { chapterId, sceneId });
+  selectScene(chapterId, sceneId);
+  setEditorMode("scene");
+};
 
-  const handleSceneClick = (chapterId: string, sceneId: string) => {
-    selectScene(chapterId, sceneId);
-    setEditorMode("scene");
-  };
+const handleChapterClick = (chapterId: string) => {
+  console.log("Chapter clicked:", chapterId);
+  selectChapter(chapterId);
+  setEditorMode("chapter");
+};
 
   const handleDocumentClick = () => {
     setEditorMode("document");
@@ -202,11 +204,20 @@ const footerText = parts.length > 0 ? parts.join(" | ") : null;
     }
   };
 
-  const handleSceneUpdateFromChapter = (sceneId: string, content: string) => {
-  // Find and update local outline or trigger save
-  console.log(`Scene ${sceneId} updated from chapter view:`, content);
-  // TODO: call API to update single scene or batch save
-  reloadOutline(); // temporary – refresh after batch
+const handleSceneUpdateFromChapter = async (sceneId: string, content: string) => {
+  if (!projectId || !documentId || !activeChapterId) return;
+
+  try {
+    await api.put(
+      `/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${sceneId}`,
+      { content }
+    );
+    showToast(`Scene ${sceneId} updated`);
+    reloadOutline(); // Refresh outline with new wordcounts/content
+  } catch (err) {
+    console.error("Failed to save scene from chapter:", err);
+    showToast("Failed to save changes");
+  }
 };
 
   // Autosave only in scene mode
@@ -255,21 +266,21 @@ useEffect(() => {
 }, [loading, error, outline, projectId, documentId, reloadOutline, showToast]);
 
 // Load scene content when active scene changes
-  useEffect(() => {
-    if (!projectId || !documentId || !activeChapterId || !activeSceneId) return;
-  
-    api.get(`/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`)
-      .then((res) => {
-        const content = res.data.content ?? "";
-        setSceneContent(content);
-        setLastSavedContent(content);
-        setSceneWordcount(countWordsFromHtml(content));
-      })
-      .catch((err) => {
-        console.error("Failed to load scene:", err);
-        showToast("Failed to load scene content");
-      });
-  }, [projectId, documentId, activeChapterId, activeSceneId]);
+useEffect(() => {
+  if (!projectId || !documentId || !activeChapterId || !activeSceneId) return;
+
+  api.get(`/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`)
+    .then((res) => {
+      const rawContent = res.data.content ?? "";
+      setSceneContent(rawContent); // ← raw HTML string from backend
+      setLastSavedContent(rawContent);
+      setSceneWordcount(countWordsFromHtml(rawContent));
+    })
+    .catch((err) => {
+      console.error("Failed to load scene:", err);
+      showToast("Failed to load scene content");
+    });
+}, [projectId, documentId, activeChapterId, activeSceneId]);
 
   // Compose chapter content when active chapter changes
   useEffect(() => {

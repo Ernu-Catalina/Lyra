@@ -1,43 +1,19 @@
 // src/utils/chapterComposer.ts
 import type { Scene } from "../../../types/document";
 
-export function composeChapter(scenes: Scene[]) {
+const SEPARATOR = `<p></p><p style="text-align: center; margin: 2rem 0;">*****</p><p></p>`; // HTML separator for scenes
+
+export function composeChapter(scenes: Scene[]): string {
   const ordered = [...scenes].sort((a, b) => a.order - b.order);
 
-  return {
-    type: "doc",
-    content: ordered.flatMap((scene) => [
-      {
-        type: "scene",
-        attrs: { id: scene.id, title: scene.title },
-        content: [
-          {
-            type: "paragraph",
-            content: scene.content
-              ? [{ type: "text", text: scene.content }]
-              : [],
-          },
-        ],
-      },
-      { type: "paragraph" }, // optional separator
-    ]),
-  };
+  // Join scenes with centered ***** separator
+  return ordered
+    .map((scene) => scene.content || "")
+    .filter(Boolean) // skip empty scenes
+    .join(SEPARATOR);
 }
 
-// Optional: reverse function (for saving)
-export function extractScenesFromJson(json: any): Partial<Scene>[] {
-  const scenes: Partial<Scene>[] = [];
-
-  json.content?.forEach((node: any) => {
-    if (node.type === "scene") {
-      const content = node.content?.[0]?.content?.[0]?.text || "";
-      scenes.push({
-        id: node.attrs.id,
-        title: node.attrs.title,
-        content,
-      });
-    }
-  });
-
-  return scenes;
+// Optional: reverse function (for saving if you implement chapter editing later)
+export function splitChapterContent(html: string): string[] {
+  return html.split(/<p[^>]*>\s*\*\*\*\*\*\s*<\/p>/i);
 }

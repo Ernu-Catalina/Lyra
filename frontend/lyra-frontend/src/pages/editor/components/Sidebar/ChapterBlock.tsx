@@ -41,7 +41,11 @@ export default function ChapterBlock({
               key={scene.id}
               scene={scene}
               isActive={scene.id === activeSceneId}
-              onClick={() => onSceneClick(scene.id)}
+              onClick={(event) => {
+                // Guard: stop propagation only if event exists
+                event?.stopPropagation();
+                onSceneClick(scene.id);
+              }}
             />
           ))}
         </ul>

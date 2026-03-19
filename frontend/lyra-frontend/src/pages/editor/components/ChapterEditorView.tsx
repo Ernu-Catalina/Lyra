@@ -5,32 +5,27 @@ import type { Chapter } from "../../../types/document";
 
 interface ChapterEditorViewProps {
   chapter: Chapter;
-  onSceneUpdate: (sceneId: string, content: string) => void;
+  initialContent?: string;
+  onContentChange: (html: string) => void;
+  onSceneUpdate?: (sceneId: string, content: string) => void; // optional for future
 }
 
-export function ChapterEditorView({ chapter, onSceneUpdate }: ChapterEditorViewProps) {
-  const jsonContent = composeChapter(chapter.scenes);
+export function ChapterEditorView({ chapter, initialContent, onContentChange }: ChapterEditorViewProps) {
+  const htmlContent = initialContent ?? composeChapter(chapter.scenes);
 
   return (
     <SceneEditorPageView>
       <SceneEditor
-        content={jsonContent}
-        onChange={(html, json) => {
-          // Optional: live preview HTML if needed
+        content={htmlContent}
+        onChange={(html) => {
+          onContentChange(html);
+          // Optional: parse and call onSceneUpdate for each scene
+          // const updated = extractScenesFromHtml(html);
+          // updated.forEach(scene => onSceneUpdate?.(scene.id!, scene.content!));
         }}
         editable={true}
-        useSceneNodes={true} // ← enables node-based editing
         onEditorReady={(editor) => {
-          // Optional: listen for updates per node
-          editor?.on("update", ({ editor }) => {
-            const json = editor.getJSON();
-            const updatedScenes = extractScenesFromJson(json);
-            updatedScenes.forEach((scene) => {
-              if (scene.id && scene.content !== undefined) {
-                onSceneUpdate(scene.id, scene.content);
-              }
-            });
-          });
+          // No need for custom nodes or JSON parsing anymore
         }}
       />
     </SceneEditorPageView>

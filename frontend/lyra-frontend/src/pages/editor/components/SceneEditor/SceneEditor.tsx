@@ -1,27 +1,23 @@
-// src/pages/editor/components/SceneEditor/SceneEditor.tsx
 import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Heading from "@tiptap/extension-heading";
-import { SceneNode } from "../../extensions/SceneNode";
 
 interface SceneEditorProps {
-  content: string | object; // now accepts HTML or JSON
-  onChange: (html: string, json?: any) => void; // return both
+  content: string; // now always HTML string
+  onChange: (html: string) => void;
   editable?: boolean;
   onEditorReady?: (editor: Editor | null) => void;
-  useSceneNodes?: boolean; // NEW: toggle for chapter/document mode
 }
 
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
-  ({ content, onChange, editable = true, onEditorReady, useSceneNodes = false }, ref) => {
+  ({ content, onChange, editable = true, onEditorReady }, ref) => {
     const editor = useEditor({
       extensions: [
         StarterKit.configure({ heading: false }),
         Heading.configure({ levels: [1, 2, 3, 4] }),
         TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
-        ...(useSceneNodes ? [SceneNode] : []),
       ],
       content,
       editable,
@@ -31,7 +27,10 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         },
       },
       onUpdate: ({ editor }) => {
-        onChange(editor.getHTML(), editor.getJSON());
+        onChange(editor.getHTML());
+      },
+      parseOptions: {
+        preserveWhitespace: "full",
       },
     });
 
@@ -42,9 +41,12 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
     }, [editor, onEditorReady]);
 
     useEffect(() => {
-      if (!editor || !content) return;
-      if (JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
-        editor.commands.setContent(content, false);
+      if (!editor) return;
+
+      const currentHtml = editor.getHTML();
+
+      if (content !== currentHtml) {
+        editor.chain().setContent(content, false).run();
       }
     }, [content, editor]);
 
