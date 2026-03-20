@@ -7,23 +7,25 @@ interface ChapterEditorViewProps {
   chapter: Chapter;
   initialContent?: string;
   onContentChange: (html: string) => void;
-  onSceneUpdate?: (sceneId: string, content: string) => void; // optional for future
+  onSceneUpdate?: (sceneId: string, content: string) => void;
+  readOnly?: boolean;  // ← NEW PROP (optional, default false)
 }
 
-export function ChapterEditorView({ chapter, initialContent, onContentChange }: ChapterEditorViewProps) {
+export function ChapterEditorView({
+  chapter,
+  initialContent,
+  onContentChange,
+  onSceneUpdate,
+  readOnly = false,  // default: editable
+}: ChapterEditorViewProps) {
   const htmlContent = initialContent ?? composeChapter(chapter.scenes);
 
   return (
     <SceneEditorPageView>
       <SceneEditor
         content={htmlContent}
-        onChange={(html) => {
-          onContentChange(html);
-          // Optional: parse and call onSceneUpdate for each scene
-          // const updated = extractScenesFromHtml(html);
-          // updated.forEach(scene => onSceneUpdate?.(scene.id!, scene.content!));
-        }}
-        editable={true}
+        onChange={onContentChange}
+        editable={!readOnly}          // ← disables editing when readOnly=true
         onEditorReady={(editor) => {
           // No need for custom nodes or JSON parsing anymore
         }}

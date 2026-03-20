@@ -24,7 +24,10 @@ import { DocumentEditorView } from "./components/DocumentEditorView";
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
   const navigate = useNavigate(); 
-  const { logout } = useAuth();   
+  const { logout } = useAuth();
+  
+  // Temporary: set to false to allow editing in chapter view again
+  const CHAPTER_VIEW_READ_ONLY = true;
 
   const { outline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
 
@@ -358,6 +361,7 @@ useEffect(() => {
               initialContent={chapterEditorContent}
               onContentChange={setChapterEditorContent}
               onSceneUpdate={handleSceneUpdateFromChapter}
+              readOnly={CHAPTER_VIEW_READ_ONLY}
             />
           ) : editorMode === "document" ? (
             outline ? <DocumentEditorView outline={outline} /> : <div>Loading...</div>
