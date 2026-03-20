@@ -11,6 +11,8 @@ interface NavigationBarProps {
   onSettings: () => void;
   isEditorView?: boolean;            // NEW: controls search vs export
   onExport?: () => void;             // NEW: callback for export (optional)
+  saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+  saveMessage?: string | null;
 }
 
 export default function NavigationBar({
@@ -21,6 +23,8 @@ export default function NavigationBar({
   onSettings,
   isEditorView = false,
   onExport,
+  saveStatus = 'idle',
+  saveMessage = null,
 }: NavigationBarProps) {
   return (
     <nav className="bg-[var(--bg-secondary)] border-b border-[var(--border)] px-4 sm:px-6 py-2.5 flex items-center justify-between">
@@ -32,24 +36,33 @@ export default function NavigationBar({
 
       {/* Center/Right: Conditional Search OR Export + Profile */}
       <div className="flex items-center gap-3 sm:gap-4">
-        {/* Conditional content */}
         {isEditorView ? (
-          /* Export button – same size/placement as search */
-          <button
-            onClick={onExport}
-            className="
-              flex items-center gap-3 px-4 py-1.5 
-              bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 
-              border border-[var(--accent)]/30 rounded-lg 
-              text-sm font-medium text-[var(--accent)] 
-              transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]
-              min-w-[100px] sm:min-w-[100px]
-            "
-            title="Export document"
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">Export</span>
-          </button>
+          <>
+          {/* Persistent Save Status – no background, theme colors */}
+            <div className="flex items-center gap-2 text-sm font-medium">
+              {saveStatus === 'saving' && (
+                <span className="text-[var(--text-secondary)]">Saving…</span>
+              )}
+              {saveStatus === 'saved' && (
+                <span className="text-[var(--text-secondary)]">Saved</span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="text-[var(--text-secondary)]">Saving failed</span>
+              )}
+              {saveStatus === 'idle' && (
+                <span className="text-[var(--text-secondary)]">Idle</span>
+              )}
+            </div>
+            {/* Export button */}
+            <button
+              onClick={onExport}
+              className="flex items-center gap-3 px-4 py-1.5 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/30 rounded-lg text-sm font-medium text-[var(--accent)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] min-w-[100px] sm:min-w-[100px]"
+              title="Export document"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+          </>
         ) : (
           /* Original search field (only shown outside editor) */
           <div className="relative hidden sm:block">

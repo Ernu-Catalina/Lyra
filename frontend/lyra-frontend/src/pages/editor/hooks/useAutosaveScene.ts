@@ -11,6 +11,7 @@ interface AutosaveProps {
   shouldSave: boolean;
   debounceMs?: number;
   onSaved?: (savedContent: string) => void;
+  onStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error', message?: string) => void;
 }
 
 export function useAutosaveScene({
@@ -22,26 +23,34 @@ export function useAutosaveScene({
   shouldSave,
   debounceMs = 1500,
   onSaved,
+  onStatusChange,
 }: AutosaveProps) {
   useEffect(() => {
     if (!shouldSave || !projectId || !documentId || !activeChapterId || !activeSceneId) {
+      onStatusChange?.('idle');
       return;
     }
 
+    onStatusChange?.('saving', 'Saving scene...');
+
     const timer = setTimeout(async () => {
       try {
-        console.log("Autosaving scene:", { activeSceneId, contentLength: content.length });
         await api.put(
           `/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`,
           { content }
         );
         onSaved?.(content);
-        console.log("Scene autosaved successfully");
+        onStatusChange?.('saved', 'Saved');
+        setTimeout(() => onStatusChange?.('idle'), 3000); // fade out success
       } catch (err) {
         console.error("Autosave failed:", err);
+        onStatusChange?.('error', 'Failed to save');
       }
     }, debounceMs);
 
-    return () => clearTimeout(timer);
-  }, [content, shouldSave, projectId, documentId, activeChapterId, activeSceneId, debounceMs, onSaved]);
+    return () => {
+      clearTimeout(timer);
+      onStatusChange?.('idle');
+    };
+  }, [content, shouldSave, projectId, documentId, activeChapterId, activeSceneId, debounceMs, onSaved, onStatusChange]);
 }

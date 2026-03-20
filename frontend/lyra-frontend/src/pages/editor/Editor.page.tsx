@@ -34,6 +34,11 @@ export default function EditorPage() {
   const [userDefaultView, setUserDefaultView] = useState<"document" | "chapter" | "scene">("scene");
   const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter, setEditorMode } = useActiveScene();
 
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  // Timestamp of last user edit (used to keep "Saved" visible for 60s after typing)
+  const [lastEditTimestamp, setLastEditTimestamp] = useState<number | null>(null);
+
   const [sceneContent, setSceneContent] = useState("");
   const [lastSavedContent, setLastSavedContent] = useState("");
   const [sceneWordcount, setSceneWordcount] = useState(0);
@@ -130,14 +135,36 @@ useEffect(() => {
     }
   }, [loading, outline, userDefaultView, selectChapter, selectScene, setEditorMode]);
 
-// Compute word counts
-const sceneWC = sceneWordcount;
-const chapterWC = outline && activeChapterId
-  ? outline.chapters.find(c => c.id === activeChapterId)?.wordcount || 0
-  : 0;
-const documentWC = outline?.total_wordcount || 0;
+// ── Live word count computation ─────────────────────────────────────────────
+// Updates immediately after typing in scene mode
 
-// Format based on user settings
+const sceneWC = sceneWordcount;
+
+// Chapter WC: sum all scenes, using live value for active scene
+const chapterWC = (() => {
+  if (!outline || !activeChapterId) return 0;
+  const chapter = outline.chapters.find(c => c.id === activeChapterId);
+  if (!chapter) return 0;
+
+  return chapter.scenes.reduce((sum, scene) => {
+    return sum + (scene.id === activeSceneId ? sceneWC : (scene.wordcount || 0));
+  }, 0);
+})();
+
+// Document WC: adjust total by replacing active chapter's saved value
+const documentWC = (() => {
+  if (!outline) return 0;
+  let total = outline.total_wordcount || 0;
+
+  if (activeChapterId) {
+    const savedChapterWC = outline.chapters.find(c => c.id === activeChapterId)?.wordcount || 0;
+    total = total - savedChapterWC + chapterWC;
+  }
+
+  return total;
+})();
+
+// ── Format for footer ───────────────────────────────────────────────────────
 const parts: string[] = [];
 
 if (userSettings.wordcountDisplay.includes("scene") && editorMode === "scene") {
@@ -234,9 +261,45 @@ const handleSceneUpdateFromChapter = async (sceneId: string, content: string) =>
     onSaved: (saved) => {
       setLastSavedContent(saved);
       showToast("Scene saved");
-      reloadOutline(); 
     },
+    onStatusChange: (status, message) => {
+    setSaveStatus(status);
+    setSaveMessage(message);
+  },
   });
+
+// Keep "Saved" visible for 60 seconds after last edit or successful save
+useEffect(() => {
+  if (saveStatus === 'error') {
+    // Error stays until next save attempt
+    return;
+  }
+
+  if (saveStatus === 'saving') {
+    // Saving overrides everything until complete
+    return;
+  }
+
+  const now = Date.now();
+
+  // If user edited recently (< 60s ago), force "Saved" (even if not yet autosaved)
+  if (lastEditTimestamp && now - lastEditTimestamp < 60000) {
+    setSaveStatus('saved');
+    return;
+  }
+
+  // Otherwise, if last save was recent, keep "Saved"
+  if (saveStatus === 'saved') {
+    const timer = setTimeout(() => {
+      setSaveStatus('idle');
+    }, 60000);
+
+    return () => clearTimeout(timer);
+  }
+
+  // Default to idle when nothing recent happened
+  setSaveStatus('idle');
+}, [saveStatus, lastEditTimestamp]);
 
   // Auto-create chapter + scene when document is empty
 useEffect(() => {
@@ -285,15 +348,23 @@ useEffect(() => {
     });
 }, [projectId, documentId, activeChapterId, activeSceneId]);
 
-  // Compose chapter content when active chapter changes
-  useEffect(() => {
-    if (!activeChapterId || !outline) return;
-    const chapter = outline.chapters.find((c) => c.id === activeChapterId);
-    if (chapter) {
-      setChapterEditorContent(composeChapter(chapter.scenes));
-      selectChapter(activeChapterId);
-    }
-  }, [activeChapterId, outline, selectChapter]);
+// Compose chapter content when active chapter changes OR when active scene content changes
+useEffect(() => {
+  if (!activeChapterId || !outline || editorMode !== "chapter") return;
+
+  const chapter = outline.chapters.find((c) => c.id === activeChapterId);
+  if (chapter) {
+    // Re-compose with latest scene content (optimistic)
+    const updatedScenes = chapter.scenes.map(scene => {
+      if (scene.id === activeSceneId) {
+        return { ...scene, content: sceneContent };
+      }
+      return scene;
+    });
+
+    setChapterEditorContent(composeChapter(updatedScenes));
+  }
+}, [activeChapterId, outline, editorMode, sceneContent, activeSceneId]);
 
   const toggleChapter = (chapterId: string) => {
     setOpenChapterIds((prev) => {
@@ -323,6 +394,8 @@ useEffect(() => {
           console.log("Export clicked – implement document export here");
           // Future: generate PDF/DOCX/JSON export
         }}
+        saveStatus={saveStatus}
+        saveMessage={saveMessage}
       />
 
       {/* Rest of editor content */}
@@ -351,6 +424,7 @@ useEffect(() => {
                 onChange={(html) => {
                   setSceneContent(html);
                   setSceneWordcount(countWordsFromHtml(html));
+                  setLastEditTimestamp(Date.now());
                 }}
                 onEditorReady={setEditorInstance}
               />
