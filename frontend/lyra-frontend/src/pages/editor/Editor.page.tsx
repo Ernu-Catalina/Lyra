@@ -173,14 +173,34 @@ const documentWC = (() => {
 // ── Format for footer ───────────────────────────────────────────────────────
 const parts: string[] = [];
 
-if (userSettings.wordcountDisplay.includes("scene") && editorMode === "scene") {
-  parts.push(`Scene: ${formatWordCount(sceneWC, userSettings.sceneFormat)}`);
+// SCENE MODE → all allowed
+if (editorMode === "scene") {
+  if (userSettings.wordcountDisplay.includes("scene")) {
+    parts.push(`Scene: ${formatWordCount(sceneWC, userSettings.sceneFormat)}`);
+  }
+  if (userSettings.wordcountDisplay.includes("chapter")) {
+    parts.push(`Chapter: ${formatWordCount(chapterWC, userSettings.chapterFormat)}`);
+  }
+  if (userSettings.wordcountDisplay.includes("document")) {
+    parts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
+  }
 }
-if (userSettings.wordcountDisplay.includes("chapter")) {
-  parts.push(`Chapter: ${formatWordCount(chapterWC, userSettings.chapterFormat)}`);
+
+// CHAPTER MODE → no scene
+if (editorMode === "chapter") {
+  if (userSettings.wordcountDisplay.includes("chapter")) {
+    parts.push(`Chapter: ${formatWordCount(chapterWC, userSettings.chapterFormat)}`);
+  }
+  if (userSettings.wordcountDisplay.includes("document")) {
+    parts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
+  }
 }
-if (userSettings.wordcountDisplay.includes("document")) {
-  parts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
+
+// DOCUMENT MODE → only document
+if (editorMode === "document") {
+  if (userSettings.wordcountDisplay.includes("document")) {
+    parts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
+  }
 }
 
 const footerText = parts.length > 0 ? parts.join(" | ") : null;
@@ -487,11 +507,13 @@ useEffect(() => {
             </div>
           )
         }
-        footer={<WordCountFooter 
-          sceneCount={sceneWC}
-          chapterCount={chapterWC}
-          documentCount={documentWC}
-        />}
+        footer={
+          parts.length > 0 ? (
+            <div>
+              {parts.join(" | ")}
+            </div>
+          ) : null
+        }
       />
         {/* Temporary warning overlay */}
         {showDocumentWarning && (
