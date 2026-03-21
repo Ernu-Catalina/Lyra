@@ -549,3 +549,136 @@ async def create_chapter(
     )
 
     return chapter
+
+# ────────────────────────────────────────────────
+# RENAME CHAPTER
+# ────────────────────────────────────────────────
+@router.patch("/{document_id}/chapters/{chapter_id}")
+async def rename_chapter(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    data: dict = Body(...),
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
+
+    chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    new_title = data.get("title", chapter["title"]).strip()
+    if not new_title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+    # Allow duplicates (as requested)
+    # No uniqueness check here
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id), "chapters.id": chapter_id},
+        {"$set": {
+            "chapters.$.title": new_title,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    return {"message": "Chapter renamed", "new_title": new_title}
+
+
+# ────────────────────────────────────────────────
+# DELETE CHAPTER
+# ────────────────────────────────────────────────
+@router.delete("/{document_id}/chapters/{chapter_id}")
+async def delete_chapter(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
+
+    chapter_exists = any(c["id"] == chapter_id for c in document["chapters"])
+    if not chapter_exists:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$pull": {"chapters": {"id": chapter_id}}, "$set": {"updated_at": datetime.utcnow()}}
+    )
+
+    return {"message": "Chapter deleted"}
+
+
+# ────────────────────────────────────────────────
+# RENAME SCENE
+# ────────────────────────────────────────────────
+@router.patch("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}")
+async def rename_scene(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    scene_id: str,
+    data: dict = Body(...),
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
+
+    chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    scene = next((s for s in chapter["scenes"] if s["id"] == scene_id), None)
+    if not scene:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    new_title = data.get("title", scene["title"]).strip()
+    if not new_title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id), "chapters.id": chapter_id, "chapters.scenes.id": scene_id},
+        {"$set": {
+            "chapters.$[chapter].scenes.$[scene].title": new_title,
+            "updated_at": datetime.utcnow()
+        }},
+        array_filters=[{"chapter.id": chapter_id}, {"scene.id": scene_id}]
+    )
+
+    return {"message": "Scene renamed", "new_title": new_title}
+
+
+# ────────────────────────────────────────────────
+# DELETE SCENE
+# ────────────────────────────────────────────────
+@router.delete("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}")
+async def delete_scene(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    scene_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document or document["type"] == "folder":
+        raise HTTPException(status_code=404, detail="Document not found or is a folder")
+
+    chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    scene_exists = any(s["id"] == scene_id for s in chapter["scenes"])
+    if not scene_exists:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id), "chapters.id": chapter_id},
+        {"$pull": {"chapters.$.scenes": {"id": scene_id}}, "$set": {"updated_at": datetime.utcnow()}}
+    )
+
+    return {"message": "Scene deleted"}
