@@ -1,3 +1,4 @@
+//sceneEditor.tsx
 import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";

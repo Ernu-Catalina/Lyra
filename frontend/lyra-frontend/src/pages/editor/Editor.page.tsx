@@ -29,7 +29,18 @@ export default function EditorPage() {
   // Temporary: set to false to allow editing in chapter view again
   const CHAPTER_VIEW_READ_ONLY = true;
 
-  const { outline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
+  const { outline: serverOutline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
+
+  const [outline, setOutline] = useState(serverOutline);
+
+  useEffect(() => {
+  if (serverOutline) {
+    setOutline(prev => {
+      if (!prev) return serverOutline;
+      return serverOutline;
+    });
+  }
+}, [serverOutline]);
 
   const [userDefaultView, setUserDefaultView] = useState<"document" | "chapter" | "scene">("scene");
   const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter, setEditorMode } = useActiveScene();
@@ -87,11 +98,6 @@ const handleChapterClick = (chapterId: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
-
-  function getChapterWordCount(outline: DocumentOutline | null, chapterId: string | null): number {
-  if (!outline || !chapterId) return 0;
-  return outline.chapters.find(c => c.id === chapterId)?.wordcount || 0;
-}
 
   // Fetch user settings on mount
 useEffect(() => {
@@ -248,6 +254,36 @@ const handleSceneUpdateFromChapter = async (sceneId: string, content: string) =>
     console.error("Failed to save scene from chapter:", err);
     showToast("Failed to save changes");
   }
+};
+
+const updateSceneInOutline = (sceneId: string, newContent: string) => {
+  if (!outline) return;
+
+  const newWordcount = countWordsFromHtml(newContent);
+
+  const updatedChapters = outline.chapters.map(ch => ({
+    ...ch,
+    scenes: ch.scenes.map(scene =>
+      scene.id === sceneId
+        ? { ...scene, content: newContent, wordcount: newWordcount }
+        : scene
+    )
+  }));
+
+  // recompute chapter + document wordcounts
+  const updatedChaptersWithWC = updatedChapters.map(ch => {
+    const chapterWC = ch.scenes.reduce((sum, s) => sum + (s.wordcount || 0), 0);
+    return { ...ch, wordcount: chapterWC };
+  });
+
+  const totalWC = updatedChaptersWithWC.reduce((sum, ch) => sum + ch.wordcount, 0);
+
+  // IMPORTANT: replace outline (immutable update)
+  setOutline({
+    ...outline,
+    chapters: updatedChaptersWithWC,
+    total_wordcount: totalWC,
+  });
 };
 
   // Autosave only in scene mode
@@ -423,8 +459,14 @@ useEffect(() => {
                 content={sceneContent}
                 onChange={(html) => {
                   setSceneContent(html);
-                  setSceneWordcount(countWordsFromHtml(html));
+                  const wc = countWordsFromHtml(html);
+                  setSceneWordcount(wc);
                   setLastEditTimestamp(Date.now());
+                
+                  // 🔥 THIS FIXES EVERYTHING
+                  if (activeSceneId) {
+                    updateSceneInOutline(activeSceneId, html);
+                  }
                 }}
                 onEditorReady={setEditorInstance}
               />
@@ -446,9 +488,9 @@ useEffect(() => {
           )
         }
         footer={<WordCountFooter 
-          sceneCount={sceneWordcount}
-          chapterCount={getChapterWordCount(outline, activeChapterId)}
-          documentCount={outline?.total_wordcount || 0}
+          sceneCount={sceneWC}
+          chapterCount={chapterWC}
+          documentCount={documentWC}
         />}
       />
         {/* Temporary warning overlay */}
