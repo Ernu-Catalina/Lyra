@@ -469,6 +469,10 @@ useEffect(() => {
             onAddScene={handleAddScene}
             onChapterClick={handleChapterClick}
             onDocumentClick={handleDocumentClick}
+            setOutline={setOutline}
+            projectId={projectId!}
+            documentId={documentId!}
+            reloadOutline={reloadOutline}
           />
         }
         toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}

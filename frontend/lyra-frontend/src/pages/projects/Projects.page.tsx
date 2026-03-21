@@ -8,7 +8,7 @@ import CreateButton from "../../common_components/CreateButton";
 import { ProjectCard } from "./components/ProjectCard";
 import { CreateProjectModal } from "./components/CreateProjectModal";
 import { EditProjectModal } from "./components/EditProjectModal";
-import DeleteConfirmationModal from "../documents/components/DeleteConfirmationModal";
+import DeleteConfirmationModal from "../../common_components/DeleteConfirmationModal";
 
 export interface Project {
   _id: string;

@@ -10,7 +10,9 @@ interface ChapterBlockProps {
   onToggle: () => void;
   onAddScene: () => void;
   onSceneClick: (sceneId: string) => void;
-  onChapterClick: () => void;           // NEW
+  onChapterClick: () => void;
+  onContextMenuChapter: (e: React.MouseEvent) => void;
+  onContextMenuScene: (e: React.MouseEvent, sceneId: string) => void;
 }
 
 export default function ChapterBlock({
@@ -22,9 +24,12 @@ export default function ChapterBlock({
   onAddScene,
   onSceneClick,
   onChapterClick,
+  onContextMenuChapter,
+  onContextMenuScene
 }: ChapterBlockProps) {
   return (
     <div className="mb-2">
+      <div onContextMenu={onContextMenuChapter}>
       <ChapterHeader
         title={chapter.title}
         isOpen={isOpen}
@@ -33,7 +38,7 @@ export default function ChapterBlock({
         onChapterClick={onChapterClick}
         onAddScene={onAddScene}
       />
-
+      </div>
       {isOpen && (
         <ul className="ml-6 mt-1 space-y-1">
           {chapter.scenes.map((scene) => (
@@ -45,6 +50,11 @@ export default function ChapterBlock({
                 // Guard: stop propagation only if event exists
                 event?.stopPropagation();
                 onSceneClick(scene.id);
+              }}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onContextMenuScene(event, scene.id);
               }}
             />
           ))}

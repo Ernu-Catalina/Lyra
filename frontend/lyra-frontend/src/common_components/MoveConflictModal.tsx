@@ -1,4 +1,4 @@
-// src/pages/documents/components/MoveConflictModal.tsx
+
 import { X } from "lucide-react";
 
 interface MoveConflictModalProps {

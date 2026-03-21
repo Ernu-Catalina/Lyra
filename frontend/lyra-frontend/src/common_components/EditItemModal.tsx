@@ -1,4 +1,4 @@
-// src/pages/documents/components/EditItemModal.tsx
+
 import { X } from "lucide-react";
 
 interface EditItemModalProps {
