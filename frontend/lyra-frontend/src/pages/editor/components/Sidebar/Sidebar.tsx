@@ -59,7 +59,12 @@ export default function Sidebar({
 
   // Modals
   const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [itemToRename, setItemToRename] = useState<{ id: string; type: "chapter" | "scene"; title: string } | null>(null);
+  const [itemToRename, setItemToRename] = useState<{
+    id: string;
+    type: "chapter" | "scene";
+    title: string;
+    chapterId?: string;
+  } | null>(null);
   const [renameName, setRenameName] = useState("");
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -97,34 +102,56 @@ export default function Sidebar({
 const paste = async (position: "before" | "after") => {
   if (!clipboard || !contextMenu) return;
 
-  const isChapter = contextMenu.type === "chapter";
-  const targetId = isChapter ? contextMenu.chapterId : contextMenu.sceneId!;
+  const isScenePaste = contextMenu.type === "scene";
+  const isChapterPaste = contextMenu.type === "chapter";
+
+  // Prevent invalid paste combinations
+  if (clipboard.type === "scene" && isChapterPaste) {
+    setContextMenu(null);
+    return;
+  }
+  if (clipboard.type === "chapter" && isScenePaste) {
+    setContextMenu(null);
+    return;
+  }
 
   try {
-    // Create new item in backend
-    const payload = {
-      title: clipboard.type === "chapter" ? clipboard.chapter.title + " (copy)" : clipboard.scene.title + " (copy)",
-    };
+    let endpoint: string;
+    let payload: any;
 
-    const endpoint = isChapter
-      ? `/projects/${projectId}/documents/${documentId}/chapters`
-      : `/projects/${projectId}/documents/${documentId}/chapters/${contextMenu.chapterId}/scenes`;
+    if (clipboard.type === "chapter") {
+      endpoint = `/projects/${projectId}/documents/${documentId}/chapters`;
+      payload = { title: clipboard.chapter.title + (clipboard.action === "copy" ? " (copy)" : "") };
+    } else {
+      const chIdx = chapters.findIndex(c => c.id === contextMenu.chapterId);
+      const scIdx = chapters[chIdx].scenes.findIndex(s => s.id === contextMenu.sceneId!);
+
+      const insertIndex = position === "after" ? scIdx + 1 : scIdx;
+
+      endpoint = `/projects/${projectId}/documents/${documentId}/chapters/${contextMenu.chapterId}/scenes/insert`;
+
+      payload = {
+        title: clipboard.scene.title + (clipboard.action === "copy" ? " (copy)" : ""),
+        content: clipboard.scene.content || "",
+        index: insertIndex
+      };
+    }
 
     const res = await api.post(endpoint, payload);
     const newItem = res.data;
 
-    // Reorder locally (optimistic UI)
+    // Optimistic local update
     setOutline(prev => {
       if (!prev) return prev;
-      let newChapters = [...prev.chapters];
+      const newChapters = [...prev.chapters];
 
-      if (isChapter) {
-        const idx = newChapters.findIndex(c => c.id === targetId);
+      if (clipboard.type === "chapter") {
+        const idx = newChapters.findIndex(c => c.id === contextMenu.chapterId);
         if (position === "after") newChapters.splice(idx + 1, 0, newItem);
         else newChapters.splice(idx, 0, newItem);
       } else {
         const chIdx = newChapters.findIndex(c => c.id === contextMenu.chapterId);
-        const scIdx = newChapters[chIdx].scenes.findIndex(s => s.id === targetId);
+        const scIdx = newChapters[chIdx].scenes.findIndex(s => s.id === contextMenu.sceneId!);
         if (position === "after") newChapters[chIdx].scenes.splice(scIdx + 1, 0, newItem);
         else newChapters[chIdx].scenes.splice(scIdx, 0, newItem);
       }
@@ -132,7 +159,7 @@ const paste = async (position: "before" | "after") => {
       return { ...prev, chapters: newChapters };
     });
 
-    // If cut → delete original
+    // If cut, delete original from backend
     if (clipboard.action === "cut") {
       const deleteUrl = clipboard.type === "chapter"
         ? `/projects/${projectId}/documents/${documentId}/chapters/${clipboard.chapter.id}`
@@ -141,10 +168,7 @@ const paste = async (position: "before" | "after") => {
     }
 
     reloadOutline();
-    showToast("Pasted successfully");
   } catch (err) {
-    console.error(err);
-    showToast("Paste failed");
   }
 
   setContextMenu(null);
@@ -159,23 +183,38 @@ const paste = async (position: "before" | "after") => {
       setItemToRename({ id: ch.id, type: "chapter", title: ch.title });
     } else {
       const sc = ch.scenes.find(s => s.id === contextMenu.sceneId!)!;
-      setItemToRename({ id: sc.id, type: "scene", title: sc.title });
+      setItemToRename({ id: sc.id, type: "scene", title: sc.title, chapterId: ch.id });
     }
     setRenameName(itemToRename?.title || "");
     setRenameModalOpen(true);
     setContextMenu(null);
   };
 
-  const saveRename = async () => {
+const saveRename = async () => {
   if (!itemToRename || !renameName.trim()) return;
 
-  const endpoint = itemToRename.type === "chapter"
-    ? `/projects/${projectId}/documents/${documentId}/chapters/${itemToRename.id}`
-    : `/projects/${projectId}/documents/${documentId}/chapters/${contextMenu?.chapterId}/scenes/${itemToRename.id}`;
+  const chapterId =
+    itemToRename.type === "chapter"
+      ? itemToRename.id
+      : itemToRename.chapterId;
+
+  const sceneId =
+    itemToRename.type === "scene"
+      ? itemToRename.id
+      : undefined;
+
+  if (!chapterId || (itemToRename.type === "scene" && !sceneId)) {
+    showToast("Invalid item context");
+    return;
+  }
+
+  const endpoint =
+    itemToRename.type === "chapter"
+      ? `/projects/${projectId}/documents/${documentId}/chapters/${chapterId}`
+      : `/projects/${projectId}/documents/${documentId}/chapters/${chapterId}/scenes/${sceneId}`;
 
   try {
-    await api.patch(endpoint, { title: renameName.trim() });
-    showToast("Renamed successfully");
+    await api.patch(endpoint, { title: renameName });
     reloadOutline();
   } catch (err) {
     console.error(err);
@@ -195,11 +234,9 @@ const confirmDelete = async () => {
 
   try {
     await api.delete(endpoint);
-    showToast("Deleted successfully");
     reloadOutline();
   } catch (err) {
     console.error(err);
-    showToast("Delete failed");
   }
 
   setDeleteModalOpen(false);
@@ -262,8 +299,27 @@ const confirmDelete = async () => {
 
           {clipboard && (
             <>
-              <button className="w-full px-4 py-2 text-left hover:bg-[var(--bg-primary)]" onClick={() => paste("before")}>Paste Before</button>
-              <button className="w-full px-4 py-2 text-left hover:bg-[var(--bg-primary)]" onClick={() => paste("after")}>Paste After</button>
+              {contextMenu.type === "scene" && clipboard.type === "scene" && (
+                <>
+                  <button className="w-full px-4 py-2 text-left hover:bg-[var(--bg-primary)]" onClick={() => paste("before")}>
+                    Paste Before
+                  </button>
+                  <button className="w-full px-4 py-2 text-left hover:bg-[var(--bg-primary)]" onClick={() => paste("after")}>
+                    Paste After
+                  </button>
+                </>
+              )}
+          
+              {contextMenu.type === "chapter" && clipboard.type === "chapter" && (
+                <>
+                  <button className="w-full px-4 py-2 text-left hover:bg-[var(--bg-primary)]" onClick={() => paste("before")}>
+                    Paste Before
+                  </button>
+                  <button className="w-full px-4 py-2 text-left hover:bg-[var(--bg-primary)]" onClick={() => paste("after")}>
+                    Paste After
+                  </button>
+                </>
+              )}
             </>
           )}
 

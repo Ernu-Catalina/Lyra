@@ -5,6 +5,8 @@ from bson import ObjectId
 from datetime import datetime
 from typing import Optional, List
 
+from sympy import content
+
 from app.database import (
     projects_collection,
     documents_collection,
@@ -125,12 +127,14 @@ async def create_scene(
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
+    content = getattr(data, "content", "") or ""
+
     scene = {
         "id": str(uuid.uuid4()),
         "title": data.title.strip(),
         "order": len(chapter["scenes"]),
-        "wordcount": 0,
-        "content": ""
+        "wordcount": count_words(content),
+        "content": content
     }
 
     # Update the document
@@ -190,39 +194,6 @@ async def get_documents(
         query["parent_id"] = None
 
     print(f"[DEBUG GET DOCUMENTS] Query: {query}")
-
-    items = await documents_collection.find(query).sort("title", 1).to_list(100)
-    print(f"[DEBUG] Found {len(items)} items for query {query}")
-
-    result = []
-    for item in items:
-        item_dict = serialize_mongo(item)
-        item_type = item_dict.get("type", "document")
-        item_dict["type"] = item_type
-
-        if item_type == "document":
-            chapters = item_dict.get("chapters", [])
-            item_dict["chapter_count"] = len(chapters)
-            item_dict["word_count"] = sum(ch.get("wordcount", 0) for ch in chapters)
-
-        result.append(item_dict)
-
-    return result
-
-@router.get("/", response_model=List[ItemListResponse])
-async def get_documents(
-    project_id: str,
-    parent_id: Optional[str] = Query(None, description="Filter by parent folder ID (null for root)"),
-    user_id=Depends(get_current_user)
-):
-    project = await projects_collection.find_one({
-        "_id": ObjectId(project_id),
-        "user_id": ObjectId(user_id)
-    })
-    if not project:
-        raise HTTPException(status_code=403, detail="Project not found or not owned")
-
-    query = {"project_id": ObjectId(project_id)}
 
     items = await documents_collection.find(query).sort("title", 1).to_list(100)
     print(f"[DEBUG] Found {len(items)} items for query {query}")
@@ -682,3 +653,44 @@ async def delete_scene(
     )
 
     return {"message": "Scene deleted"}
+
+
+@router.post("/{document_id}/chapters/{chapter_id}/scenes/insert")
+async def insert_scene(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    data: dict = Body(...),
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+
+    chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(404, "Chapter not found")
+
+    insert_index = data.get("index", len(chapter["scenes"]))
+
+    content = data.get("content", "")
+    new_scene = {
+        "id": str(uuid.uuid4()),
+        "title": data.get("title", "New Scene"),
+        "order": insert_index,
+        "wordcount": count_words(content),
+        "content": content
+    }
+
+    scenes = chapter["scenes"]
+    scenes.insert(insert_index, new_scene)
+
+    for i, s in enumerate(scenes):
+        s["order"] = i
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"chapters": document["chapters"]}}
+    )
+
+    return new_scene

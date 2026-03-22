@@ -8,7 +8,7 @@ interface SidebarHeaderProps {
 
 export function SidebarHeader({ documentTitle, onAddChapter, onDocumentClick }: SidebarHeaderProps) {
   return (
-    <div className="px-4 py-1.4 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+    <div className="px-4 py-2 border-[var(--border)] bg-[var(--bg-secondary)]">
       <div className="flex items-center justify-between">
         {/* Document title – clickable to switch to document view */}
         <h2 
@@ -22,7 +22,7 @@ export function SidebarHeader({ documentTitle, onAddChapter, onDocumentClick }: 
         <button
           onClick={onAddChapter}
           className="
-            flex items-center gap-1 px-2.5 py-1.5 
+            flex items-center gap-1 px-2.5 py-1
             text-sm font-medium text-[var(--accent)] 
             hover:bg-[var(--accent)]/10 rounded-md transition-colors
             focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30
