@@ -1,3 +1,4 @@
+
 import { Editor } from "@tiptap/react";
 import { ToolbarButton } from "./ToolbarButton";
 import { HeadingSelector } from "./HeadingSelector";
@@ -18,6 +19,8 @@ const FONT_FAMILIES = [
 const FONT_SIZES = [9, 10, 11, 12, 14, 16, 18, 24, 36];
 const LINE_HEIGHTS = [1, 1.15, 1.5, 2];
 
+
+
 interface EditorToolbarProps {
   editor: Editor | null;
 }
@@ -25,16 +28,33 @@ interface EditorToolbarProps {
 export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) return null;
 
-  // Get current font family and size from selection
-  const getFontFamily = () => editor.getAttributes("textStyle").fontFamily || "";
-  const getFontSize = () => editor.getAttributes("textStyle").fontSize || "";
-  const getLineHeight = () => editor.getAttributes("textStyle").lineHeight || "";
+  // Helper to get current node attributes (heading or paragraph)
+  const getCurrentNodeAttrs = () => {
+    const state = editor.state;
+    const { from, to } = state.selection;
+    let node = null;
+    state.doc.nodesBetween(from, to, n => {
+      if (n.type.name === "heading" || n.type.name === "paragraph") {
+        node = n;
+        return false;
+      }
+      return;
+    });
+    return node ? node.attrs : {};
+  };
+
+  const getFontFamily = () => editor.getAttributes("textStyle").fontFamily || getCurrentNodeAttrs().fontFamily || "";
+  const getFontSize = () => {
+    const size = editor.getAttributes("textStyle").fontSize || getCurrentNodeAttrs().fontSize || "";
+    return size.replace("px", "");
+  };
+  const getLineHeight = () => editor.getAttributes("textStyle").lineHeight || getCurrentNodeAttrs().lineHeight || "";
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap bg-[var(--bg-secondary)] px-2 py-1 border-b border-[var(--border)]">
+    <div className="flex items-center gap-1.5 flex-wrap bg-[--bg-secondary] px-2 py-1 border-[--border]">
       {/* Font family */}
       <select
-        className="px-2 py-1 rounded border text-sm min-w-[120px]"
+        className="px-2 py-1 rounded border text-sm min-w-30"
         value={getFontFamily()}
         onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()}
         title="Font family"
@@ -46,19 +66,19 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
       {/* Font size */}
       <select
-        className="px-2 py-1 rounded border text-sm min-w-[60px]"
+        className="px-2 py-1 rounded border text-sm min-w-15"
         value={getFontSize()}
         onChange={e => editor.chain().focus().setFontSize(e.target.value + "px").run()}
         title="Font size"
       >
         {FONT_SIZES.map(size => (
-          <option key={size} value={size + "px"}>{size}</option>
+          <option key={size} value={size}>{size}</option>
         ))}
       </select>
 
       {/* Line height */}
       <select
-        className="px-2 py-1 rounded border text-sm min-w-[60px]"
+        className="px-2 py-1 rounded border text-sm min-w-15"
         value={getLineHeight()}
         onChange={e => editor.chain().focus().setLineHeight(e.target.value).run()}
         title="Line spacing"
@@ -83,12 +103,12 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Outdent size={18} />
       </ToolbarButton>
 
-      <div className="h-5 w-px bg-[var(--border)] mx-1" />
+      <div className="h-5 w-px bg-[--border] mx-1" />
 
       {/* Headings with live preview */}
       <HeadingSelector editor={editor} />
 
-      <div className="h-5 w-px bg-[var(--border)] mx-1" />
+      <div className="h-5 w-px bg-[--border] mx-1" />
 
       {/* Basic formatting */}
       <ToolbarButton

@@ -73,13 +73,30 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
     }
   }
 
+  // Show dropdown on click/focus
+  const [open, setOpen] = React.useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (!buttonRef.current) return;
+      if (!buttonRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
   return (
-    <div className="relative group">
+    <div className="relative">
       <button
+        ref={buttonRef}
         className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-md text-sm min-w-[140px] flex items-center justify-between"
         tabIndex={0}
         aria-haspopup="listbox"
-        aria-expanded="false"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        type="button"
       >
         {headingStyles.map(h =>
           h.value === current ? (
@@ -88,28 +105,31 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
         )}
         <svg width="16" height="16" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
-      <div className="absolute left-0 z-10 hidden group-focus-within:block group-hover:block bg-[var(--bg-secondary)] border border-[var(--border)] rounded shadow min-w-[180px] mt-1">
-        {headingStyles.map(h => (
-          <div
-            key={h.value}
-            className={`px-4 py-1.5 cursor-pointer hover:bg-[var(--bg-primary)] ${current === h.value ? "bg-[var(--bg-primary)]" : ""}`}
-            style={h.style}
-            role="option"
-            aria-selected={current === h.value}
-            tabIndex={-1}
-            onMouseDown={e => {
-              e.preventDefault();
-              if (h.value === "paragraph") {
-                editor.chain().focus().setParagraph().run();
-              } else {
-                editor.chain().focus().toggleHeading({ level: Number(h.value) as 1 | 2 | 3 | 4 }).run();
-              }
-            }}
-          >
-            {h.label}
-          </div>
-        ))}
-      </div>
+      {open && (
+        <div className="absolute left-0 z-10 bg-[var(--bg-secondary)] border border-[var(--border)] rounded shadow min-w-[180px] mt-1">
+          {headingStyles.map(h => (
+            <div
+              key={h.value}
+              className={`px-4 py-1.5 cursor-pointer hover:bg-[var(--bg-primary)] ${current === h.value ? "bg-[var(--bg-primary)]" : ""}`}
+              style={h.style}
+              role="option"
+              aria-selected={current === h.value}
+              tabIndex={-1}
+              onMouseDown={e => {
+                e.preventDefault();
+                setOpen(false);
+                if (h.value === "paragraph") {
+                  editor.chain().focus().setParagraph().run();
+                } else {
+                  editor.chain().focus().setHeading({ level: Number(h.value) as 1 | 2 | 3 | 4 }).run();
+                }
+              }}
+            >
+              {h.label}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

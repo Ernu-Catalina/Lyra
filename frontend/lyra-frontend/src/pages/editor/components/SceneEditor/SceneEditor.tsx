@@ -4,11 +4,9 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Heading from "@tiptap/extension-heading";
-import TextStyle from "@tiptap/extension-text-style";
+import {TextStyle} from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
-import FontSize from "@tiptap/extension-font-size";
-import Indent from "@tiptap/extension-indent";
-import LineHeight from "@tiptap/extension-line-height";
+import { FontSize } from "../../extensions/FontSize";
 
 interface SceneEditorProps {
   content: string; // now always HTML string
@@ -27,8 +25,6 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         TextStyle,
         FontFamily,
         FontSize,
-        Indent,
-        LineHeight,
       ],
       content,
       editable,
