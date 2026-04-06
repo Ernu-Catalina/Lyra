@@ -694,3 +694,101 @@ async def insert_scene(
     )
 
     return new_scene
+
+@router.put("/{document_id}/chapters/{chapter_id}/scenes/{scene_id}/move")
+async def move_scene(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    scene_id: str,
+    data: dict = Body(...),  # { target_chapter_id, target_index }
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    if document["type"] == "folder":
+        raise HTTPException(400, "Cannot operate on folder")
+
+    source_chapter = next((c for c in document["chapters"] if c["id"] == chapter_id), None)
+    if not source_chapter:
+        raise HTTPException(404, "Source chapter not found")
+
+    scene = next((s for s in source_chapter["scenes"] if s["id"] == scene_id), None)
+    if not scene:
+        raise HTTPException(404, "Scene not found")
+
+    target_chapter_id = data.get("target_chapter_id", chapter_id)
+    target_index = data.get("target_index", 0)
+
+    target_chapter = next((c for c in document["chapters"] if c["id"] == target_chapter_id), None)
+    if not target_chapter:
+        raise HTTPException(404, "Target chapter not found")
+
+    # REMOVE from old chapter
+    source_chapter["scenes"] = [s for s in source_chapter["scenes"] if s["id"] != scene_id]
+
+    # INSERT into new chapter
+    target_chapter["scenes"].insert(target_index, scene)
+
+    # REORDER both chapters
+    for i, s in enumerate(source_chapter["scenes"]):
+        s["order"] = i
+
+    for i, s in enumerate(target_chapter["scenes"]):
+        s["order"] = i
+
+
+    # Recalculate chapter wordcounts before update (mirror autosave_scene logic)
+    for chapter in document["chapters"]:
+        chapter["wordcount"] = sum_scene_wordcounts(chapter["scenes"])
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"chapters": document["chapters"], "updated_at": datetime.utcnow()}}
+    )
+
+    return {"message": "Scene moved"}
+
+
+@router.put("/{document_id}/chapters/{chapter_id}/move")
+async def move_chapter(
+    project_id: str,
+    document_id: str,
+    chapter_id: str,
+    data: dict = Body(...),  # { target_index }
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+    if document["type"] == "folder":
+        raise HTTPException(400, "Cannot operate on folder")
+
+    chapters = document["chapters"]
+
+    chapter = next((c for c in chapters if c["id"] == chapter_id), None)
+    if not chapter:
+        raise HTTPException(404, "Chapter not found")
+
+    target_index = data.get("target_index", 0)
+
+    # REMOVE
+    chapters = [c for c in chapters if c["id"] != chapter_id]
+
+    # INSERT
+    chapters.insert(target_index, chapter)
+
+    # REORDER
+    for i, c in enumerate(chapters):
+        c["order"] = i
+
+
+    # Recalculate chapter wordcounts before update (mirror autosave_scene logic)
+    for chapter in chapters:
+        chapter["wordcount"] = sum_scene_wordcounts(chapter["scenes"])
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id)},
+        {"$set": {"chapters": chapters, "updated_at": datetime.utcnow()}}
+    )
+
+    return {"message": "Chapter moved"}

@@ -43,11 +43,10 @@ export default function ChapterBlock({
         <ul className="ml-6 mt-1 space-y-1">
           {chapter.scenes.map((scene) => (
             <SceneListItem
-              key={scene.id}
+              key={scene.id || `${chapter.id}-scene-${scene.title}`}
               scene={scene}
               isActive={scene.id === activeSceneId}
               onClick={(event) => {
-                // Guard: stop propagation only if event exists
                 event?.stopPropagation();
                 onSceneClick(scene.id);
               }}
