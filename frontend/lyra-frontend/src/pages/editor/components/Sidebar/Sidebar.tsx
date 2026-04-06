@@ -95,12 +95,11 @@ export default function Sidebar({
 
     // Only allow scene-to-scene or chapter-to-chapter
     if (clipboard.type === "scene" && contextMenu.type !== "scene") {
-      showToast("Right-click a scene to paste before/after");
       setContextMenu(null);
       return;
     }
     if (clipboard.type === "chapter" && contextMenu.type !== "chapter") {
-      showToast("Right-click a chapter to paste before/after");
+
       setContextMenu(null);
       return;
     }
@@ -141,10 +140,8 @@ export default function Sidebar({
       }
 
       reloadOutline();
-      showToast("Pasted successfully with content");
     } catch (err) {
       console.error("Paste failed:", err);
-      showToast("Paste failed");
     }
 
     setContextMenu(null);
@@ -179,11 +176,9 @@ export default function Sidebar({
 
     try {
       await api.patch(endpoint, { title: renameName.trim() });
-      showToast("Renamed successfully");
       reloadOutline();
     } catch (err) {
       console.error(err);
-      showToast("Rename failed");
     }
 
     setRenameModalOpen(false);
@@ -211,12 +206,10 @@ export default function Sidebar({
 
     try {
       await api.delete(endpoint);
-      showToast("Deleted successfully");
       reloadOutline();
     } catch (err) {
       console.error(err);
-      showToast("Delete failed");
-    }
+      }
 
     setDeleteModalOpen(false);
     setItemToDelete(null);
