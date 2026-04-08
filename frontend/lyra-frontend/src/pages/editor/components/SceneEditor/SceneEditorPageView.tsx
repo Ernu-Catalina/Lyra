@@ -6,8 +6,8 @@ interface SceneEditorPageViewProps {
 
 export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
   return (
-    <div className="h-full bg-[var(--bg-primary)] p-4 md:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] shadow-lg overflow-hidden">
+    <div className="min-h-screen flex justify-center items-start bg-[var(--bg-primary)] py-8">
+      <div className="bg-white w-full max-w-[800px] min-h-[1100px] rounded-lg shadow-xl border border-gray-200 p-6 md:p-8 lg:p-12 mx-4 md:mx-6 lg:mx-8 flex flex-col items-stretch">
         {children}
       </div>
     </div>

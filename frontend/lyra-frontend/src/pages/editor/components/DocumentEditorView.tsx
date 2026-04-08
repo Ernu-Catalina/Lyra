@@ -11,12 +11,14 @@ export function DocumentEditorView({ outline }: DocumentEditorViewProps) {
     .join("\n\n");
 
   return (
-    <div className="prose prose-invert max-w-4xl mx-auto p-8">
-      <h1 className="text-4xl font-bold mb-12">{outline.title}</h1>
-      <div dangerouslySetInnerHTML={{ __html: fullContent }} />
-      <p className="text-right mt-16 text-[var(--text-secondary)] text-sm">
-        Total document length: {outline.total_wordcount.toLocaleString()} words
-      </p>
+    <div className="min-h-screen flex justify-center items-start bg-[var(--bg-primary)] py-8">
+      <div className="bg-white w-[800px] min-h-[1100px] rounded-lg shadow-xl border border-gray-200 p-12 flex flex-col items-stretch">
+        <h1 className="text-4xl font-bold mb-12">{outline.title}</h1>
+        <div className="prose prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: fullContent }} />
+        <p className="text-right mt-16 text-[var(--text-secondary)] text-sm">
+          Total document length: {outline.total_wordcount.toLocaleString()} words
+        </p>
+      </div>
     </div>
   );
 }

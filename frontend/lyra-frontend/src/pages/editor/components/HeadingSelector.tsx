@@ -86,6 +86,9 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
+  // Always show "Normal" in the button, not styled as heading
+  const mainLabel = headingStyles.find(h => h.value === current)?.label || "Normal";
+
   return (
     <div className="relative">
       <button
@@ -98,11 +101,7 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         type="button"
       >
-        {headingStyles.map(h =>
-          h.value === current ? (
-            <span key={h.value} style={h.style}>{h.label}</span>
-          ) : null
-        )}
+        <span style={{ fontSize: "15px", fontWeight: 400 }}>Normal</span>
         <svg width="16" height="16" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       {open && (

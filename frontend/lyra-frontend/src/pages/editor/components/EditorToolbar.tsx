@@ -6,18 +6,19 @@ import { AlignmentGroup } from "./AlignmentGroup";
 import { Bold, Italic, Underline, Strikethrough, Indent, Outdent } from "lucide-react";
 import React from "react";
 
+
 const FONT_FAMILIES = [
-  { label: "Default", value: "" },
   { label: "Arial", value: "Arial, sans-serif" },
   { label: "Times New Roman", value: "'Times New Roman', serif" },
   { label: "Georgia", value: "Georgia, serif" },
   { label: "Courier New", value: "'Courier New', monospace" },
-  { label: "Verdana", value: "Verdana, sans-serif" },
-  { label: "Tahoma", value: "Tahoma, sans-serif" },
+  { label: "Helvetica", value: "Helvetica, Arial, sans-serif" },
+  { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+  { label: "Calibri", value: "Calibri, Candara, Segoe, Segoe UI, Optima, Arial, sans-serif" },
+  { label: "Default", value: "" },
 ];
-
-const FONT_SIZES = [9, 10, 11, 12, 14, 16, 18, 24, 36];
-const LINE_HEIGHTS = [1, 1.15, 1.5, 2];
+const FONT_SIZE_OPTIONS = [8,9,10,11,12,14,16,18,20,22,24,28,32,36,40,48,56,64,72];
+const LINE_HEIGHTS = [1, 1.15, 1.5, 2, 2.5, 3];
 
 
 
@@ -43,51 +44,140 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     return node ? node.attrs : {};
   };
 
+
+  // Font helpers
   const getFontFamily = () => editor.getAttributes("textStyle").fontFamily || getCurrentNodeAttrs().fontFamily || "";
   const getFontSize = () => {
     const size = editor.getAttributes("textStyle").fontSize || getCurrentNodeAttrs().fontSize || "";
     return size.replace("px", "");
   };
-  const getLineHeight = () => editor.getAttributes("textStyle").lineHeight || getCurrentNodeAttrs().lineHeight || "";
+  // Line height (not implemented in this version, but placeholder for future)
+  // const getLineHeight = () => editor.getAttributes("textStyle").lineHeight || getCurrentNodeAttrs().lineHeight || "";
+
+  // Font size state for dropdown
+  const [fontSizeDropdown, setFontSizeDropdown] = React.useState(false);
+
+  // Font family dropdown
+  const [fontDropdown, setFontDropdown] = React.useState(false);
+
+  // Line spacing dropdown
+  const [lineDropdown, setLineDropdown] = React.useState(false);
+  const currentLineHeight = editor.getAttributes("textStyle").lineHeight || getCurrentNodeAttrs().lineHeight || "1.15";
+
+  // Font family button
+  const currentFont = FONT_FAMILIES.find(f => f.value === getFontFamily()) || FONT_FAMILIES[0];
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap bg-[--bg-secondary] px-2 py-1 border-[--border]">
-      {/* Font family */}
-      <select
-        className="px-2 py-1 rounded border text-sm min-w-30"
-        value={getFontFamily()}
-        onChange={e => editor.chain().focus().setFontFamily(e.target.value).run()}
-        title="Font family"
-      >
-        {FONT_FAMILIES.map(f => (
-          <option key={f.value} value={f.value}>{f.label}</option>
-        ))}
-      </select>
+    <div className="flex items-center gap-1.5 flex-wrap bg-[--bg-secondary] px-2 py-1  border-[--border]">
+      {/* Font family dropdown with live preview */}
+      <div className="relative">
+        <button
+          className="flex items-center gap-1 px-2 py-1 rounded text-sm min-w-30"
+          type="button"
+          onClick={() => setFontDropdown(f => !f)}
+          style={{ fontFamily: currentFont.value || undefined }}
+        >
+          <span className="material-icons" style={{ fontSize: 14 }}></span>
+          <span style={{ fontFamily: currentFont.value || undefined }}>{currentFont.label}</span>
+        </button>
+        {fontDropdown && (
+          <div className="absolute left-0 z-10 mt-1 bg-white border rounded shadow min-w-36 max-h-64 overflow-auto">
+            {FONT_FAMILIES.map(f => (
+              <div
+                key={f.value}
+                className={`px-4 py-1.5 cursor-pointer hover:bg-[--bg-primary] ${getFontFamily() === f.value ? "bg-[--bg-primary]" : ""}`}
+                style={{ fontFamily: f.value || undefined }}
+                onMouseDown={e => {
+                  e.preventDefault();
+                  setFontDropdown(false);
+                  editor.chain().focus().setFontFamily(f.value).run();
+                }}
+              >
+                {f.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Font size */}
-      <select
-        className="px-2 py-1 rounded border text-sm min-w-15"
-        value={getFontSize()}
-        onChange={e => editor.chain().focus().setFontSize(e.target.value + "px").run()}
-        title="Font size"
-      >
-        {FONT_SIZES.map(size => (
-          <option key={size} value={size}>{size}</option>
-        ))}
-      </select>
+      {/* Font size input with +/- and dropdown */}
+      <div className="relative flex items-center">
+        <button
+          className="px-3 "
+          type="button"
+          onClick={() => {
+            let size = parseInt(getFontSize() || "12", 10);
+            size = Math.max(8, size - 1);
+            editor.chain().focus().setMark('textStyle', { fontSize: size + 'px' }).run();
+          }}
+        >-</button>
+        <input
+          className="w-10 text-center border "
+          type="number"
+          min={8}
+          max={72}
+          value={getFontSize() || 12}
+          onChange={e => {
+            let val = Math.max(8, Math.min(72, Number(e.target.value)));
+            editor.chain().focus().setMark('textStyle', { fontSize: val + 'px' }).run();
+          }}
+          onFocus={() => setFontSizeDropdown(true)}
+        />
+        <button
+          className="px-3"
+          type="button"
+          onClick={() => {
+            let size = parseInt(getFontSize() || "12", 10);
+            size = Math.min(72, size + 1);
+            editor.chain().focus().setMark('textStyle', { fontSize: size + 'px' }).run();
+          }}
+        >+</button>
+        {fontSizeDropdown && (
+          <div className="absolute left-0 z-10 mt-1 bg-white border rounded shadow min-w-36 max-h-64 overflow-auto">
+            {FONT_SIZE_OPTIONS.map(size => (
+              <div
+                key={size}
+                className="px-4 py-1.5 cursor-pointer hover:bg-[--bg-primary]"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  setFontSizeDropdown(false);
+                  editor.chain().focus().setMark('textStyle', { fontSize: size + 'px' }).run();
+                }}
+              >
+                {size}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Line height */}
-      <select
-        className="px-2 py-1 rounded border text-sm min-w-15"
-        value={getLineHeight()}
-        onChange={e => editor.chain().focus().setLineHeight(e.target.value).run()}
-        title="Line spacing"
-      >
-        <option value="1">1.0</option>
-        <option value="1.15">1.15</option>
-        <option value="1.5">1.5</option>
-        <option value="2">2.0</option>
-      </select>
+      {/* Line spacing button with dropdown */}
+      <div className="relative">
+        <button
+          className="flex items-center gap-1 px-2 py-1 rounded text-sm min-w-9"
+          type="button"
+          onClick={() => setLineDropdown(l => !l)}
+        >
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M7 4h6M7 8h6M7 12h6M7 16h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+        </button>
+        {lineDropdown && (
+          <div className="absolute left-0 z-10 mt-1 bg-white border rounded shadow min-w-24">
+            {LINE_HEIGHTS.map(lh => (
+              <div
+                key={lh}
+                className={`px-4 py-1.5 cursor-pointer hover:bg-[--bg-primary] ${String(currentLineHeight) === String(lh) ? "bg-[--bg-primary]" : ""}`}
+                onMouseDown={e => {
+                  e.preventDefault();
+                  setLineDropdown(false);
+                  editor.chain().focus().setMark('textStyle', { lineHeight: String(lh) }).run();
+                }}
+              >
+                {lh}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Indent/Outdent */}
       <ToolbarButton
@@ -140,7 +230,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Strikethrough size={18} />
       </ToolbarButton>
 
-      <div className="h-5 w-px bg-[var(--border)] mx-1" />
+      <div className="h-5 w-px bg-[--border] mx-1" />
 
       <AlignmentGroup editor={editor} />
     </div>
