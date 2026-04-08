@@ -488,7 +488,6 @@ useEffect(() => {
                   setSceneWordcount(wc);
                   setLastEditTimestamp(Date.now());
                 
-                  // 🔥 THIS FIXES EVERYTHING
                   if (activeSceneId) {
                     updateSceneInOutline(activeSceneId, html);
                   }

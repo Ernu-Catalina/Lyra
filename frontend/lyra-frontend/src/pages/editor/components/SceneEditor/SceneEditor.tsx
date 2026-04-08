@@ -7,6 +7,7 @@ import Heading from "@tiptap/extension-heading";
 import {TextStyle} from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import { FontSize } from "../../extensions/FontSize";
+import { Indentation } from "../../extensions/Indentation";
 
 interface SceneEditorProps {
   content: string; // now always HTML string
@@ -25,6 +26,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         TextStyle,
         FontFamily,
         FontSize,
+        Indentation,
       ],
       content,
       editable,
@@ -60,14 +62,15 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
     if (!editor) return null;
 
     return (
-      <div className="w-full h-full flex items-start justify-center bg-gradient-to-b from-gray-100 to-gray-50 py-8">
+      <div className="w-full h-full flex items-start justify-center bg-[var(--bg-primary)] py-8 overflow-y-auto">
         {/* A4 Page Container */}
-        <div className="bg-white rounded-lg shadow-lg" style={{ 
-          width: "210mm", 
+        <div className="bg-white rounded-lg shadow-lg border border-[var(--border)]" style={{
+          width: "210mm",
           minHeight: "297mm",
-          padding: "20mm",
+          padding: "var(--margin-top, 20mm) var(--margin-right, 20mm) var(--margin-bottom, 20mm) var(--margin-left, 20mm)",
+          margin: "0 auto",
         }}>
-          <div className="bg-white w-full h-full">
+          <div className="bg-white w-full h-full text-[var(--text-primary)]">
             <EditorContent editor={editor} />
           </div>
         </div>
