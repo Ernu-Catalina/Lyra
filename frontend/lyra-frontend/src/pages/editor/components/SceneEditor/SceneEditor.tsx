@@ -30,7 +30,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       editable,
       editorProps: {
         attributes: {
-          class: "prose prose-invert max-w-none focus:outline-none min-h-[60vh] px-4 py-6",
+          class: "prose prose-invert max-w-none focus:outline-none min-h-full",
         },
       },
       onUpdate: ({ editor }) => {
@@ -60,8 +60,17 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
     if (!editor) return null;
 
     return (
-      <div className="bg-[var(--bg-primary)] rounded-lg border border-[var(--border)] shadow-sm">
-        <EditorContent editor={editor} />
+      <div className="w-full h-full flex items-start justify-center bg-gradient-to-b from-gray-100 to-gray-50 py-8">
+        {/* A4 Page Container */}
+        <div className="bg-white rounded-lg shadow-lg" style={{ 
+          width: "210mm", 
+          minHeight: "297mm",
+          padding: "20mm",
+        }}>
+          <div className="bg-white w-full h-full">
+            <EditorContent editor={editor} />
+          </div>
+        </div>
       </div>
     );
   }

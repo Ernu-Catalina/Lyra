@@ -30,6 +30,18 @@ export const FontSize = Extension.create<FontSizeOptions>({
               };
             },
           },
+          lineHeight: {
+            default: null,
+            parseHTML: element => element.style.lineHeight || null,
+            renderHTML: attributes => {
+              if (!attributes.lineHeight) {
+                return {};
+              }
+              return {
+                style: `line-height: ${attributes.lineHeight}`,
+              };
+            },
+          },
         },
       },
     ];
@@ -38,3 +50,4 @@ export const FontSize = Extension.create<FontSizeOptions>({
 
 // Usage example:
 // editor.chain().focus().setMark('textStyle', { fontSize: '16px' }).run();
+// editor.chain().focus().setMark('textStyle', { lineHeight: '1.5' }).run();

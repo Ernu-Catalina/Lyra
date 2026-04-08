@@ -76,11 +76,12 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
   // Show dropdown on click/focus
   const [open, setOpen] = React.useState(false);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (!buttonRef.current) return;
-      if (!buttonRef.current.contains(e.target as Node)) setOpen(false);
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) setOpen(false);
     }
     if (open) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -90,26 +91,26 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
   const mainLabel = headingStyles.find(h => h.value === current)?.label || "Normal";
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         ref={buttonRef}
-        className="px-3 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-md text-sm min-w-[140px] flex items-center justify-between"
+        className="px-3 py-1.5 bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] rounded text-sm min-w-[140px] flex items-center justify-between transition-colors"
         tabIndex={0}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
         type="button"
+        title="Heading style"
       >
         <span style={{ fontSize: "15px", fontWeight: 400 }}>Normal</span>
         <svg width="16" height="16" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       {open && (
-        <div className="absolute left-0 z-10 bg-[var(--bg-secondary)] border border-[var(--border)] rounded shadow min-w-[180px] mt-1">
+        <div className="absolute left-0 z-50 bg-white border border-[--border] rounded shadow-lg min-w-[200px] mt-1 overflow-hidden">
           {headingStyles.map(h => (
             <div
               key={h.value}
-              className={`px-4 py-1.5 cursor-pointer hover:bg-[var(--bg-primary)] ${current === h.value ? "bg-[var(--bg-primary)]" : ""}`}
+              className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors ${current === h.value ? "bg-blue-100 text-blue-900" : ""}`}
               style={h.style}
               role="option"
               aria-selected={current === h.value}

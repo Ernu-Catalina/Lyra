@@ -3,9 +3,9 @@ import { Editor } from "@tiptap/react";
 import { ToolbarButton } from "./ToolbarButton";
 import { HeadingSelector } from "./HeadingSelector";
 import { AlignmentGroup } from "./AlignmentGroup";
-import { Bold, Italic, Underline, Strikethrough, Indent, Outdent } from "lucide-react";
-import React from "react";
-
+import { DocumentSettingsModal } from "./DocumentSettingsModal";
+import { Bold, Italic, Underline, Strikethrough, Indent, Outdent, Settings } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
 
 const FONT_FAMILIES = [
   { label: "Arial", value: "Arial, sans-serif" },
@@ -17,16 +17,30 @@ const FONT_FAMILIES = [
   { label: "Calibri", value: "Calibri, Candara, Segoe, Segoe UI, Optima, Arial, sans-serif" },
   { label: "Default", value: "" },
 ];
-const FONT_SIZE_OPTIONS = [8,9,10,11,12,14,16,18,20,22,24,28,32,36,40,48,56,64,72];
-const LINE_HEIGHTS = [1, 1.15, 1.5, 2, 2.5, 3];
-
-
+const FONT_SIZE_OPTIONS = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72];
+const LINE_HEIGHTS = [
+  { label: "1.0", value: "1" },
+  { label: "1.15", value: "1.15" },
+  { label: "1.5", value: "1.5" },
+  { label: "2.0", value: "2" },
+];
 
 interface EditorToolbarProps {
   editor: Editor | null;
 }
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [fontDropdown, setFontDropdown] = useState(false);
+  const [fontSizeDropdown, setFontSizeDropdown] = useState(false);
+  const [lineDropdown, setLineDropdown] = useState(false);
+  const [inputFontSize, setInputFontSize] = useState("");
+
+  const fontSizeInputRef = useRef<HTMLInputElement>(null);
+  const fontSizeContainerRef = useRef<HTMLDivElement>(null);
+  const fontFamilyContainerRef = useRef<HTMLDivElement>(null);
+  const lineHeightContainerRef = useRef<HTMLDivElement>(null);
+
   if (!editor) return null;
 
   // Helper to get current node attributes (heading or paragraph)
@@ -34,60 +48,154 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     const state = editor.state;
     const { from, to } = state.selection;
     let node = null;
-    state.doc.nodesBetween(from, to, n => {
+    state.doc.nodesBetween(from, to, (n) => {
       if (n.type.name === "heading" || n.type.name === "paragraph") {
         node = n;
         return false;
       }
-      return;
     });
     return node ? node.attrs : {};
   };
 
-
   // Font helpers
-  const getFontFamily = () => editor.getAttributes("textStyle").fontFamily || getCurrentNodeAttrs().fontFamily || "";
-  const getFontSize = () => {
-    const size = editor.getAttributes("textStyle").fontSize || getCurrentNodeAttrs().fontSize || "";
-    return size.replace("px", "");
+  const getFontFamily = () => {
+    const attrs = editor.getAttributes("textStyle");
+    return attrs.fontFamily || getCurrentNodeAttrs().fontFamily || "";
   };
-  // Line height (not implemented in this version, but placeholder for future)
-  // const getLineHeight = () => editor.getAttributes("textStyle").lineHeight || getCurrentNodeAttrs().lineHeight || "";
 
-  // Font size state for dropdown
-  const [fontSizeDropdown, setFontSizeDropdown] = React.useState(false);
+  const getFontSize = () => {
+    const attrs = editor.getAttributes("textStyle");
+    const size = attrs.fontSize || getCurrentNodeAttrs().fontSize || "12px";
+    return parseInt(String(size).replace("px", ""), 10);
+  };
 
-  // Font family dropdown
-  const [fontDropdown, setFontDropdown] = React.useState(false);
+  const getLineHeight = () => {
+    const attrs = editor.getAttributes("textStyle");
+    return attrs.lineHeight || getCurrentNodeAttrs().lineHeight || "1.15";
+  };
 
-  // Line spacing dropdown
-  const [lineDropdown, setLineDropdown] = React.useState(false);
-  const currentLineHeight = editor.getAttributes("textStyle").lineHeight || getCurrentNodeAttrs().lineHeight || "1.15";
+  const currentFont = FONT_FAMILIES.find((f) => f.value === getFontFamily()) || FONT_FAMILIES[0];
+  const currentFontSize = getFontSize();
+  const currentLineHeight = getLineHeight();
 
-  // Font family button
-  const currentFont = FONT_FAMILIES.find(f => f.value === getFontFamily()) || FONT_FAMILIES[0];
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fontSizeContainerRef.current && !fontSizeContainerRef.current.contains(e.target as Node)) {
+        setFontSizeDropdown(false);
+      }
+      if (fontFamilyContainerRef.current && !fontFamilyContainerRef.current.contains(e.target as Node)) {
+        setFontDropdown(false);
+      }
+      if (lineHeightContainerRef.current && !lineHeightContainerRef.current.contains(e.target as Node)) {
+        setLineDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Update input when selection changes
+  useEffect(() => {
+    setInputFontSize(String(currentFontSize));
+  }, [currentFontSize]);
+
+  const handleIncreaseFont = () => {
+    const newSize = Math.min(72, currentFontSize + 1);
+    editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}px` }).run();
+  };
+
+  const handleDecreaseFont = () => {
+    const newSize = Math.max(8, currentFontSize - 1);
+    editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}px` }).run();
+  };
+
+  const handleFontSizeChange = (value: string) => {
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 8 && num <= 72) {
+      setInputFontSize(value);
+      editor.chain().focus().setMark("textStyle", { fontSize: `${num}px` }).run();
+    } else if (value === "") {
+      setInputFontSize(value);
+    }
+  };
+
+  const handleFontSizeSelect = (size: number) => {
+    setInputFontSize(String(size));
+    editor.chain().focus().setMark("textStyle", { fontSize: `${size}px` }).run();
+    setFontSizeDropdown(false);
+  };
+
+  const handleLineHeightSelect = (value: string) => {
+    editor.chain().focus().setMark("textStyle", { lineHeight: value }).run();
+    setLineDropdown(false);
+  };
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap bg-[--bg-secondary] px-2 py-1  border-[--border]">
-      {/* Font family dropdown with live preview */}
-      <div className="relative">
+    <div className="flex items-center gap-1.5 flex-wrap bg-[--bg-secondary] px-3 py-2 border-[--border]">
+      {/* Headings */}
+      <HeadingSelector editor={editor} />
+
+      <div className="h-5 w-px bg-[--border] mx-1" />
+
+      {/* Basic formatting */}
+      <ToolbarButton 
+        onClick={() => editor.chain().focus().toggleBold().run()} 
+        active={editor.isActive("bold")} 
+        title="Bold (Ctrl+B)"
+      >
+        <Bold size={18} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.chain().focus().toggleItalic().run()} 
+        active={editor.isActive("italic")} 
+        title="Italic (Ctrl+I)"
+      >
+        <Italic size={18} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.chain().focus().toggleUnderline().run()} 
+        active={editor.isActive("underline")} 
+        title="Underline (Ctrl+U)"
+      >
+        <Underline size={18} />
+      </ToolbarButton>
+      <ToolbarButton 
+        onClick={() => editor.chain().focus().toggleStrike().run()} 
+        active={editor.isActive("strike")} 
+        title="Strikethrough"
+      >
+        <Strikethrough size={18} />
+      </ToolbarButton>
+
+      <div className="h-5 w-px bg-[--border] mx-1" />
+
+      {/* Font family dropdown */}
+      <div className="relative" ref={fontFamilyContainerRef}>
         <button
-          className="flex items-center gap-1 px-2 py-1 rounded text-sm min-w-30"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] transition-colors"
           type="button"
-          onClick={() => setFontDropdown(f => !f)}
+          onClick={() => setFontDropdown((f) => !f)}
           style={{ fontFamily: currentFont.value || undefined }}
         >
-          <span className="material-icons" style={{ fontSize: 14 }}></span>
-          <span style={{ fontFamily: currentFont.value || undefined }}>{currentFont.label}</span>
+          <span style={{ fontFamily: currentFont.value || undefined }} className="flex-1 text-left">
+            {currentFont.label}
+          </span>
+          <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
+            <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         {fontDropdown && (
-          <div className="absolute left-0 z-10 mt-1 bg-white border rounded shadow min-w-36 max-h-64 overflow-auto">
-            {FONT_FAMILIES.map(f => (
+          <div className="absolute left-0 z-50 mt-1 bg-white border border-[--border] rounded shadow-lg min-w-40 max-h-64 overflow-y-auto">
+            {FONT_FAMILIES.map((f) => (
               <div
                 key={f.value}
-                className={`px-4 py-1.5 cursor-pointer hover:bg-[--bg-primary] ${getFontFamily() === f.value ? "bg-[--bg-primary]" : ""}`}
+                className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors ${
+                  getFontFamily() === f.value ? "bg-blue-100 text-blue-900" : ""
+                }`}
                 style={{ fontFamily: f.value || undefined }}
-                onMouseDown={e => {
+                onMouseDown={(e) => {
                   e.preventDefault();
                   setFontDropdown(false);
                   editor.chain().focus().setFontFamily(f.value).run();
@@ -100,48 +208,45 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         )}
       </div>
 
-      {/* Font size input with +/- and dropdown */}
-      <div className="relative flex items-center">
+      {/* Font size with number input and +/- buttons */}
+      <div className="relative flex items-center" ref={fontSizeContainerRef}>
         <button
-          className="px-3 "
+          className="px-2 py-1.5 rounded-l text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-r-0 border-[--border] transition-colors font-medium"
           type="button"
-          onClick={() => {
-            let size = parseInt(getFontSize() || "12", 10);
-            size = Math.max(8, size - 1);
-            editor.chain().focus().setMark('textStyle', { fontSize: size + 'px' }).run();
-          }}
-        >-</button>
+          onClick={handleDecreaseFont}
+          title="Decrease font size"
+        >
+          −
+        </button>
         <input
-          className="w-10 text-center border "
+          ref={fontSizeInputRef}
+          className="w-12 py-1.5 text-center border-y border-[--border] text-sm font-medium text-[--text-primary] focus:outline-none"
           type="number"
           min={8}
           max={72}
-          value={getFontSize() || 12}
-          onChange={e => {
-            let val = Math.max(8, Math.min(72, Number(e.target.value)));
-            editor.chain().focus().setMark('textStyle', { fontSize: val + 'px' }).run();
-          }}
+          value={inputFontSize}
+          onChange={(e) => handleFontSizeChange(e.target.value)}
           onFocus={() => setFontSizeDropdown(true)}
         />
         <button
-          className="px-3"
+          className="px-2 py-1.5 rounded-r text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-l-0 border-[--border] transition-colors font-medium"
           type="button"
-          onClick={() => {
-            let size = parseInt(getFontSize() || "12", 10);
-            size = Math.min(72, size + 1);
-            editor.chain().focus().setMark('textStyle', { fontSize: size + 'px' }).run();
-          }}
-        >+</button>
+          onClick={handleIncreaseFont}
+          title="Increase font size"
+        >
+          +
+        </button>
         {fontSizeDropdown && (
-          <div className="absolute left-0 z-10 mt-1 bg-white border rounded shadow min-w-36 max-h-64 overflow-auto">
-            {FONT_SIZE_OPTIONS.map(size => (
+          <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[--border] rounded shadow-lg min-w-24 max-h-64 overflow-y-auto">
+            {FONT_SIZE_OPTIONS.map((size) => (
               <div
                 key={size}
-                className="px-4 py-1.5 cursor-pointer hover:bg-[--bg-primary]"
-                onMouseDown={e => {
+                className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors text-sm ${
+                  currentFontSize === size ? "bg-blue-100 text-blue-900 font-semibold" : ""
+                }`}
+                onMouseDown={(e) => {
                   e.preventDefault();
-                  setFontSizeDropdown(false);
-                  editor.chain().focus().setMark('textStyle', { fontSize: size + 'px' }).run();
+                  handleFontSizeSelect(size);
                 }}
               >
                 {size}
@@ -151,88 +256,77 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         )}
       </div>
 
-      {/* Line spacing button with dropdown */}
-      <div className="relative">
+      {/* Line spacing dropdown */}
+      <div className="relative" ref={lineHeightContainerRef}>
         <button
-          className="flex items-center gap-1 px-2 py-1 rounded text-sm min-w-9"
+          className="flex items-center justify-center py-1.5 px-1.5 rounded text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] transition-colors"
           type="button"
-          onClick={() => setLineDropdown(l => !l)}
+          onClick={() => setLineDropdown((l) => !l)}
+          title="Line spacing"
         >
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M7 4h6M7 8h6M7 12h6M7 16h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M8 6h8" />
+            <path d="M8 12h8" />
+            <path d="M8 18h8" />
+            <path d="M3 6v12" />
+            <path d="M3 9h2" />
+            <path d="M3 15h2" />
+          </svg>
         </button>
         {lineDropdown && (
-          <div className="absolute left-0 z-10 mt-1 bg-white border rounded shadow min-w-24">
-            {LINE_HEIGHTS.map(lh => (
+          <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[--border] rounded shadow-lg min-w-28 overflow-hidden">
+            {LINE_HEIGHTS.map((lh) => (
               <div
-                key={lh}
-                className={`px-4 py-1.5 cursor-pointer hover:bg-[--bg-primary] ${String(currentLineHeight) === String(lh) ? "bg-[--bg-primary]" : ""}`}
-                onMouseDown={e => {
+                key={lh.value}
+                className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors text-sm ${
+                  String(currentLineHeight) === String(lh.value) ? "bg-blue-100 text-blue-900 font-semibold" : ""
+                }`}
+                onMouseDown={(e) => {
                   e.preventDefault();
-                  setLineDropdown(false);
-                  editor.chain().focus().setMark('textStyle', { lineHeight: String(lh) }).run();
+                  handleLineHeightSelect(lh.value);
                 }}
               >
-                {lh}
+                {lh.label}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      <div className="h-5 w-px bg-[--border] mx-1" />
+
       {/* Indent/Outdent */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().sinkIndent().run()}
-        title="Increase indent"
+      <ToolbarButton 
+        onClick={() => editor.chain().focus().sinkIndent().run()} 
+        title="Increase indent (Tab)"
       >
         <Indent size={18} />
       </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().liftIndent().run()}
-        title="Decrease indent"
+      <ToolbarButton 
+        onClick={() => editor.chain().focus().liftIndent().run()} 
+        title="Decrease indent (Shift+Tab)"
       >
         <Outdent size={18} />
       </ToolbarButton>
 
       <div className="h-5 w-px bg-[--border] mx-1" />
 
-      {/* Headings with live preview */}
-      <HeadingSelector editor={editor} />
-
-      <div className="h-5 w-px bg-[--border] mx-1" />
-
-      {/* Basic formatting */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive("bold")}
-        title="Bold"
-      >
-        <Bold size={18} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive("italic")}
-        title="Italic"
-      >
-        <Italic size={18} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        active={editor.isActive("underline")}
-        title="Underline"
-      >
-        <Underline size={18} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        active={editor.isActive("strike")}
-        title="Strikethrough"
-      >
-        <Strikethrough size={18} />
-      </ToolbarButton>
-
-      <div className="h-5 w-px bg-[--border] mx-1" />
-
+      {/* Alignment */}
       <AlignmentGroup editor={editor} />
+
+      <div className="flex-1" />
+
+      {/* Document Settings */}
+      <button
+        className="p-1.5 rounded text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] transition-colors"
+        type="button"
+        onClick={() => setShowSettings(true)}
+        title="Document settings"
+      >
+        <Settings size={18} />
+      </button>
+
+      {showSettings && <DocumentSettingsModal editor={editor} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

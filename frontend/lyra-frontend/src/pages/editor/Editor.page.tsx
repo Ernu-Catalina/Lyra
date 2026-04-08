@@ -20,6 +20,7 @@ import { formatWordCount } from "./utils/wordcount";
 import { DocumentOutline } from "../../types/document";
 import { WordCountFooter } from "./components/WordCountFooter";
 import { DocumentEditorView } from "./components/DocumentEditorView";
+import "./styles/editor.css";
 
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();

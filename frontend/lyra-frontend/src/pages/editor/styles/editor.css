@@ -1,0 +1,184 @@
+/* Editor Page Styling - A4 Page Support */
+
+/* TipTap Editor Content Styling */
+.ProseMirror {
+  white-space: pre-wrap !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Heading Styles */
+.ProseMirror h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0.5em 0;
+  color: inherit;
+}
+
+.ProseMirror h2 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 0.4em 0;
+  color: inherit;
+}
+
+.ProseMirror h3 {
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.3;
+  margin: 0.3em 0;
+  color: inherit;
+}
+
+.ProseMirror h4 {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
+  margin: 0.3em 0;
+  color: inherit;
+}
+
+/* Paragraph Styles */
+.ProseMirror p {
+  margin: 0 0 1em 0;
+  line-height: 1.15;
+  color: inherit;
+}
+
+/* Indent Classes */
+.ProseMirror p[style*="padding-left"] {
+  margin-left: 0;
+}
+
+/* Link Styles */
+.ProseMirror a {
+  color: #0066cc;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror a:hover {
+  color: #0052a3;
+}
+
+/* Code Styles */
+.ProseMirror code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+/* Blockquote Styles */
+.ProseMirror blockquote {
+  border-left: 3px solid #ccc;
+  padding-left: 1em;
+  margin-left: 0;
+  color: #666;
+  font-style: italic;
+}
+
+/* List Styles */
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 2em;
+  margin: 0.5em 0;
+}
+
+.ProseMirror ul li,
+.ProseMirror ol li {
+  margin: 0.25em 0;
+  line-height: 1.5;
+}
+
+/* Image Styles */
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  margin: 0.5em 0;
+  border-radius: 4px;
+}
+
+/* Focus State */
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Selection Colors */
+.ProseMirror ::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: inherit;
+}
+
+/* Placeholder Text */
+.ProseMirror.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #aaa;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Page Break Indicator */
+.page-break {
+  page-break-after: always;
+  margin-bottom: 2em;
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 2em;
+}
+
+/* Print Styles */
+@media print {
+  .ProseMirror {
+    color: #000;
+    background-color: #fff;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Focus Ring for Accessibility */
+.ProseMirror:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Alignment Classes */
+.ProseMirror [style*="text-align: center"] {
+  text-align: center;
+}
+
+.ProseMirror [style*="text-align: right"] {
+  text-align: right;
+}
+
+.ProseMirror [style*="text-align: justify"] {
+  text-align: justify;
+}
+
+/* Line Height */
+.ProseMirror p[style*="line-height: 1"],
+.ProseMirror p[style*="line-height: 1.15"],
+.ProseMirror p[style*="line-height: 1.5"],
+.ProseMirror p[style*="line-height: 2"] {
+  overflow: visible;
+}
+
+/* Strikethrough */
+.ProseMirror s {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
