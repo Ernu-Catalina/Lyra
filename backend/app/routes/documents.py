@@ -493,6 +493,88 @@ async def update_document_settings(
 
 
 # ────────────────────────────────────────────────
+# GET DOCUMENT SETTINGS
+# ────────────────────────────────────────────────
+@router.get("/{document_id}/settings")
+async def get_document_settings(
+    project_id: str,
+    document_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found or not owned")
+
+    settings = document.get("settings", {})
+    return {"settings": settings}
+
+
+# ────────────────────────────────────────────────
+# APPLY DOCUMENT SETTINGS TO ALL CONTENT
+# ────────────────────────────────────────────────
+@router.post("/{document_id}/apply-settings")
+async def apply_document_settings_to_content(
+    project_id: str,
+    document_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found or not owned")
+
+    settings = document.get("settings", {})
+    if not settings:
+        raise HTTPException(400, "No document settings found")
+
+    import re
+
+    # Get all chapters for this document
+    chapters = await chapters_collection.find(
+        {"document_id": ObjectId(document_id)}
+    ).to_list(None)
+
+    updated_scenes = 0
+    for chapter in chapters:
+        chapter_id = chapter["_id"]
+        # Get all scenes for this chapter
+        scenes = await documents_collection.find(
+            {"parent_id": chapter_id, "type": "scene"}
+        ).to_list(None)
+
+        for scene in scenes:
+            scene_id = scene["_id"]
+            content = scene.get("content", "")
+            if content:
+                # Update font-family and font-size in spans with textStyle
+                # This is a simple regex replacement - in production, use proper HTML parsing
+                content = re.sub(
+                    r'font-family:[^;"]*;?',
+                    f'font-family:{settings.get("defaultFont", "Arial, sans-serif")};',
+                    content
+                )
+                content = re.sub(
+                    r'font-size:[^;"]*;?',
+                    f'font-size:{settings.get("defaultFontSize", 12)}px;',
+                    content
+                )
+
+                # Update text alignment
+                content = re.sub(
+                    r'text-align:[^;"]*;?',
+                    f'text-align:{settings.get("defaultAlignment", "left")};',
+                    content
+                )
+
+                await documents_collection.update_one(
+                    {"_id": scene_id},
+                    {"$set": {"content": content, "updated_at": datetime.utcnow()}}
+                )
+                updated_scenes += 1
+
+    return {"message": f"Applied settings to {updated_scenes} scenes"}
+
+
+# ────────────────────────────────────────────────
 # DELETE DOCUMENT / FOLDER
 # ────────────────────────────────────────────────
 @router.delete("/{document_id}")

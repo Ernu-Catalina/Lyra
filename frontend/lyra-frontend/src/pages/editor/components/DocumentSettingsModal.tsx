@@ -8,6 +8,7 @@ import { useDocumentSettings, type DocumentSettings } from "../context/DocumentS
 interface DocumentSettingsModalProps {
   editor: Editor | null;
   onClose: () => void;
+  onSettingsApplied?: () => void;
 }
 
 const PAPER_FORMATS = {
@@ -37,7 +38,7 @@ const FONT_FAMILIES = [
   { value: "Impact, sans-serif", label: "Impact" },
 ];
 
-export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModalProps) {
+export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: DocumentSettingsModalProps) {
   const { settings, updateSettings } = useDocumentSettings();
   const modalRef = useRef<HTMLDivElement>(null);
   const [showWarning, setShowWarning] = useState(false);
@@ -95,9 +96,11 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
 
     try {
       await api.patch(`/projects/${projectId}/documents/${documentId}/settings`, tempSettings);
+      await api.post(`/projects/${projectId}/documents/${documentId}/apply-settings`);
       updateSettings(tempSettings);
       applyDocumentSettings(tempSettings);
       setShowWarning(false);
+      onSettingsApplied?.();
       onClose();
     } catch (err: any) {
       console.error("Failed to save document settings", err);

@@ -438,7 +438,7 @@ useEffect(() => {
   if (!projectId || !documentId) return <div className="flex items-center justify-center h-screen">Project or document not found.</div>;
 
   return (
-    <DocumentSettingsProvider>
+    <DocumentSettingsProvider projectId={projectId} documentId={documentId}>
       <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
         {/* Navigation Bar – fixed at top */}
         <NavigationBar
@@ -478,7 +478,7 @@ useEffect(() => {
               reloadOutline={reloadOutline}
             />
           }
-          toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}
+          toolbar={editorInstance ? <EditorToolbar editor={editorInstance} onSettingsApplied={reloadOutline} /> : null}
           editor={
             editorMode === "scene" ? (
               <SceneEditorPageView>

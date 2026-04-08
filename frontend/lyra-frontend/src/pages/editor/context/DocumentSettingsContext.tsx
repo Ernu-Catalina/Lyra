@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import api from "../../../api/client";
 
 export interface DocumentSettings {
   marginTop: number;
@@ -47,21 +48,48 @@ interface DocumentSettingsContextType {
 
 const DocumentSettingsContext = createContext<DocumentSettingsContextType | undefined>(undefined);
 
-export function DocumentSettingsProvider({ children }: { children: ReactNode }) {
+export function DocumentSettingsProvider({
+  children,
+  projectId,
+  documentId,
+}: {
+  children: ReactNode;
+  projectId?: string;
+  documentId?: string;
+}) {
   const [settings, setSettings] = useState<DocumentSettings>(DEFAULT_SETTINGS);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem("lyra-document-settings");
-    if (stored) {
+    if (!projectId || !documentId) return;
+
+    const loadSettings = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      } catch (e) {
-        console.error("Failed to load document settings:", e);
+        const response = await api.get(`/projects/${projectId}/documents/${documentId}/settings`);
+        const backendSettings = response.data.settings;
+
+        if (backendSettings && Object.keys(backendSettings).length > 0) {
+          const merged = { ...DEFAULT_SETTINGS, ...backendSettings };
+          setSettings(merged);
+          localStorage.setItem("lyra-document-settings", JSON.stringify(merged));
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to load document settings from backend:", error);
       }
-    }
-  }, []);
+
+      const stored = localStorage.getItem("lyra-document-settings");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+        } catch (e) {
+          console.error("Failed to load document settings from localStorage:", e);
+        }
+      }
+    };
+
+    loadSettings();
+  }, [projectId, documentId]);
 
   const updateSettings = (newSettings: DocumentSettings) => {
     setSettings(newSettings);

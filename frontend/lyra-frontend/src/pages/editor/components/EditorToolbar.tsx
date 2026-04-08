@@ -4,7 +4,7 @@ import { ToolbarButton } from "./ToolbarButton";
 import { HeadingSelector } from "./HeadingSelector";
 import { AlignmentGroup } from "./AlignmentGroup";
 import { DocumentSettingsModal } from "./DocumentSettingsModal";
-import { Bold, Italic, Underline, Strikethrough, Indent, Outdent, Settings } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, Indent, Outdent, Settings, Paintbrush } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 
 const FONT_FAMILIES = [
@@ -27,14 +27,17 @@ const LINE_HEIGHTS = [
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  onSettingsApplied?: () => void;
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [fontDropdown, setFontDropdown] = useState(false);
   const [fontSizeDropdown, setFontSizeDropdown] = useState(false);
   const [lineDropdown, setLineDropdown] = useState(false);
   const [inputFontSize, setInputFontSize] = useState("");
+  const [formatPainterActive, setFormatPainterActive] = useState(false);
+  const [copiedFormatting, setCopiedFormatting] = useState<any>(null);
 
   const fontSizeInputRef = useRef<HTMLInputElement>(null);
   const fontSizeContainerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +135,67 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     setLineDropdown(false);
   };
 
+  const handleFormatPainterClick = () => {
+    if (formatPainterActive) {
+      // If already active, deactivate
+      setFormatPainterActive(false);
+      setCopiedFormatting(null);
+      editor.commands.blur();
+    } else {
+      // Copy current formatting
+      const attrs = editor.getAttributes("textStyle");
+      const currentFormatting = {
+        fontFamily: attrs.fontFamily || getCurrentNodeAttrs().fontFamily,
+        fontSize: attrs.fontSize || getCurrentNodeAttrs().fontSize,
+        fontWeight: attrs.fontWeight || getCurrentNodeAttrs().fontWeight,
+        fontStyle: attrs.fontStyle || getCurrentNodeAttrs().fontStyle,
+        textDecoration: attrs.textDecoration || getCurrentNodeAttrs().textDecoration,
+        textAlign: editor.getAttributes("textAlign").textAlign || getCurrentNodeAttrs().textAlign,
+        lineHeight: attrs.lineHeight || getCurrentNodeAttrs().lineHeight,
+      };
+      setCopiedFormatting(currentFormatting);
+      setFormatPainterActive(true);
+    }
+  };
+
+  const applyCopiedFormatting = () => {
+    if (!copiedFormatting || !formatPainterActive) return;
+
+    editor.chain().focus().setMark("textStyle", {
+      fontFamily: copiedFormatting.fontFamily,
+      fontSize: copiedFormatting.fontSize,
+      fontWeight: copiedFormatting.fontWeight,
+      fontStyle: copiedFormatting.fontStyle,
+      textDecoration: copiedFormatting.textDecoration,
+      lineHeight: copiedFormatting.lineHeight,
+    });
+
+    if (copiedFormatting.textAlign) {
+      editor.chain().focus().setTextAlign(copiedFormatting.textAlign);
+    }
+
+    editor.chain().focus().run();
+    setFormatPainterActive(false);
+    setCopiedFormatting(null);
+  };
+
+  // Handle format painter application on selection
+  useEffect(() => {
+    if (!editor || !formatPainterActive) return;
+
+    const handleSelection = () => {
+      if (formatPainterActive && copiedFormatting) {
+        applyCopiedFormatting();
+      }
+    };
+
+    editor.on('selectionUpdate', handleSelection);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelection);
+    };
+  }, [editor, formatPainterActive, copiedFormatting]);
+
   return (
     <div className="flex items-center gap-1.5 flex-wrap bg-[var(--bg-secondary)] px-3 py-2 border-[var(--border)]">
       {/* Headings */}
@@ -171,7 +235,15 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
       <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
-      {/* Font family dropdown */}
+      {/* Format Painter */}
+      <ToolbarButton 
+        onClick={handleFormatPainterClick} 
+        active={formatPainterActive}
+        title={formatPainterActive ? "Click to apply copied formatting" : "Format Painter - Copy formatting"}
+      >
+        <Paintbrush size={18} />
+      </ToolbarButton>
+
       <div className="relative" ref={fontFamilyContainerRef}>
         <button
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
@@ -326,7 +398,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Settings size={18} />
       </button>
 
-      {showSettings && <DocumentSettingsModal editor={editor} onClose={() => setShowSettings(false)} />}
+      {showSettings && <DocumentSettingsModal editor={editor} onClose={() => setShowSettings(false)} onSettingsApplied={onSettingsApplied} />}
     </div>
   );
 }

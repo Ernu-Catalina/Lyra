@@ -70,15 +70,10 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
     useEffect(() => {
       if (!editor) return;
 
-      const isEditorEmpty = typeof editor.isEmpty === "function"
-        ? editor.isEmpty()
-        : editor.state.doc.content.size <= 2;
-
-      if (!isEditorEmpty) return;
-
       editor
         .chain()
         .focus()
+        .selectAll()
         .setMark("textStyle", {
           fontFamily: settings.defaultFont,
           fontSize: `${settings.defaultFontSize}px`,
@@ -87,7 +82,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         .run();
 
       editor.chain().focus("end").run();
-    }, [editor]);
+    }, [editor, settings]);
 
     if (!editor) return null;
 
