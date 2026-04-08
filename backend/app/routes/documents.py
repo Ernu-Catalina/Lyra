@@ -28,6 +28,7 @@ from app.schemas.document import (
     ChapterResponse,
     ItemListResponse
 )
+from app.schemas.document_settings import DocumentSettings
 from app.utils.mongo import serialize_mongo
 
 router = APIRouter(
@@ -467,6 +468,28 @@ async def update_document(
 
     updated = await documents_collection.find_one({"_id": ObjectId(document_id)})
     return serialize_mongo(updated)
+
+
+# ────────────────────────────────────────────────
+# UPDATE DOCUMENT SETTINGS
+# ────────────────────────────────────────────────
+@router.patch("/{document_id}/settings")
+async def update_document_settings(
+    project_id: str,
+    document_id: str,
+    settings: DocumentSettings,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found or not owned")
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id), "project_id": ObjectId(project_id)},
+        {"$set": {"settings": settings.model_dump(), "updated_at": datetime.utcnow()}}
+    )
+
+    return {"message": "Document settings updated", "settings": settings.model_dump()}
 
 
 # ────────────────────────────────────────────────

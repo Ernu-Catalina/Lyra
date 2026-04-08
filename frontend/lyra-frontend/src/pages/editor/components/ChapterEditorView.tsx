@@ -1,3 +1,5 @@
+import { useDocumentSettings } from "../context/DocumentSettingsContext";
+import { formatChapterTitle } from "../utils/chapterTitleFormatter";
 import SceneEditor from "./SceneEditor/SceneEditor";
 import { SceneEditorPageView } from "./SceneEditor/SceneEditorPageView";
 import { composeChapter } from "../utils/chapterComposer";
@@ -18,10 +20,24 @@ export function ChapterEditorView({
   onSceneUpdate,
   readOnly = false,  // default: editable
 }: ChapterEditorViewProps) {
+  const { settings } = useDocumentSettings();
   const htmlContent = initialContent ?? composeChapter(chapter.scenes);
+
+  const { html: chapterTitleText, style: chapterTitleStyle } = formatChapterTitle(
+    chapter.order,
+    chapter.title,
+    settings
+  );
 
   return (
     <SceneEditorPageView>
+      {/* Chapter Title */}
+      {chapterTitleText && (
+        <div style={chapterTitleStyle}>
+          {chapterTitleText}
+        </div>
+      )}
+      {/* Chapter Content */}
       <SceneEditor
         content={htmlContent}
         onChange={onContentChange}

@@ -32,13 +32,28 @@ export function useDocumentOutline(
       setOutline(res.data);
     } catch (err: any) {
       console.error("Outline fetch failed:", err);
+      setOutline(null);
+
       const status = err.response?.status;
       if (status === 401) {
         logout();
-      } else if (status === 404) {
+        return;
+      }
+
+      if (status === 404) {
         setError("Document outline not found (404)");
+        return;
+      }
+
+      const message = err.response?.data?.detail || err.message;
+      if (message) {
+        setError(
+          message === "Network Error"
+            ? "Unable to connect to the backend. Please start the API server."
+            : message
+        );
       } else {
-        setError(err.response?.data?.detail || "Failed to load document outline");
+        setError("Failed to load document outline");
       }
     } finally {
       setLoading(false);

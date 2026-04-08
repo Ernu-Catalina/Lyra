@@ -3,11 +3,12 @@ import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
-import Heading from "@tiptap/extension-heading";
-import {TextStyle} from "@tiptap/extension-text-style";
+import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import { FontSize } from "../../extensions/FontSize";
 import { Indentation } from "../../extensions/Indentation";
+import { HeadingWithSize } from "../../extensions/HeadingWithSize";
+import { useDocumentSettings } from "../../context/DocumentSettingsContext";
 
 interface SceneEditorProps {
   content: string; // now always HTML string
@@ -18,10 +19,16 @@ interface SceneEditorProps {
 
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
   ({ content, onChange, editable = true, onEditorReady }, ref) => {
+    const { settings } = useDocumentSettings();
+
     const editor = useEditor({
       extensions: [
-        StarterKit.configure({ heading: false }),
-        Heading.configure({ levels: [1, 2, 3, 4] }),
+        StarterKit.configure({ 
+          heading: false 
+        }),
+        HeadingWithSize.configure({ 
+          levels: [1, 2, 3, 4],
+        }),
         TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
         TextStyle,
         FontFamily,
@@ -59,21 +66,41 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       }
     }, [content, editor]);
 
+    // Apply default font settings from document settings
+    useEffect(() => {
+      if (!editor) return;
+
+      const isEditorEmpty = typeof editor.isEmpty === "function"
+        ? editor.isEmpty()
+        : editor.state.doc.content.size <= 2;
+
+      if (!isEditorEmpty) return;
+
+      editor
+        .chain()
+        .focus()
+        .setMark("textStyle", {
+          fontFamily: settings.defaultFont,
+          fontSize: `${settings.defaultFontSize}px`,
+        })
+        .setTextAlign(settings.defaultAlignment)
+        .run();
+
+      editor.chain().focus("end").run();
+    }, [editor]);
+
     if (!editor) return null;
 
     return (
-      <div className="w-full h-full flex items-start justify-center bg-[var(--bg-primary)] py-8 overflow-y-auto">
-        {/* A4 Page Container */}
-        <div className="bg-white rounded-lg shadow-lg border border-[var(--border)]" style={{
-          width: "210mm",
-          minHeight: "297mm",
-          padding: "var(--margin-top, 20mm) var(--margin-right, 20mm) var(--margin-bottom, 20mm) var(--margin-left, 20mm)",
-          margin: "0 auto",
-        }}>
-          <div className="bg-white w-full h-full text-[var(--text-primary)]">
-            <EditorContent editor={editor} />
-          </div>
-        </div>
+      <div
+        style={{
+          fontFamily: settings.defaultFont,
+          fontSize: `${settings.defaultFontSize}px`,
+          textAlign: settings.defaultAlignment,
+          minHeight: "100%",
+        }}
+      >
+        <EditorContent editor={editor} />
       </div>
     );
   }

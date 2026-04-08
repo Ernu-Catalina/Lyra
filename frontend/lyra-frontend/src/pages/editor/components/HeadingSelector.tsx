@@ -17,7 +17,7 @@ const headingStyles = [
     label: "Heading 1",
     value: "1",
     style: {
-      fontSize: "1.75rem", // ~28px
+      fontSize: "28px",
       fontWeight: 700,
       margin: 0,
       letterSpacing: "-0.02em",
@@ -28,7 +28,7 @@ const headingStyles = [
     label: "Heading 2",
     value: "2",
     style: {
-      fontSize: "1.375rem", // ~22px
+      fontSize: "22px",
       fontWeight: 600,
       margin: 0,
       letterSpacing: "-0.01em",
@@ -39,7 +39,7 @@ const headingStyles = [
     label: "Heading 3",
     value: "3",
     style: {
-      fontSize: "1.125rem", // ~18px
+      fontSize: "18px",
       fontWeight: 500,
       margin: 0,
       letterSpacing: 0,
@@ -50,7 +50,7 @@ const headingStyles = [
     label: "Heading 4",
     value: "4",
     style: {
-      fontSize: "1rem", // ~16px
+      fontSize: "16px",
       fontWeight: 500,
       margin: 0,
       letterSpacing: 0,
@@ -64,19 +64,35 @@ interface HeadingSelectorProps {
 }
 
 export function HeadingSelector({ editor }: HeadingSelectorProps) {
-  // Determine current heading
-  let current = "paragraph";
-  for (let i = 1; i <= 4; i++) {
-    if (editor.isActive("heading", { level: i })) {
-      current = String(i);
-      break;
-    }
-  }
-
-  // Show dropdown on click/focus
   const [open, setOpen] = React.useState(false);
+  const [current, setCurrent] = React.useState("paragraph");
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Update current heading when editor state changes
+  React.useEffect(() => {
+    const handleSelectionUpdate = () => {
+      let headingLevel = "paragraph";
+      for (let i = 1; i <= 4; i++) {
+        if (editor.isActive("heading", { level: i })) {
+          headingLevel = String(i);
+          break;
+        }
+      }
+      setCurrent(headingLevel);
+    };
+
+    editor.on("selectionUpdate", handleSelectionUpdate);
+    editor.on("update", handleSelectionUpdate);
+
+    // Initial check
+    handleSelectionUpdate();
+
+    return () => {
+      editor.off("selectionUpdate", handleSelectionUpdate);
+      editor.off("update", handleSelectionUpdate);
+    };
+  }, [editor]);
 
   React.useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -87,8 +103,8 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  // Always show "Normal" in the button, not styled as heading
   const mainLabel = headingStyles.find(h => h.value === current)?.label || "Normal";
+  const mainStyle = headingStyles.find(h => h.value === current)?.style || headingStyles[0].style;
 
   return (
     <div className="relative" ref={containerRef}>
@@ -102,7 +118,7 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
         type="button"
         title="Heading style"
       >
-        <span style={{ fontSize: "15px", fontWeight: 400 }}>Normal</span>
+        <span style={mainStyle}>{mainLabel}</span>
         <svg width="16" height="16" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       {open && (
@@ -121,7 +137,8 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
                 if (h.value === "paragraph") {
                   editor.chain().focus().setParagraph().run();
                 } else {
-                  editor.chain().focus().setHeading({ level: Number(h.value) as 1 | 2 | 3 | 4 }).run();
+                  const level = Number(h.value) as 1 | 2 | 3 | 4;
+                  editor.chain().focus().setHeading({ level }).run();
                 }
               }}
             >

@@ -133,11 +133,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap bg-[--bg-secondary] px-3 py-2 border-[--border]">
+    <div className="flex items-center gap-1.5 flex-wrap bg-[var(--bg-secondary)] px-3 py-2 border-[var(--border)]">
       {/* Headings */}
       <HeadingSelector editor={editor} />
 
-      <div className="h-5 w-px bg-[--border] mx-1" />
+      <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
       {/* Basic formatting */}
       <ToolbarButton 
@@ -169,12 +169,12 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Strikethrough size={18} />
       </ToolbarButton>
 
-      <div className="h-5 w-px bg-[--border] mx-1" />
+      <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
       {/* Font family dropdown */}
       <div className="relative" ref={fontFamilyContainerRef}>
         <button
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
           type="button"
           onClick={() => setFontDropdown((f) => !f)}
           style={{ fontFamily: currentFont.value || undefined }}
@@ -187,11 +187,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           </svg>
         </button>
         {fontDropdown && (
-          <div className="absolute left-0 z-50 mt-1 bg-white border border-[--border] rounded shadow-lg min-w-40 max-h-64 overflow-y-auto">
+          <div className="absolute left-0 z-50 mt-1 bg-white border border-[var(--border)] rounded shadow-lg min-w-40 max-h-64 overflow-y-auto">
             {FONT_FAMILIES.map((f) => (
               <div
                 key={f.value}
-                className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors ${
+                className={`px-4 py-2 cursor-pointer hover:bg-[var(--bg-primary)] transition-colors ${
                   getFontFamily() === f.value ? "bg-blue-100 text-blue-900" : ""
                 }`}
                 style={{ fontFamily: f.value || undefined }}
@@ -211,7 +211,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       {/* Font size with number input and +/- buttons */}
       <div className="relative flex items-center" ref={fontSizeContainerRef}>
         <button
-          className="px-2 py-1.5 rounded-l text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-r-0 border-[--border] transition-colors font-medium"
+          className="px-2 py-1.5 rounded-l text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-r-0 border-[var(--border)] transition-colors font-medium"
           type="button"
           onClick={handleDecreaseFont}
           title="Decrease font size"
@@ -220,7 +220,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         </button>
         <input
           ref={fontSizeInputRef}
-          className="w-12 py-1.5 text-center border-y border-[--border] text-sm font-medium text-[--text-primary] focus:outline-none"
+          className="w-12 py-1.5 text-center border-y border-[var(--border)] text-sm font-medium text-[var(--text-primary)] focus:outline-none"
           type="number"
           min={8}
           max={72}
@@ -229,7 +229,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           onFocus={() => setFontSizeDropdown(true)}
         />
         <button
-          className="px-2 py-1.5 rounded-r text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-l-0 border-[--border] transition-colors font-medium"
+          className="px-2 py-1.5 rounded-r text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-l-0 border-[var(--border)] transition-colors font-medium"
           type="button"
           onClick={handleIncreaseFont}
           title="Increase font size"
@@ -237,11 +237,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           +
         </button>
         {fontSizeDropdown && (
-          <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[--border] rounded shadow-lg min-w-24 max-h-64 overflow-y-auto">
+          <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[var(--border)] rounded shadow-lg min-w-24 max-h-64 overflow-y-auto">
             {FONT_SIZE_OPTIONS.map((size) => (
               <div
                 key={size}
-                className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors text-sm ${
+                className={`px-4 py-2 cursor-pointer hover:bg-[var(--bg-primary)] transition-colors text-sm ${
                   currentFontSize === size ? "bg-blue-100 text-blue-900 font-semibold" : ""
                 }`}
                 onMouseDown={(e) => {
@@ -259,7 +259,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       {/* Line spacing dropdown */}
       <div className="relative" ref={lineHeightContainerRef}>
         <button
-          className="flex items-center justify-center py-1.5 px-1.5 rounded text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] transition-colors"
+          className="flex items-center justify-center py-1.5 px-1.5 rounded text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
           type="button"
           onClick={() => setLineDropdown((l) => !l)}
           title="Line spacing"
@@ -274,11 +274,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           </svg>
         </button>
         {lineDropdown && (
-          <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[--border] rounded shadow-lg min-w-28 overflow-hidden">
+          <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[var(--border)] rounded shadow-lg min-w-28 overflow-hidden">
             {LINE_HEIGHTS.map((lh) => (
               <div
                 key={lh.value}
-                className={`px-4 py-2 cursor-pointer hover:bg-[--bg-primary] transition-colors text-sm ${
+                className={`px-4 py-2 cursor-pointer hover:bg-[var(--bg-primary)] transition-colors text-sm ${
                   String(currentLineHeight) === String(lh.value) ? "bg-blue-100 text-blue-900 font-semibold" : ""
                 }`}
                 onMouseDown={(e) => {
@@ -293,7 +293,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         )}
       </div>
 
-      <div className="h-5 w-px bg-[--border] mx-1" />
+      <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
       {/* Indent/Outdent */}
       <ToolbarButton 
@@ -309,7 +309,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Outdent size={18} />
       </ToolbarButton>
 
-      <div className="h-5 w-px bg-[--border] mx-1" />
+      <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
       {/* Alignment */}
       <AlignmentGroup editor={editor} />
@@ -318,7 +318,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
       {/* Document Settings */}
       <button
-        className="p-1.5 rounded text-sm bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] transition-colors"
+        className="p-1.5 rounded text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         type="button"
         onClick={() => setShowSettings(true)}
         title="Document settings"

@@ -1,9 +1,9 @@
-// src/pages/editor/Editor.page.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/useAuth"; // ← ADD THIS IMPORT
+import { useAuth } from "../../auth/useAuth";
 import api from "../../api/client";
 import NavigationBar from "../../common_components/NavigationBar";
+import { DocumentSettingsProvider } from "./context/DocumentSettingsContext";
 import { EditorLayout } from "./components/EditorLayout";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { EditorToolbar } from "./components/EditorToolbar";
@@ -435,96 +435,99 @@ useEffect(() => {
 
   if (loading) return <div className="flex items-center justify-center h-screen">Loading document…</div>;
   if (error || !outline) return <div className="text-red-500 p-8">{error || "Failed to load outline"}</div>;
+  if (!projectId || !documentId) return <div className="flex items-center justify-center h-screen">Project or document not found.</div>;
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
-      {/* Navigation Bar – fixed at top */}
-      <NavigationBar
-        title={projectName} // ← NOW uses project name (not document title)
-        onLogout={() => {
-          logout();
-          navigate("/login");
-        }}
-        onSettings={() => navigate("/settings")}
-        isEditorView={true}
-        onExport={() => {
-          console.log("Export clicked – implement document export here");
-          // Future: generate PDF/DOCX/JSON export
-        }}
-        saveStatus={saveStatus}
-        saveMessage={saveMessage}
-      />
+    <DocumentSettingsProvider>
+      <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
+        {/* Navigation Bar – fixed at top */}
+        <NavigationBar
+          title={projectName}
+          onLogout={() => {
+            logout();
+            navigate("/login");
+          }}
+          onSettings={() => navigate("/settings")}
+          isEditorView={true}
+          onExport={() => {
+            console.log("Export clicked – implement document export here");
+            // Future: generate PDF/DOCX/JSON export
+          }}
+          saveStatus={saveStatus}
+          saveMessage={saveMessage}
+        />
 
-      {/* Rest of editor content */}
-      <EditorLayout
-        sidebar={
-          <Sidebar
-            title={outline.title}
-            chapters={outline.chapters}
-            activeSceneId={activeSceneId}
-            activeChapterId={activeChapterId}
-            openChapterIds={openChapterIds}
-            onToggleChapter={toggleChapter}
-            onSceneClick={handleSceneClick}
-            onAddChapter={handleAddChapter}
-            onAddScene={handleAddScene}
-            onChapterClick={handleChapterClick}
-            onDocumentClick={handleDocumentClick}
-            setOutline={setOutline}
-            projectId={projectId!}
-            documentId={documentId!}
-            reloadOutline={reloadOutline}
-          />
-        }
-        toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}
-        editor={
-          editorMode === "scene" ? (
-            <SceneEditorPageView>
-              <SceneEditor
-                content={sceneContent}
-                onChange={(html) => {
-                  setSceneContent(html);
-                  const wc = countWordsFromHtml(html);
-                  setSceneWordcount(wc);
-                  setLastEditTimestamp(Date.now());
-                
-                  if (activeSceneId) {
-                    updateSceneInOutline(activeSceneId, html);
-                  }
-                }}
-                onEditorReady={setEditorInstance}
-              />
-            </SceneEditorPageView>
-          ) : activeChapterId && outline.chapters.find((c) => c.id === activeChapterId) ? (
-            <ChapterEditorView
-              chapter={outline.chapters.find((c) => c.id === activeChapterId)!}
-              initialContent={chapterEditorContent}
-              onContentChange={setChapterEditorContent}
-              onSceneUpdate={handleSceneUpdateFromChapter}
-              readOnly={CHAPTER_VIEW_READ_ONLY}
+        {/* Rest of editor content */}
+        <EditorLayout
+          sidebar={
+            <Sidebar
+              title={outline.title}
+              chapters={outline.chapters}
+              activeSceneId={activeSceneId}
+              activeChapterId={activeChapterId}
+              openChapterIds={openChapterIds}
+              onToggleChapter={toggleChapter}
+              onSceneClick={handleSceneClick}
+              onAddChapter={handleAddChapter}
+              onAddScene={handleAddScene}
+              onChapterClick={handleChapterClick}
+              onDocumentClick={handleDocumentClick}
+              setOutline={setOutline}
+              projectId={projectId!}
+              documentId={documentId!}
+              reloadOutline={reloadOutline}
             />
-          ) : editorMode === "document" ? (
-            outline ? <DocumentEditorView outline={outline} /> : <div>Loading...</div>
-          ) : (
-            <div className="p-8 text-center text-[var(--text-secondary)]">
-              Select a chapter or scene to begin editing
-            </div>
-          )
-        }
-        footer={
-          parts.length > 0 ? (
-            <div>
-              {parts.join(" | ")}
-            </div>
-          ) : null
-        }
-      />
+          }
+          toolbar={editorInstance ? <EditorToolbar editor={editorInstance} /> : null}
+          editor={
+            editorMode === "scene" ? (
+              <SceneEditorPageView>
+                <SceneEditor
+                  content={sceneContent}
+                  onChange={(html) => {
+                    setSceneContent(html);
+                    const wc = countWordsFromHtml(html);
+                    setSceneWordcount(wc);
+                    setLastEditTimestamp(Date.now());
+                  
+                    if (activeSceneId) {
+                      updateSceneInOutline(activeSceneId, html);
+                    }
+                  }}
+                  onEditorReady={setEditorInstance}
+                />
+              </SceneEditorPageView>
+            ) : activeChapterId && outline.chapters.find((c) => c.id === activeChapterId) ? (
+              <ChapterEditorView
+                chapter={outline.chapters.find((c) => c.id === activeChapterId)!}
+                initialContent={chapterEditorContent}
+                onContentChange={setChapterEditorContent}
+                onSceneUpdate={handleSceneUpdateFromChapter}
+                readOnly={CHAPTER_VIEW_READ_ONLY}
+              />
+            ) : editorMode === "document" ? (
+              outline ? <DocumentEditorView outline={outline} /> : <div>Loading...</div>
+            ) : (
+              <div className="p-8 text-center text-[var(--text-secondary)]">
+                Select a chapter or scene to begin editing
+              </div>
+            )
+          }
+          footer={
+            parts.length > 0 ? (
+              <div>
+                {parts.join(" | ")}
+              </div>
+            ) : null
+          }
+        />
         {/* Temporary warning overlay */}
         {showDocumentWarning && (
           <div className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-amber-800/90 text-white px-6 py-3 rounded-lg shadow-xl z-50 animate-fade-out">
             We do not recommend editing in Document view for performance reasons.
           </div>
         )}
-    </div>
+      </div>
+    </DocumentSettingsProvider>
   );
 }

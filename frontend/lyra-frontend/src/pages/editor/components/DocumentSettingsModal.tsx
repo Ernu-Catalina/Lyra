@@ -1,29 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Editor } from "@tiptap/react";
+import { useParams } from "react-router-dom";
 import { X, Eye } from "lucide-react";
-
-interface DocumentSettings {
-  marginTop: number;
-  marginBottom: number;
-  marginLeft: number;
-  marginRight: number;
-  marginUnit: "mm" | "cm" | "in";
-  paperFormat: "A4" | "Letter" | "A5" | "Legal" | "Custom";
-  customWidth: number;
-  customHeight: number;
-  defaultAlignment: "left" | "center" | "right" | "justify";
-  defaultFont: string;
-  defaultFontSize: number;
-  chapterTitleFormat: "none" | "chapter-number" | "chapter-number-title" | "number-title" | "title-only";
-  chapterTitleSize: number;
-  chapterTitleAlignment: "left" | "center" | "right";
-  chapterTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
-  blankLinesAfterChapter: number;
-  pageBreakAfterChapter: boolean;
-}
+import api from "../../../api/client";
+import { useDocumentSettings, type DocumentSettings } from "../context/DocumentSettingsContext";
 
 interface DocumentSettingsModalProps {
-  editor: Editor;
+  editor: Editor | null;
   onClose: () => void;
 }
 
@@ -55,43 +38,18 @@ const FONT_FAMILIES = [
 ];
 
 export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModalProps) {
+  const { settings, updateSettings } = useDocumentSettings();
   const modalRef = useRef<HTMLDivElement>(null);
   const [showWarning, setShowWarning] = useState(false);
-  const [settings, setSettings] = useState<DocumentSettings>({
-    marginTop: 2.5,
-    marginBottom: 2.5,
-    marginLeft: 2.5,
-    marginRight: 2.5,
-    marginUnit: "cm",
-    paperFormat: "A4",
-    customWidth: 210,
-    customHeight: 297,
-    defaultAlignment: "left",
-    defaultFont: "Arial, sans-serif",
-    defaultFontSize: 12,
-    chapterTitleFormat: "chapter-number-title",
-    chapterTitleSize: 16,
-    chapterTitleAlignment: "center",
-    chapterTitleStyle: "bold",
-    blankLinesAfterChapter: 2,
-    pageBreakAfterChapter: true,
-  });
-
   const [tempSettings, setTempSettings] = useState<DocumentSettings>(settings);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
 
-  // Load settings from localStorage if available
+  // Sync with context settings
   useEffect(() => {
-    const stored = localStorage.getItem("lyra-document-settings");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setSettings(parsed);
-        setTempSettings(parsed);
-      } catch (e) {
-        console.error("Failed to load document settings:", e);
-      }
-    }
-  }, []);
+    setTempSettings(settings);
+  }, [settings]);
 
   // Close on outside click
   useEffect(() => {
@@ -125,16 +83,28 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
     setShowWarning(true);
   };
 
-  const handleConfirmSave = () => {
-    // Save to localStorage
-    localStorage.setItem("lyra-document-settings", JSON.stringify(tempSettings));
-    setSettings(tempSettings);
+  const handleConfirmSave = async () => {
+    if (!projectId || !documentId) {
+      setError("Unable to save settings without a valid project or document.");
+      setShowWarning(false);
+      return;
+    }
 
-    // Apply settings to document
-    applyDocumentSettings(tempSettings);
+    setSaving(true);
+    setError(null);
 
-    setShowWarning(false);
-    onClose();
+    try {
+      await api.patch(`/projects/${projectId}/documents/${documentId}/settings`, tempSettings);
+      updateSettings(tempSettings);
+      applyDocumentSettings(tempSettings);
+      setShowWarning(false);
+      onClose();
+    } catch (err: any) {
+      console.error("Failed to save document settings", err);
+      setError(err?.response?.data?.detail || "Failed to save document settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const applyDocumentSettings = (newSettings: DocumentSettings) => {
@@ -144,27 +114,45 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
     const marginLeftMm = convertToMm(newSettings.marginLeft, newSettings.marginUnit);
     const marginRightMm = convertToMm(newSettings.marginRight, newSettings.marginUnit);
 
-    // Store settings in editor state/data for future reference
-    const editorElement = document.querySelector(".EditorContent");
-    if (editorElement) {
-      (editorElement as HTMLElement).style.setProperty("--margin-top", `${marginTopMm}mm`);
-      (editorElement as HTMLElement).style.setProperty("--margin-bottom", `${marginBottomMm}mm`);
-      (editorElement as HTMLElement).style.setProperty("--margin-left", `${marginLeftMm}mm`);
-      (editorElement as HTMLElement).style.setProperty("--margin-right", `${marginRightMm}mm`);
+    // Apply CSS variables to page container
+    const pageContainer = document.querySelector(".page-container");
+    const pageWidthMm = newSettings.paperFormat === "Custom" ? newSettings.customWidth : PAPER_FORMATS[newSettings.paperFormat].width;
+    const pageHeightMm = newSettings.paperFormat === "Custom" ? newSettings.customHeight : PAPER_FORMATS[newSettings.paperFormat].height;
+
+    if (pageContainer) {
+      const element = pageContainer as HTMLElement;
+      element.style.setProperty("--margin-top", `${marginTopMm}mm`);
+      element.style.setProperty("--margin-bottom", `${marginBottomMm}mm`);
+      element.style.setProperty("--margin-left", `${marginLeftMm}mm`);
+      element.style.setProperty("--margin-right", `${marginRightMm}mm`);
+      element.style.paddingTop = `${marginTopMm}mm`;
+      element.style.paddingBottom = `${marginBottomMm}mm`;
+      element.style.paddingLeft = `${marginLeftMm}mm`;
+      element.style.paddingRight = `${marginRightMm}mm`;
+      element.style.width = `${pageWidthMm}mm`;
+      element.style.minHeight = `${pageHeightMm}mm`;
+      element.style.boxSizing = "border-box";
     }
 
-    // Apply default font to the whole document
-    editor
-      .chain()
-      .setMark("textStyle", {
-        fontFamily: newSettings.defaultFont,
-        fontSize: `${newSettings.defaultFontSize}px`,
-      })
-      .selectAll()
-      .run();
+    // Apply default font and size to entire document
+    if (editor) {
+      try {
+        editor
+          .chain()
+          .focus()
+          .selectAll()
+          .setMark("textStyle", {
+            fontFamily: newSettings.defaultFont,
+            fontSize: `${newSettings.defaultFontSize}px`,
+          })
+          .setTextAlign(newSettings.defaultAlignment)
+          .run();
 
-    // Reset selection
-    editor.chain().focus().run();
+        editor.chain().focus("end").run();
+      } catch (e) {
+        console.error("Error applying text styles:", e);
+      }
+    }
   };
 
   const handleCancel = () => {
@@ -184,8 +172,8 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
 
   return (
     <>
-      {/* Overlay */}
-      <div className="fixed inset-0 bg-black opacity-40 z-40" onClick={onClose} />
+      {/* Overlay - Semi-transparent dark overlay */}
+      <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div
@@ -221,8 +209,8 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
                         let width = tempSettings.customWidth;
                         let height = tempSettings.customHeight;
                         if (newFormat !== "Custom") {
-                          width = PAPER_FORMATS[newFormat].width;
-                          height = PAPER_FORMATS[newFormat].height;
+                          width = 0;
+                          height = 0;
                         }
                         setTempSettings({
                           ...tempSettings,
@@ -382,7 +370,7 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                  Font Size (pt)
+                  Font Size (px)
                 </label>
                 <input
                   type="number"
@@ -566,6 +554,11 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
               <strong>Note:</strong> Applying these settings will update the entire document's formatting to match the default values you set here. Chapter title formatting will be applied when viewing the document in chapter or document view.
             </p>
           </div>
+          {error && (
+            <div className="rounded border border-red-400 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -588,7 +581,7 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
       {/* Warning Modal */}
       {showWarning && (
         <>
-          <div className="fixed inset-0 bg-black opacity-40 z-50" />
+          <div className="fixed inset-0 bg-black/50 z-50" />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg shadow-2xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Apply Document Settings?</h3>
             <p className="text-[var(--text-secondary)] mb-6">
@@ -603,9 +596,10 @@ export function DocumentSettingsModal({ editor, onClose }: DocumentSettingsModal
               </button>
               <button
                 onClick={handleConfirmSave}
-                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+                disabled={saving}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Apply to Entire Document
+                {saving ? "Saving..." : "Apply to Entire Document"}
               </button>
             </div>
           </div>
