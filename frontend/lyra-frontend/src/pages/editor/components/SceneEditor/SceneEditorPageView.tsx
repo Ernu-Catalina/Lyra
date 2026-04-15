@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
-import { useDocumentSettings, type DocumentSettings } from "../../context/DocumentSettingsContext";
+import { useDocumentSettings, type DocumentSettings, applyPageStyles } from "../../context/DocumentSettingsContext";
 
 interface SceneEditorPageViewProps {
   children: ReactNode;
@@ -47,23 +47,28 @@ export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
     element.style.setProperty("--print-height", `${pageSize.height}mm`);
   }, [settings.marginTop, settings.marginBottom, settings.marginLeft, settings.marginRight, settings.marginUnit, pageSize.width, pageSize.height]);
 
+  // BUG FIX 1: Re-apply page styles whenever settings change to persist after re-renders
+  useEffect(() => {
+    applyPageStyles(settings);
+  }, [settings]);
+
   return (
     <div 
-      ref={containerRef}
-      className="min-h-screen flex justify-center items-start bg-[var(--bg-primary)] py-8 overflow-y-auto px-4"
+      className="editor-scroll-area"
     >
-      <div className="w-full max-w-[1200px] text-[var(--text-primary)]">
+      <div 
+        ref={containerRef}
+        className="w-full max-w-[1200px] text-[var(--text-primary)]"
+      >
         {/* Main A4 Page Container */}
         <div 
           ref={pageContainerRef}
-          className="bg-white rounded-lg shadow-2xl page-container"
+          className="bg-white rounded-sm shadow-2xl page-container"
           style={{
             width: `${pageSize.width}mm`,
             minHeight: `${pageSize.height}mm`,
             margin: "0 auto",
             boxSizing: "border-box",
-            pageBreakAfter: "always",
-            breakInside: "avoid",
           }}
         >
           <div className="w-full h-full text-[var(--text-primary)] break-words">

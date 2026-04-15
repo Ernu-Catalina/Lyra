@@ -3,7 +3,7 @@ import { Editor } from "@tiptap/react";
 import { useParams } from "react-router-dom";
 import { X, Eye } from "lucide-react";
 import api from "../../../api/client";
-import { useDocumentSettings, type DocumentSettings } from "../context/DocumentSettingsContext";
+import { useDocumentSettings, type DocumentSettings, applyPageStyles } from "../context/DocumentSettingsContext";
 
 interface DocumentSettingsModalProps {
   editor: Editor | null;
@@ -98,7 +98,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
       await api.patch(`/projects/${projectId}/documents/${documentId}/settings`, tempSettings);
       await api.post(`/projects/${projectId}/documents/${documentId}/apply-settings`);
       updateSettings(tempSettings);
-      applyDocumentSettings(tempSettings);
+      applyPageStyles(tempSettings);
       setShowWarning(false);
       onSettingsApplied?.();
       onClose();
@@ -107,54 +107,6 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
       setError(err?.response?.data?.detail || "Failed to save document settings. Please try again.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const applyDocumentSettings = (newSettings: DocumentSettings) => {
-    // Convert margins to mm for CSS
-    const marginTopMm = convertToMm(newSettings.marginTop, newSettings.marginUnit);
-    const marginBottomMm = convertToMm(newSettings.marginBottom, newSettings.marginUnit);
-    const marginLeftMm = convertToMm(newSettings.marginLeft, newSettings.marginUnit);
-    const marginRightMm = convertToMm(newSettings.marginRight, newSettings.marginUnit);
-
-    // Apply CSS variables to page container
-    const pageContainer = document.querySelector(".page-container");
-    const pageWidthMm = newSettings.paperFormat === "Custom" ? newSettings.customWidth : PAPER_FORMATS[newSettings.paperFormat].width;
-    const pageHeightMm = newSettings.paperFormat === "Custom" ? newSettings.customHeight : PAPER_FORMATS[newSettings.paperFormat].height;
-
-    if (pageContainer) {
-      const element = pageContainer as HTMLElement;
-      element.style.setProperty("--margin-top", `${marginTopMm}mm`);
-      element.style.setProperty("--margin-bottom", `${marginBottomMm}mm`);
-      element.style.setProperty("--margin-left", `${marginLeftMm}mm`);
-      element.style.setProperty("--margin-right", `${marginRightMm}mm`);
-      element.style.paddingTop = `${marginTopMm}mm`;
-      element.style.paddingBottom = `${marginBottomMm}mm`;
-      element.style.paddingLeft = `${marginLeftMm}mm`;
-      element.style.paddingRight = `${marginRightMm}mm`;
-      element.style.width = `${pageWidthMm}mm`;
-      element.style.minHeight = `${pageHeightMm}mm`;
-      element.style.boxSizing = "border-box";
-    }
-
-    // Apply default font and size to entire document
-    if (editor) {
-      try {
-        editor
-          .chain()
-          .focus()
-          .selectAll()
-          .setMark("textStyle", {
-            fontFamily: newSettings.defaultFont,
-            fontSize: `${newSettings.defaultFontSize}px`,
-          })
-          .setTextAlign(newSettings.defaultAlignment)
-          .run();
-
-        editor.chain().focus("end").run();
-      } catch (e) {
-        console.error("Error applying text styles:", e);
-      }
     }
   };
 

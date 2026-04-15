@@ -526,27 +526,11 @@ async def apply_document_settings_to_content(
     if not settings:
         raise HTTPException(400, "No document settings found")
 
-    import re
-
-    # Get all chapters for this document
-    chapters = await chapters_collection.find(
-        {"document_id": ObjectId(document_id)}
-    ).to_list(None)
-
     updated_scenes = 0
-    for chapter in chapters:
-        chapter_id = chapter["_id"]
-        # Get all scenes for this chapter
-        scenes = await documents_collection.find(
-            {"parent_id": chapter_id, "type": "scene"}
-        ).to_list(None)
-
-        for scene in scenes:
-            scene_id = scene["_id"]
+    for chapter in document.get("chapters", []):
+        for scene in chapter.get("scenes", []):
             content = scene.get("content", "")
             if content:
-                # Update font-family and font-size in spans with textStyle
-                # This is a simple regex replacement - in production, use proper HTML parsing
                 content = re.sub(
                     r'font-family:[^;"]*;?',
                     f'font-family:{settings.get("defaultFont", "Arial, sans-serif")};',
@@ -557,19 +541,19 @@ async def apply_document_settings_to_content(
                     f'font-size:{settings.get("defaultFontSize", 12)}px;',
                     content
                 )
-
-                # Update text alignment
                 content = re.sub(
                     r'text-align:[^;"]*;?',
                     f'text-align:{settings.get("defaultAlignment", "left")};',
                     content
                 )
 
-                await documents_collection.update_one(
-                    {"_id": scene_id},
-                    {"$set": {"content": content, "updated_at": datetime.utcnow()}}
-                )
+                scene["content"] = content
                 updated_scenes += 1
+
+    await documents_collection.update_one(
+        {"_id": ObjectId(document_id), "project_id": ObjectId(project_id)},
+        {"$set": {"chapters": document.get("chapters", []), "updated_at": datetime.utcnow()}}
+    )
 
     return {"message": f"Applied settings to {updated_scenes} scenes"}
 

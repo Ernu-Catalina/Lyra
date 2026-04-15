@@ -20,7 +20,7 @@ export const Indentation = Extension.create({
 
   addOptions() {
     return {
-      types: ["paragraph", "heading"],
+      types: ["paragraph"],
       indentLevels: [0, 1, 2, 3, 4, 5, 6, 7, 8],
       defaultIndentLevel: 0,
     };
@@ -34,17 +34,17 @@ export const Indentation = Extension.create({
           indent: {
             default: this.options.defaultIndentLevel,
             parseHTML: (element) => {
-              const indent = element.style.marginLeft || element.style.textIndent;
-              if (indent) {
-                const level = parseInt(indent.replace("em", ""), 10);
-                return level || this.options.defaultIndentLevel;
+              const textIndent = element.style.textIndent;
+              if (textIndent) {
+                const level = parseFloat(textIndent.replace("em", ""));
+                return isNaN(level) ? this.options.defaultIndentLevel : level;
               }
               return this.options.defaultIndentLevel;
             },
             renderHTML: (attributes) => {
               if (attributes.indent && attributes.indent > 0) {
                 return {
-                  style: `margin-left: ${attributes.indent}em;`,
+                  style: `text-indent: ${attributes.indent * 1.5}em;`,
                 };
               }
               return {};
@@ -56,46 +56,39 @@ export const Indentation = Extension.create({
   },
 
   addCommands() {
+    const setIndent = (direction: 1 | -1) =>
+      ({ state, dispatch }: { state: any; dispatch: any }) => {
+        const { from, to } = state.selection;
+        const tr = state.tr;
+        let updated = false;
+
+        state.doc.nodesBetween(from, to, (node: any, pos: number) => {
+          if (this.options.types.includes(node.type.name)) {
+            const currentIndent = node.attrs.indent ?? 0;
+            const levels = this.options.indentLevels;
+            const newIndent = Math.min(
+              Math.max(currentIndent + direction, Math.min(...levels)),
+              Math.max(...levels)
+            );
+            if (newIndent !== currentIndent) {
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                indent: newIndent,
+              });
+              updated = true;
+            }
+          }
+        });
+
+        if (updated && dispatch) {
+          dispatch(tr);
+        }
+        return updated;
+      };
+
     return {
-      sinkIndent:
-        () =>
-        ({ commands, state }) => {
-          const { from, to } = state.selection;
-          let nodesUpdated = 0;
-
-          state.doc.nodesBetween(from, to, (node, pos) => {
-            if (this.options.types.includes(node.type.name)) {
-              const currentIndent = node.attrs.indent || 0;
-              const newIndent = Math.min(currentIndent + 1, Math.max(...this.options.indentLevels));
-              if (newIndent !== currentIndent) {
-                commands.setNodeAttributes(pos, { indent: newIndent });
-                nodesUpdated++;
-              }
-            }
-          });
-
-          return nodesUpdated > 0;
-        },
-
-      liftIndent:
-        () =>
-        ({ commands, state }) => {
-          const { from, to } = state.selection;
-          let nodesUpdated = 0;
-
-          state.doc.nodesBetween(from, to, (node, pos) => {
-            if (this.options.types.includes(node.type.name)) {
-              const currentIndent = node.attrs.indent || 0;
-              const newIndent = Math.max(currentIndent - 1, Math.min(...this.options.indentLevels));
-              if (newIndent !== currentIndent) {
-                commands.setNodeAttributes(pos, { indent: newIndent });
-                nodesUpdated++;
-              }
-            }
-          });
-
-          return nodesUpdated > 0;
-        },
+      sinkIndent: () => setIndent(1),
+      liftIndent: () => setIndent(-1),
     };
   },
 

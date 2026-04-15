@@ -478,7 +478,7 @@ useEffect(() => {
               reloadOutline={reloadOutline}
             />
           }
-          toolbar={editorInstance ? <EditorToolbar editor={editorInstance} onSettingsApplied={reloadOutline} /> : null}
+          toolbar={<EditorToolbar editor={editorInstance} onSettingsApplied={reloadOutline} />}
           editor={
             editorMode === "scene" ? (
               <SceneEditorPageView>

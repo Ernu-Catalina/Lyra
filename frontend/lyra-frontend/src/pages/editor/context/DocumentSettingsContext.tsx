@@ -21,6 +21,36 @@ export interface DocumentSettings {
   pageBreakAfterChapter: boolean;
 }
 
+// BUG FIX 1: Apply document settings to page container via CSS
+export function applyPageStyles(settings: DocumentSettings) {
+  const MM: Record<string, number> = { mm: 1, cm: 10, in: 25.4 };
+  const factor = MM[settings.marginUnit] ?? 1;
+  const toMm = (v: number) => v * factor;
+
+  const FORMATS: Record<string, { width: number; height: number }> = {
+    A4: { width: 210, height: 297 },
+    Letter: { width: 215.9, height: 279.4 },
+    A5: { width: 148, height: 210 },
+    Legal: { width: 215.9, height: 355.6 },
+  };
+
+  const { width, height } =
+    settings.paperFormat === "Custom"
+      ? { width: settings.customWidth, height: settings.customHeight }
+      : FORMATS[settings.paperFormat];
+
+  const el = document.querySelector<HTMLElement>(".page-container");
+  if (!el) return;
+
+  el.style.paddingTop = `${toMm(settings.marginTop)}mm`;
+  el.style.paddingBottom = `${toMm(settings.marginBottom)}mm`;
+  el.style.paddingLeft = `${toMm(settings.marginLeft)}mm`;
+  el.style.paddingRight = `${toMm(settings.marginRight)}mm`;
+  el.style.width = `${width}mm`;
+  el.style.minHeight = `${height}mm`;
+  el.style.boxSizing = "border-box";
+}
+
 const DEFAULT_SETTINGS: DocumentSettings = {
   marginTop: 2.5,
   marginBottom: 2.5,
@@ -70,6 +100,7 @@ export function DocumentSettingsProvider({
         if (backendSettings && Object.keys(backendSettings).length > 0) {
           const merged = { ...DEFAULT_SETTINGS, ...backendSettings };
           setSettings(merged);
+          applyPageStyles(merged);
           localStorage.setItem("lyra-document-settings", JSON.stringify(merged));
           return;
         }
@@ -81,7 +112,9 @@ export function DocumentSettingsProvider({
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+          const merged = { ...DEFAULT_SETTINGS, ...parsed };
+          setSettings(merged);
+          applyPageStyles(merged);
         } catch (e) {
           console.error("Failed to load document settings from localStorage:", e);
         }
@@ -93,6 +126,7 @@ export function DocumentSettingsProvider({
 
   const updateSettings = (newSettings: DocumentSettings) => {
     setSettings(newSettings);
+    applyPageStyles(newSettings);
     localStorage.setItem("lyra-document-settings", JSON.stringify(newSettings));
   };
 

@@ -44,10 +44,9 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
   const fontFamilyContainerRef = useRef<HTMLDivElement>(null);
   const lineHeightContainerRef = useRef<HTMLDivElement>(null);
 
-  if (!editor) return null;
-
   // Helper to get current node attributes (heading or paragraph)
   const getCurrentNodeAttrs = () => {
+    if (!editor) return {};
     const state = editor.state;
     const { from, to } = state.selection;
     let node = null;
@@ -62,17 +61,20 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
 
   // Font helpers
   const getFontFamily = () => {
+    if (!editor) return "";
     const attrs = editor.getAttributes("textStyle");
     return attrs.fontFamily || getCurrentNodeAttrs().fontFamily || "";
   };
 
   const getFontSize = () => {
+    if (!editor) return 12;
     const attrs = editor.getAttributes("textStyle");
     const size = attrs.fontSize || getCurrentNodeAttrs().fontSize || "12px";
     return parseInt(String(size).replace("px", ""), 10);
   };
 
   const getLineHeight = () => {
+    if (!editor) return "1.15";
     const attrs = editor.getAttributes("textStyle");
     return attrs.lineHeight || getCurrentNodeAttrs().lineHeight || "1.15";
   };
@@ -105,16 +107,19 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
   }, [currentFontSize]);
 
   const handleIncreaseFont = () => {
+    if (!editor) return;
     const newSize = Math.min(72, currentFontSize + 1);
     editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}px` }).run();
   };
 
   const handleDecreaseFont = () => {
+    if (!editor) return;
     const newSize = Math.max(8, currentFontSize - 1);
     editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}px` }).run();
   };
 
   const handleFontSizeChange = (value: string) => {
+    if (!editor) return;
     const num = parseInt(value, 10);
     if (!isNaN(num) && num >= 8 && num <= 72) {
       setInputFontSize(value);
@@ -125,17 +130,20 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
   };
 
   const handleFontSizeSelect = (size: number) => {
+    if (!editor) return;
     setInputFontSize(String(size));
     editor.chain().focus().setMark("textStyle", { fontSize: `${size}px` }).run();
     setFontSizeDropdown(false);
   };
 
   const handleLineHeightSelect = (value: string) => {
+    if (!editor) return;
     editor.chain().focus().setMark("textStyle", { lineHeight: value }).run();
     setLineDropdown(false);
   };
 
   const handleFormatPainterClick = () => {
+    if (!editor) return;
     if (formatPainterActive) {
       // If already active, deactivate
       setFormatPainterActive(false);
@@ -159,9 +167,9 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
   };
 
   const applyCopiedFormatting = () => {
-    if (!copiedFormatting || !formatPainterActive) return;
+    if (!copiedFormatting || !formatPainterActive || !editor) return;
 
-    editor.chain().focus().setMark("textStyle", {
+    const chain = editor.chain().focus().setMark("textStyle", {
       fontFamily: copiedFormatting.fontFamily,
       fontSize: copiedFormatting.fontSize,
       fontWeight: copiedFormatting.fontWeight,
@@ -171,83 +179,87 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
     });
 
     if (copiedFormatting.textAlign) {
-      editor.chain().focus().setTextAlign(copiedFormatting.textAlign);
+      chain.setTextAlign(copiedFormatting.textAlign);
     }
 
-    editor.chain().focus().run();
+    chain.run();
+
     setFormatPainterActive(false);
     setCopiedFormatting(null);
   };
 
-  // Handle format painter application on selection
+  // Handle format painter application on text selection via mouseup
   useEffect(() => {
-    if (!editor || !formatPainterActive) return;
+    if (!formatPainterActive || !editor) return;
 
-    const handleSelection = () => {
-      if (formatPainterActive && copiedFormatting) {
+    const editorEl = editor.view.dom;
+
+    const handleMouseUp = () => {
+      const { from, to } = editor.state.selection;
+      if (from !== to) {
+        // Only apply if user has actually selected text
         applyCopiedFormatting();
       }
     };
 
-    editor.on('selectionUpdate', handleSelection);
-
-    return () => {
-      editor.off('selectionUpdate', handleSelection);
-    };
+    editorEl.addEventListener("mouseup", handleMouseUp);
+    return () => editorEl.removeEventListener("mouseup", handleMouseUp);
   }, [editor, formatPainterActive, copiedFormatting]);
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap bg-[var(--bg-secondary)] px-3 py-2 border-[var(--border)]">
-      {/* Headings */}
-      <HeadingSelector editor={editor} />
+      {editor && (
+        <>
+          {/* Headings */}
+          <HeadingSelector editor={editor} />
 
-      <div className="h-5 w-px bg-[var(--border)] mx-1" />
+          <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
-      {/* Basic formatting */}
-      <ToolbarButton 
-        onClick={() => editor.chain().focus().toggleBold().run()} 
-        active={editor.isActive("bold")} 
-        title="Bold (Ctrl+B)"
-      >
-        <Bold size={18} />
-      </ToolbarButton>
-      <ToolbarButton 
-        onClick={() => editor.chain().focus().toggleItalic().run()} 
-        active={editor.isActive("italic")} 
-        title="Italic (Ctrl+I)"
-      >
-        <Italic size={18} />
-      </ToolbarButton>
-      <ToolbarButton 
-        onClick={() => editor.chain().focus().toggleUnderline().run()} 
-        active={editor.isActive("underline")} 
-        title="Underline (Ctrl+U)"
-      >
-        <Underline size={18} />
-      </ToolbarButton>
-      <ToolbarButton 
-        onClick={() => editor.chain().focus().toggleStrike().run()} 
-        active={editor.isActive("strike")} 
-        title="Strikethrough"
-      >
-        <Strikethrough size={18} />
-      </ToolbarButton>
+          {/* Basic formatting */}
+          <ToolbarButton 
+            onClick={() => editor.chain().focus().toggleBold().run()} 
+            active={editor.isActive("bold")} 
+            title="Bold (Ctrl+B)"
+          >
+            <Bold size={18} />
+          </ToolbarButton>
+          <ToolbarButton 
+            onClick={() => editor.chain().focus().toggleItalic().run()} 
+            active={editor.isActive("italic")} 
+            title="Italic (Ctrl+I)"
+          >
+            <Italic size={18} />
+          </ToolbarButton>
+          <ToolbarButton 
+            onClick={() => editor.chain().focus().toggleUnderline().run()} 
+            active={editor.isActive("underline")} 
+            title="Underline (Ctrl+U)"
+          >
+            <Underline size={18} />
+          </ToolbarButton>
+          <ToolbarButton 
+            onClick={() => editor.chain().focus().toggleStrike().run()} 
+            active={editor.isActive("strike")} 
+            title="Strikethrough"
+          >
+            <Strikethrough size={18} />
+          </ToolbarButton>
 
-      <div className="h-5 w-px bg-[var(--border)] mx-1" />
+          <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
-      {/* Format Painter */}
-      <ToolbarButton 
-        onClick={handleFormatPainterClick} 
-        active={formatPainterActive}
-        title={formatPainterActive ? "Click to apply copied formatting" : "Format Painter - Copy formatting"}
-      >
-        <Paintbrush size={18} />
-      </ToolbarButton>
+          {/* Format Painter */}
+          <ToolbarButton 
+            onClick={handleFormatPainterClick} 
+            active={formatPainterActive}
+            title={formatPainterActive ? "Click to apply copied formatting" : "Format Painter - Copy formatting"}
+          >
+            <Paintbrush size={18} />
+          </ToolbarButton>
 
-      <div className="relative" ref={fontFamilyContainerRef}>
-        <button
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
-          type="button"
+          <div className="relative" ref={fontFamilyContainerRef}>
+            <button
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
+              type="button"
           onClick={() => setFontDropdown((f) => !f)}
           style={{ fontFamily: currentFont.value || undefined }}
         >
@@ -385,6 +397,8 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
 
       {/* Alignment */}
       <AlignmentGroup editor={editor} />
+        </>
+      )}
 
       <div className="flex-1" />
 

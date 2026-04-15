@@ -66,24 +66,6 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       }
     }, [content, editor]);
 
-    // Apply default font settings from document settings
-    useEffect(() => {
-      if (!editor) return;
-
-      editor
-        .chain()
-        .focus()
-        .selectAll()
-        .setMark("textStyle", {
-          fontFamily: settings.defaultFont,
-          fontSize: `${settings.defaultFontSize}px`,
-        })
-        .setTextAlign(settings.defaultAlignment)
-        .run();
-
-      editor.chain().focus("end").run();
-    }, [editor, settings]);
-
     if (!editor) return null;
 
     return (
