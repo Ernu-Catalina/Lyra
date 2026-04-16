@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
-import { useDocumentSettings, type DocumentSettings, applyPageStyles } from "../../context/DocumentSettingsContext";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useDocumentSettings, type DocumentSettings } from "../../context/DocumentSettingsContext";
 
 interface SceneEditorPageViewProps {
   children: ReactNode;
@@ -14,160 +13,199 @@ const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; heig
   Custom: { width: 210, height: 297 },
 };
 
+const MM_TO_PX = 3.7795275591;
+
+function mmToPx(mm: number) {
+  return mm * MM_TO_PX;
+}
+
+function convertToMm(value: number, unit: "mm" | "cm" | "in") {
+  if (unit === "cm") return value * 10;
+  if (unit === "in") return value * 25.4;
+  return value;
+}
+
 export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const pageContainerRef = useRef<HTMLDivElement>(null);
   const { settings } = useDocumentSettings();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pageCount, setPageCount] = useState(1);
+  const [scale, setScale] = useState(1);
 
-  const pageSize = settings.paperFormat === "Custom" ? { width: settings.customWidth, height: settings.customHeight } : PAPER_SIZES[settings.paperFormat];
+  const paperSize =
+    settings.paperFormat === "Custom"
+      ? { width: settings.customWidth, height: settings.customHeight }
+      : PAPER_SIZES[settings.paperFormat];
 
-  // Apply margin and print size settings when they change
+  const marginTopMm = convertToMm(settings.marginTop, settings.marginUnit);
+  const marginBottomMm = convertToMm(settings.marginBottom, settings.marginUnit);
+  const marginLeftMm = convertToMm(settings.marginLeft, settings.marginUnit);
+  const marginRightMm = convertToMm(settings.marginRight, settings.marginUnit);
+
+  const pageWidthPx = mmToPx(paperSize.width);
+  const pageHeightPx = mmToPx(paperSize.height);
+  const marginTopPx = mmToPx(marginTopMm);
+  const marginBottomPx = mmToPx(marginBottomMm);
+  const marginLeftPx = mmToPx(marginLeftMm);
+  const marginRightPx = mmToPx(marginRightMm);
+
   useEffect(() => {
-    if (!pageContainerRef.current) return;
+    const el = contentRef.current;
+    if (!el) return;
 
-    const convertToMm = (value: number, unit: "mm" | "cm" | "in"): number => {
-      switch (unit) {
-        case "cm": return value * 10;
-        case "in": return value * 25.4;
-        default: return value;
-      }
-    };
+    const observer = new ResizeObserver(() => {
+      const rawContentHeight = el.scrollHeight;
+      // Subtract the gap padding that was added to bottom
+      const actualContentHeight = rawContentHeight - (pageCount - 1) * GAP;
+      const usablePageHeight = pageHeightPx - marginTopPx - marginBottomPx;
+      const pages = Math.max(1, Math.ceil(actualContentHeight / usablePageHeight));
+      setPageCount(pages);
+    });
 
-    const marginTopMm = convertToMm(settings.marginTop, settings.marginUnit);
-    const marginBottomMm = convertToMm(settings.marginBottom, settings.marginUnit);
-    const marginLeftMm = convertToMm(settings.marginLeft, settings.marginUnit);
-    const marginRightMm = convertToMm(settings.marginRight, settings.marginUnit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageHeightPx, marginTopPx, marginBottomPx, pageCount]);
 
-    const element = pageContainerRef.current;
-    element.style.paddingTop = `${marginTopMm}mm`;
-    element.style.paddingBottom = `${marginBottomMm}mm`;
-    element.style.paddingLeft = `${marginLeftMm}mm`;
-    element.style.paddingRight = `${marginRightMm}mm`;
-    element.style.setProperty("--print-width", `${pageSize.width}mm`);
-    element.style.setProperty("--print-height", `${pageSize.height}mm`);
-  }, [settings.marginTop, settings.marginBottom, settings.marginLeft, settings.marginRight, settings.marginUnit, pageSize.width, pageSize.height]);
+  const GAP = 24;
+  const totalHeight = pageCount * pageHeightPx + (pageCount - 1) * GAP;
 
-  // BUG FIX 1: Re-apply page styles whenever settings change to persist after re-renders
-  useEffect(() => {
-    applyPageStyles(settings);
-  }, [settings]);
+  const scaledWidth = pageWidthPx * scale;
+  const scaledTotalHeight = totalHeight * scale;
 
   return (
-    <div 
-      className="editor-scroll-area"
+    <div
+      style={{
+        minHeight: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "40px 20px",
+        boxSizing: "border-box",
+      }}
     >
-      <div 
-        ref={containerRef}
-        className="w-full max-w-[1200px] text-[var(--text-primary)]"
-      >
-        {/* Main A4 Page Container */}
-        <div 
-          ref={pageContainerRef}
-          className="bg-white rounded-sm shadow-2xl page-container"
+      {/* Outer div reserves the scaled screen space */}
+      <div style={{ width: scaledWidth, height: scaledTotalHeight, position: "relative" }}>
+        {/* Inner div is rendered at 100% then scaled via CSS transform */}
+        <div
           style={{
-            width: `${pageSize.width}mm`,
-            minHeight: `${pageSize.height}mm`,
-            margin: "0 auto",
-            boxSizing: "border-box",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: pageWidthPx,
+            height: totalHeight,
+            transformOrigin: "top left",
+            transform: `scale(${scale})`,
           }}
         >
-          <div className="w-full h-full text-[var(--text-primary)] break-words">
+          {/* Page backgrounds */}
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                top: i * (pageHeightPx + GAP),
+                left: 0,
+                width: pageWidthPx,
+                height: pageHeightPx,
+                background: "white",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                borderRadius: 2,
+                pointerEvents: "none",
+              }}
+            />
+          ))}
+
+          {/* Gap covers — grey bars that sit on top of content in gap regions */}
+          {Array.from({ length: pageCount - 1 }).map((_, i) => (
+            <div key={`gap-${i}`} style={{
+              position: "absolute",
+              top: (i + 1) * pageHeightPx + i * GAP,
+              left: -40,                          // extend beyond page edges
+              width: pageWidthPx + 80,
+              height: GAP,
+              background: "#C8C8C8",              // same as scroll area background
+              zIndex: 2,
+              pointerEvents: "none",
+            }} />
+          ))}
+
+          {/* Editor content — single instance, flows continuously, gaps are masked above it */}
+          <div
+            ref={contentRef}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: pageWidthPx,
+              zIndex: 1,
+              boxSizing: "border-box",
+              paddingTop: marginTopPx,
+              paddingLeft: marginLeftPx,
+              paddingRight: marginRightPx,
+              // Bottom padding accounts for all gaps so content shifts down correctly
+              paddingBottom: marginBottomPx + (pageCount - 1) * GAP,
+              fontFamily: settings.defaultFont,
+              fontSize: `${settings.defaultFontSize}px`,
+            }}
+          >
             {children}
           </div>
         </div>
       </div>
 
-      <style>{`
-        /* Print Styles - Critical for proper pagination */
-        @media print {
-          .page-container {
-            page-break-after: always;
-            break-inside: avoid;
-            margin: 0;
-            width: var(--print-width);
-            height: var(--print-height);
-            border: none;
-            box-shadow: none;
-            border-radius: 0;
-          }
-
-          .ProseMirror {
-            orphans: 3;
-            widows: 3;
-          }
-
-          .ProseMirror h1,
-          .ProseMirror h2,
-          .ProseMirror h3,
-          .ProseMirror h4 {
-            page-break-after: avoid;
-          }
-
-          .ProseMirror img {
-            max-width: 100%;
-            height: auto;
-            page-break-inside: avoid;
-          }
-
-          .ProseMirror ul,
-          .ProseMirror ol {
-            page-break-inside: avoid;
-          }
-
-          .ProseMirror li {
-            page-break-inside: avoid;
-          }
-        }
-
-        /* Screen Display - Proper pagination visualization */
-        .page-container {
-          display: flex;
-          flex-direction: column;
-          overflow: visible;
-        }
-
-        .page-container > div {
-          flex: 1;
-          overflow: visible;
-          display: flex;
-          flex-direction: column;
-        }
-
-        /* Remove any borders from editor content */
-        .ProseMirror {
-          outline: none;
-          border: none;
-          white-space: pre-wrap;
-          word-break: break-word;
-          overflow-wrap: break-word;
-          hyphens: auto;
-        }
-
-        /* Prevent breaks inside headings and images */
-        .ProseMirror h1,
-        .ProseMirror h2,
-        .ProseMirror h3,
-        .ProseMirror h4,
-        .ProseMirror img,
-        .ProseMirror blockquote {
-          break-inside: avoid;
-          page-break-inside: avoid;
-        }
-
-        /* Handle long words */
-        .ProseMirror {
-          word-wrap: break-word;
-          -webkit-hyphens: auto;
-          -moz-hyphens: auto;
-          hyphens: auto;
-        }
-
-        /* Ensure paragraphs don't break awkwardly */
-        .ProseMirror p {
-          break-inside: avoid-page;
-          page-break-inside: avoid;
-        }
-      `}</style>
+      {/* Zoom controls — unchanged */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 40,
+          left: "calc(300px + 16px)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          padding: "4px 10px",
+          zIndex: 30,
+          fontSize: 13,
+          color: "var(--text-secondary)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+          userSelect: "none",
+        }}
+      >
+        <button
+          onClick={() => setScale((s) => Math.max(0.25, Math.round((s - 0.1) * 10) / 10))}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 16,
+            color: "var(--text-primary)",
+            padding: "0 4px",
+            lineHeight: 1,
+          }}
+          title="Zoom out"
+        >
+          −
+        </button>
+        <span style={{ minWidth: 40, textAlign: "center" }}>
+          {Math.round(scale * 100)}%
+        </span>
+        <button
+          onClick={() => setScale((s) => Math.min(2, Math.round((s + 0.1) * 10) / 10))}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 16,
+            color: "var(--text-primary)",
+            padding: "0 4px",
+            lineHeight: 1,
+          }}
+          title="Zoom in"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

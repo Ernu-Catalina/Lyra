@@ -143,36 +143,14 @@
   padding-bottom: 2em;
 }
 
-/* BUG FIX 2: Pagination and Scroll Area Styling */
-.editor-scroll-area {
-  background: #c8c8c8;
-  padding: 40px 20px;
-  overflow-y: auto;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.page-container {
-  background: white;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.16);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  width: min-content;
-  margin-bottom: 40px;
-}
-
-.page-container > div {
-  flex: 1;
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
-}
-
 /* Print Styles */
+
+.ProseMirror {
+  min-height: 200px;
+  outline: none;
+  border: none;
+}
+
 @media print {
   .ProseMirror {
     color: #000;

@@ -8,7 +8,6 @@ import FontFamily from "@tiptap/extension-font-family";
 import { FontSize } from "../../extensions/FontSize";
 import { Indentation } from "../../extensions/Indentation";
 import { HeadingWithSize } from "../../extensions/HeadingWithSize";
-import { useDocumentSettings } from "../../context/DocumentSettingsContext";
 
 interface SceneEditorProps {
   content: string; // now always HTML string
@@ -19,8 +18,6 @@ interface SceneEditorProps {
 
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
   ({ content, onChange, editable = true, onEditorReady }, ref) => {
-    const { settings } = useDocumentSettings();
-
     const editor = useEditor({
       extensions: [
         StarterKit.configure({ 
@@ -68,18 +65,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
 
     if (!editor) return null;
 
-    return (
-      <div
-        style={{
-          fontFamily: settings.defaultFont,
-          fontSize: `${settings.defaultFontSize}px`,
-          textAlign: settings.defaultAlignment,
-          minHeight: "100%",
-        }}
-      >
-        <EditorContent editor={editor} />
-      </div>
-    );
+    return <EditorContent editor={editor} />;
   }
 );
 

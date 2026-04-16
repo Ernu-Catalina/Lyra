@@ -25,13 +25,17 @@ export function EditorLayout({ sidebar, toolbar, editor, footer }: EditorLayoutP
         )}
 
         {/* Editor content – scrollable */}
-        <main className="flex-1 overflow-y-auto p-1">{editor}</main>
+        <main id="editor-scroll-area" className="flex-1 overflow-y-auto bg-[#C8C8C8]">
+          {editor}
+        </main>
 
         {/* Footer – word count etc. */}
         {footer && (
           <footer className="border-t border-[var(--border)] bg-[var(--bg-secondary)] text-sm text-[var(--text-secondary)]">
-            <div className="max-w-4xl mx-auto px-6 py-3 text-center">
-              {footer}
+            <div className="flex items-center justify-between px-4 py-2">
+              <div id="footer-left" />
+              <div className="text-center">{footer}</div>
+              <div id="footer-right" />
             </div>
           </footer>
         )}

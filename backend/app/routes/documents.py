@@ -59,7 +59,17 @@ async def get_owned_document(
         "project_id": ensure_objectid(project_id)
     })
 
-    return serialize_mongo(document) if document else None
+    if not document:
+        return None
+
+    if "settings" not in document:
+        await documents_collection.update_one(
+            {"_id": ensure_objectid(document_id)},
+            {"$set": {"settings": {}}}
+        )
+        document["settings"] = {}
+
+    return serialize_mongo(document)
 
 
 # ────────────────────────────────────────────────
@@ -505,7 +515,27 @@ async def get_document_settings(
     if not document:
         raise HTTPException(404, "Document not found or not owned")
 
-    settings = document.get("settings", {})
+    DEFAULT_SETTINGS = {
+        "marginTop": 2.5,
+        "marginBottom": 2.5,
+        "marginLeft": 2.5,
+        "marginRight": 2.5,
+        "marginUnit": "cm",
+        "paperFormat": "A4",
+        "customWidth": 210,
+        "customHeight": 297,
+        "defaultAlignment": "left",
+        "defaultFont": "Arial, sans-serif",
+        "defaultFontSize": 12,
+        "chapterTitleFormat": "chapter-number-title",
+        "chapterTitleSize": 16,
+        "chapterTitleAlignment": "center",
+        "chapterTitleStyle": "bold",
+        "blankLinesAfterChapter": 2,
+        "pageBreakAfterChapter": True,
+    }
+
+    settings = document.get("settings") or DEFAULT_SETTINGS
     return {"settings": settings}
 
 
