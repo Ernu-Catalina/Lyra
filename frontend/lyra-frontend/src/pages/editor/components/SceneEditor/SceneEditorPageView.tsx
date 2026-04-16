@@ -28,6 +28,7 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
 export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
   const { settings } = useDocumentSettings();
   const contentRef = useRef<HTMLDivElement>(null);
+  const previousPageCountRef = useRef(1);
   const [pageCount, setPageCount] = useState(1);
   const [scale, setScale] = useState(1);
 
@@ -48,24 +49,30 @@ export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
   const marginLeftPx = mmToPx(marginLeftMm);
   const marginRightPx = mmToPx(marginRightMm);
 
+  const GAP = 24;
+
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
 
     const observer = new ResizeObserver(() => {
       const rawContentHeight = el.scrollHeight;
-      // Subtract the gap padding that was added to bottom
-      const actualContentHeight = rawContentHeight - (pageCount - 1) * GAP;
+      // Subtract the gap padding using previousPageCountRef to avoid feedback loop
+      const actualContentHeight = rawContentHeight - (previousPageCountRef.current - 1) * GAP;
       const usablePageHeight = pageHeightPx - marginTopPx - marginBottomPx;
       const pages = Math.max(1, Math.ceil(actualContentHeight / usablePageHeight));
-      setPageCount(pages);
+      
+      // Only update if pages differ from current to prevent oscillation
+      if (pages !== pageCount) {
+        setPageCount(pages);
+        previousPageCountRef.current = pages;
+      }
     });
 
     observer.observe(el);
     return () => observer.disconnect();
   }, [pageHeightPx, marginTopPx, marginBottomPx, pageCount]);
 
-  const GAP = 24;
   const totalHeight = pageCount * pageHeightPx + (pageCount - 1) * GAP;
 
   const scaledWidth = pageWidthPx * scale;
