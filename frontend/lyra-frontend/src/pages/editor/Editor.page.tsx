@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import api from "../../api/client";
@@ -13,12 +13,14 @@ import { ChapterEditorView } from "./components/ChapterEditorView";
 import { useDocumentOutline } from "./hooks/useDocumentOutline";
 import { useActiveScene } from "./hooks/useActiveScene";
 import { useAutosaveScene } from "./hooks/useAutosaveScene";
+import { useFullscreen } from "./hooks/useFullscreen";
 import { countWordsFromHtml } from "./utils/wordcount";
 import { composeChapter } from "./utils/chapterComposer";
 import type { Editor } from "@tiptap/react";
 import { formatWordCount } from "./utils/wordcount";
 import { DocumentOutline } from "../../types/document";
 import { WordCountFooter } from "./components/WordCountFooter";
+import { EditorFooter } from "./components/EditorFooter";
 import { DocumentEditorView } from "./components/DocumentEditorView";
 import "./styles/editor.css";
 
@@ -59,6 +61,13 @@ export default function EditorPage() {
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
   const [projectName, setProjectName] = useState<string>("Loading...");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const editorLayoutRef = useRef<HTMLDivElement>(null);
+
+  // Setup fullscreen functionality
+  const toggleFullscreen = useFullscreen(editorLayoutRef, isFullscreen, setIsFullscreen);
+
   const [userSettings, setUserSettings] = useState<{
   wordcountDisplay: string[];
   sceneFormat: string;
@@ -440,25 +449,29 @@ useEffect(() => {
   return (
     <DocumentSettingsProvider projectId={projectId} documentId={documentId}>
       <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
-        {/* Navigation Bar – fixed at top */}
-        <NavigationBar
-          title={projectName}
-          onLogout={() => {
-            logout();
-            navigate("/login");
-          }}
-          onSettings={() => navigate("/settings")}
-          isEditorView={true}
-          onExport={() => {
-            console.log("Export clicked – implement document export here");
-            // Future: generate PDF/DOCX/JSON export
-          }}
-          saveStatus={saveStatus}
-          saveMessage={saveMessage}
-        />
+        {/* Navigation Bar – hidden in fullscreen */}
+        {!isFullscreen && (
+          <NavigationBar
+            title={projectName}
+            onLogout={() => {
+              logout();
+              navigate("/login");
+            }}
+            onSettings={() => navigate("/settings")}
+            isEditorView={true}
+            onExport={() => {
+              console.log("Export clicked – implement document export here");
+              // Future: generate PDF/DOCX/JSON export
+            }}
+            saveStatus={saveStatus}
+            saveMessage={saveMessage}
+          />
+        )}
 
         {/* Rest of editor content */}
         <EditorLayout
+          ref={editorLayoutRef}
+          isFullscreen={isFullscreen}
           sidebar={
             <Sidebar
               title={outline.title}
@@ -481,7 +494,7 @@ useEffect(() => {
           toolbar={<EditorToolbar editor={editorInstance} onSettingsApplied={reloadOutline} />}
           editor={
             editorMode === "scene" ? (
-              <SceneEditorPageView>
+              <SceneEditorPageView scale={scale}>
                 <SceneEditor
                   content={sceneContent}
                   onChange={(html) => {
@@ -514,11 +527,14 @@ useEffect(() => {
             )
           }
           footer={
-            parts.length > 0 ? (
-              <div>
-                {parts.join(" | ")}
-              </div>
-            ) : null
+            <EditorFooter
+              wordCountText={parts.length > 0 ? parts.join(" | ") : null}
+              scale={scale}
+              onScaleChange={setScale}
+              editorMode={editorMode}
+              isFullscreen={isFullscreen}
+              onFullscreenToggle={toggleFullscreen}
+            />
           }
         />
         {/* Temporary warning overlay */}

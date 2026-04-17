@@ -3,6 +3,7 @@ import { useDocumentSettings, type DocumentSettings } from "../../context/Docume
 
 interface SceneEditorPageViewProps {
   children: ReactNode;
+  scale?: number;
 }
 
 const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; height: number }> = {
@@ -25,11 +26,10 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
   return value;
 }
 
-export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
+export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageViewProps) {
   const { settings } = useDocumentSettings();
   const contentRef = useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = useState(1);
-  const [scale, setScale] = useState(1);
 
   const paperSize =
     settings.paperFormat === "Custom"
@@ -152,60 +152,7 @@ export function SceneEditorPageView({ children }: SceneEditorPageViewProps) {
         </div>
       </div>
 
-      {/* Zoom controls — unchanged */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 40,
-          left: "calc(300px + 16px)",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          padding: "4px 10px",
-          zIndex: 30,
-          fontSize: 13,
-          color: "var(--text-secondary)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-          userSelect: "none",
-        }}
-      >
-        <button
-          onClick={() => setScale((s) => Math.max(0.25, Math.round((s - 0.1) * 10) / 10))}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 16,
-            color: "var(--text-primary)",
-            padding: "0 4px",
-            lineHeight: 1,
-          }}
-          title="Zoom out"
-        >
-          −
-        </button>
-        <span style={{ minWidth: 40, textAlign: "center" }}>
-          {Math.round(scale * 100)}%
-        </span>
-        <button
-          onClick={() => setScale((s) => Math.min(2, Math.round((s + 0.1) * 10) / 10))}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 16,
-            color: "var(--text-primary)",
-            padding: "0 4px",
-            lineHeight: 1,
-          }}
-          title="Zoom in"
-        >
-          +
-        </button>
-      </div>
+      {/* Zoom controls removed – now in EditorFooter component */}
     </div>
   );
 }
