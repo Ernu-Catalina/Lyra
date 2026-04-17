@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import api from "../../../api/client";
 
 export interface DocumentSettings {
@@ -73,7 +73,9 @@ const DEFAULT_SETTINGS: DocumentSettings = {
 
 interface DocumentSettingsContextType {
   settings: DocumentSettings;
-  updateSettings: (settings: DocumentSettings) => void;
+  updateSettings: (settings: DocumentSettings, skipBackendSave?: boolean) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const DocumentSettingsContext = createContext<DocumentSettingsContextType | undefined>(undefined);
@@ -88,50 +90,98 @@ export function DocumentSettingsProvider({
   documentId?: string;
 }) {
   const [settings, setSettings] = useState<DocumentSettings>(DEFAULT_SETTINGS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!projectId || !documentId) return;
+  const loadSettings = useCallback(async () => {
+    if (!projectId || !documentId) {
+      setSettings(DEFAULT_SETTINGS);
+      setIsLoading(false);
+      return;
+    }
 
-    const loadSettings = async () => {
-      try {
-        const response = await api.get(`/projects/${projectId}/documents/${documentId}/settings`);
-        const backendSettings = response.data.settings;
+    setIsLoading(true);
+    setError(null);
 
-        if (backendSettings && Object.keys(backendSettings).length > 0) {
-          const merged = { ...DEFAULT_SETTINGS, ...backendSettings };
-          setSettings(merged);
-          applyPageStyles(merged);
-          localStorage.setItem("lyra-document-settings", JSON.stringify(merged));
-          return;
-        }
-      } catch (error) {
-        console.error("Failed to load document settings from backend:", error);
+    try {
+      // Fetch settings from backend (single source of truth)
+      const response = await api.get(`/projects/${projectId}/documents/${documentId}/settings`);
+      const backendSettings = response.data.settings;
+
+      if (backendSettings && Object.keys(backendSettings).length > 0) {
+        const merged = { ...DEFAULT_SETTINGS, ...backendSettings };
+        setSettings(merged);
+        applyPageStyles(merged);
+        return;
       }
 
-      const stored = localStorage.getItem("lyra-document-settings");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const merged = { ...DEFAULT_SETTINGS, ...parsed };
-          setSettings(merged);
-          applyPageStyles(merged);
-        } catch (e) {
-          console.error("Failed to load document settings from localStorage:", e);
-        }
-      }
-    };
-
-    loadSettings();
+      // No settings on backend, use defaults
+      setSettings(DEFAULT_SETTINGS);
+      applyPageStyles(DEFAULT_SETTINGS);
+    } catch (err: any) {
+      console.error("Failed to load document settings from backend:", err);
+      setError("Failed to load document settings");
+      // Fallback to defaults on error
+      setSettings(DEFAULT_SETTINGS);
+      applyPageStyles(DEFAULT_SETTINGS);
+    } finally {
+      setIsLoading(false);
+    }
   }, [projectId, documentId]);
 
-  const updateSettings = (newSettings: DocumentSettings) => {
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  // FIX: updateSettings now persists to backend immediately (not just localStorage)
+  const updateSettings = useCallback(async (newSettings: DocumentSettings, skipBackendSave = false) => {
+    // DEBUG - remove after verification
+    console.log("=== updateSettings CALLED with ===", newSettings);
+    console.log("=== Context has projectId:", projectId, "documentId:", documentId);
+
+    // Always apply locally first for immediate UI feedback
     setSettings(newSettings);
     applyPageStyles(newSettings);
-    localStorage.setItem("lyra-document-settings", JSON.stringify(newSettings));
-  };
+
+    // If skipBackendSave is true, only update local state (used during form input)
+    if (skipBackendSave) {
+      console.log("=== skipBackendSave is true, not persisting to backend");
+      return;
+    }
+
+    // Persist to backend if we have a projectId and documentId
+    if (!projectId || !documentId) {
+      console.error("❌ Cannot save document settings: missing projectId or documentId", { projectId, documentId });
+      setError("Cannot save: missing document context");
+      throw new Error("Missing projectId or documentId");
+    }
+
+    try {
+      setError(null);
+      const url = `/projects/${projectId}/documents/${documentId}/settings`;
+      console.log("=== SENDING PATCH to", url, "with body", newSettings);
+      
+      const response = await api.patch(url, newSettings);
+      
+      console.log("=== PATCH SUCCESS ===", response.data);
+      // Settings saved successfully
+    } catch (err: any) {
+      console.error("❌ Failed to save document settings to backend:", err);
+      const errorMsg = err.response?.data?.detail || err.message || "Failed to save document settings";
+      setError(errorMsg);
+      throw err; // Re-throw so caller can handle error
+    }
+  }, [documentId, projectId]);
+
+  const contextValue = useMemo(() => ({
+    settings,
+    updateSettings,
+    isLoading,
+    error,
+  }), [settings, updateSettings, isLoading, error]);
 
   return (
-    <DocumentSettingsContext.Provider value={{ settings, updateSettings }}>
+    <DocumentSettingsContext.Provider value={contextValue}>
       {children}
     </DocumentSettingsContext.Provider>
   );

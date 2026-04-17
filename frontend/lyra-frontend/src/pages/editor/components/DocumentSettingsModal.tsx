@@ -52,9 +52,12 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
     setTempSettings(settings);
   }, [settings]);
 
-  // Close on outside click
+  // Close on outside click unless the warning confirmation is open
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      if (showWarning) {
+        return;
+      }
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -62,7 +65,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
+  }, [onClose, showWarning]);
 
   const convertToMm = (value: number, unit: "mm" | "cm" | "in"): number => {
     switch (unit) {
@@ -85,6 +88,11 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
   };
 
   const handleConfirmSave = async () => {
+    // DEBUG - remove after verification
+    console.log("=== SAVE BUTTON CLICKED ===");
+    console.log("=== tempSettings ===", tempSettings);
+    console.log("=== context updateSettings function exists:", typeof updateSettings === "function");
+    
     if (!projectId || !documentId) {
       setError("Unable to save settings without a valid project or document.");
       setShowWarning(false);
@@ -95,16 +103,26 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
     setError(null);
 
     try {
-      await api.patch(`/projects/${projectId}/documents/${documentId}/settings`, tempSettings);
-      await api.post(`/projects/${projectId}/documents/${documentId}/apply-settings`);
-      updateSettings(tempSettings);
+      // FIX: updateSettings now handles backend persistence and will throw on failure
+      console.log("=== Calling updateSettings...");
+      await updateSettings(tempSettings);
+      console.log("=== updateSettings completed successfully");
+      
+      // Optionally apply settings to existing content
+      try {
+        await api.post(`/projects/${projectId}/documents/${documentId}/apply-settings`);
+      } catch (applyErr) {
+        console.warn("Could not apply settings to document content:", applyErr);
+        // Don't fail the entire operation if apply fails
+      }
+
       applyPageStyles(tempSettings);
       setShowWarning(false);
       onSettingsApplied?.();
       onClose();
     } catch (err: any) {
       console.error("Failed to save document settings", err);
-      setError(err?.response?.data?.detail || "Failed to save document settings. Please try again.");
+      setError(err?.response?.data?.detail || err.message || "Failed to save document settings. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -519,12 +537,14 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
         {/* Footer */}
         <div className="sticky bottom-0 flex justify-end gap-3 bg-[var(--bg-secondary)] border-t border-[var(--border)] px-6 py-4">
           <button
+            type="button"
             onClick={handleCancel}
             className="px-4 py-2 rounded border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSave}
             className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors font-medium"
           >
@@ -544,12 +564,14 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
             </p>
             <div className="flex justify-end gap-3">
               <button
+                type="button"
                 onClick={() => setShowWarning(false)}
                 className="px-4 py-2 rounded border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmSave}
                 disabled={saving}
                 className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60"

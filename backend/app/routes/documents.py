@@ -111,6 +111,7 @@ async def create_document(
         "updated_at": datetime.utcnow(),
         "total_wordcount": 0,
         "chapters": [] if data.type != "folder" else None,
+        "settings": {},  # FIX: Initialize empty settings object for new documents
     }
 
     result = await documents_collection.insert_one(document)
@@ -490,16 +491,29 @@ async def update_document_settings(
     settings: DocumentSettings,
     user_id=Depends(get_current_user)
 ):
+    print("=== PATCH /settings RECEIVED ===")
+    print(f"=== project_id: {project_id}, document_id: {document_id}")
+    print(f"=== Incoming settings: {settings}")
+    
     document = await get_owned_document(user_id, project_id, document_id)
     if not document:
+        print(f"❌ Document not found or not owned")
         raise HTTPException(404, "Document not found or not owned")
 
-    await documents_collection.update_one(
+    settings_dict = settings.model_dump()
+    print(f"=== settings.model_dump(): {settings_dict}")
+    
+    result = await documents_collection.update_one(
         {"_id": ObjectId(document_id), "project_id": ObjectId(project_id)},
-        {"$set": {"settings": settings.model_dump(), "updated_at": datetime.utcnow()}}
+        {"$set": {"settings": settings_dict, "updated_at": datetime.utcnow()}}
     )
+    
+    print(f"=== MongoDB update result: matched={result.matched_count}, modified={result.modified_count}")
 
-    return {"message": "Document settings updated", "settings": settings.model_dump()}
+    if result.modified_count == 0:
+        print("❌ Document was not modified (matched but not updated)")
+    
+    return {"message": "Document settings updated", "settings": settings_dict}
 
 
 # ────────────────────────────────────────────────
