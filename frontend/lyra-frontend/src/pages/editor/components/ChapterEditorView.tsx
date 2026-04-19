@@ -24,7 +24,7 @@ export function ChapterEditorView({
   const htmlContent = initialContent ?? composeChapter(chapter.scenes);
 
   const { html: chapterTitleText, style: chapterTitleStyle } = formatChapterTitle(
-    chapter.order,
+    chapter.order + 1,
     chapter.title,
     settings
   );
