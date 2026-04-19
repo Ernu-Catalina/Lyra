@@ -6,12 +6,6 @@ interface SceneEditorPageViewProps {
   scale?: number;
 }
 
-/**
- * Base font size calibration for Google Docs visual match.
- * Current value: 1.35
- * Increase to 1.40–1.45 if default text is still too small.
- * This only affects default text. Toolbar changes (px) remain fully functional.
- */
 const VISUAL_CORRECTION = 1;
 
 const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; height: number }> = {
@@ -155,20 +149,23 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
             ref={contentRef}
             className="page-container"
             style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: `${pageWidthMm}mm`,
-              zIndex: 1,
-              boxSizing: "border-box",
-              paddingTop: `${marginTopMm}mm`,
-              paddingLeft: `${marginLeftMm}mm`,
-              paddingRight: `${marginRightMm}mm`,
-              paddingBottom: `${marginBottomMm + (pageCount - 1) * GAP_MM}mm`,
-              fontFamily: settings.defaultFont,
-              fontSize: `${correctedFontSize}pt`,
-              textAlign: settings.defaultAlignment,
-            }}
+             position: "absolute",
+             top: 0,
+             left: 0,
+             width: `${pageWidthMm}mm`,
+             zIndex: 1,
+             boxSizing: "border-box",
+             paddingTop: `${marginTopMm}mm`,
+             paddingLeft: `${marginLeftMm}mm`,
+             paddingRight: `${marginRightMm}mm`,
+             paddingBottom: `${marginBottomMm + (pageCount - 1) * GAP_MM}mm`,
+             fontFamily: settings.defaultFont,
+             fontSize: `${correctedFontSize}pt`,
+             textAlign: settings.defaultAlignment,
+             "--default-first-line-indent": settings.defaultFirstLineIndent > 0
+               ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
+               : "0",
+            } as React.CSSProperties}
           >
             {children}
           </div>

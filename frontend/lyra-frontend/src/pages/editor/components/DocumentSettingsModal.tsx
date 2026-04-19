@@ -493,33 +493,95 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
 
           {/* Spacing Options */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">Spacing Options</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                  Blank Lines After Chapter
-                </label>
-                <input
-                  type="number"
-                  value={tempSettings.blankLinesAfterChapter}
-                  onChange={(e) =>
-                    setTempSettings({ ...tempSettings, blankLinesAfterChapter: Math.max(0, Number(e.target.value)) })
-                  }
-                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
-                  min="0"
-                />
-              </div>
-              <div className="flex items-center gap-3 pt-8">
-                <input
-                  type="checkbox"
-                  checked={tempSettings.pageBreakAfterChapter}
-                  onChange={(e) => setTempSettings({ ...tempSettings, pageBreakAfterChapter: e.target.checked })}
-                  className="w-4 h-4 text-[var(--accent)]"
-                />
-                <label className="text-sm text-[var(--text-primary)]">Page break after each chapter</label>
-              </div>
-            </div>
-          </div>
+             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+               Spacing Options
+             </h3>
+                    
+             <div className="grid grid-cols-2 gap-4">
+                    
+               {/* Blank Lines After Chapter */}
+               <div>
+                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                   Blank Lines After Chapter
+                 </label>
+                 <input
+                   type="number"
+                   value={tempSettings.blankLinesAfterChapter}
+                   onChange={(e) =>
+                     setTempSettings({
+                       ...tempSettings,
+                       blankLinesAfterChapter: Math.max(0, Number(e.target.value)),
+                     })
+                   }
+                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                   min="0"
+                 />
+               </div>
+                 
+               {/* Page Break After Chapter */}
+               <div className="flex items-center gap-3 pt-7">
+                 <input
+                   type="checkbox"
+                   id="pageBreakAfterChapter"
+                   checked={tempSettings.pageBreakAfterChapter}
+                   onChange={(e) =>
+                     setTempSettings({
+                       ...tempSettings,
+                       pageBreakAfterChapter: e.target.checked,
+                     })
+                   }
+                   className="w-4 h-4 text-[var(--accent)] rounded"
+                 />
+                 <label
+                   htmlFor="pageBreakAfterChapter"
+                   className="text-sm text-[var(--text-primary)]"
+                 >
+                   Page break after each chapter
+                 </label>
+               </div>
+                 
+               {/* Default First-Line Indent — spans full width */}
+               <div className="col-span-2 pt-2 border-t border-[var(--border)]">
+                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                   Default First-Line Indent
+                 </label>
+                 <div className="flex items-center gap-2">
+                   <input
+                     type="number"
+                     step="0.1"
+                     min="0"
+                     max="10"
+                     value={tempSettings.defaultFirstLineIndent}
+                     onChange={(e) =>
+                       setTempSettings({
+                         ...tempSettings,
+                         defaultFirstLineIndent: Math.max(0, Number(e.target.value)),
+                       })
+                     }
+                     className="w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                   />
+                   <select
+                     value={tempSettings.defaultFirstLineIndentUnit}
+                     onChange={(e) =>
+                       setTempSettings({
+                         ...tempSettings,
+                         defaultFirstLineIndentUnit: e.target.value as "cm" | "in" | "mm",
+                       })
+                     }
+                     className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                   >
+                     <option value="cm">cm</option>
+                     <option value="in">in</option>
+                     <option value="mm">mm</option>
+                   </select>
+                   <span className="text-xs text-[var(--text-secondary)]">
+                     Applies to paragraphs with no manual indent
+                   </span>
+                 </div>
+               </div>
+                   
+             </div>
+           </div>
 
           {/* Info Box */}
           <div className="bg-[var(--accent)]/10 border border-[var(--accent)] rounded p-4">

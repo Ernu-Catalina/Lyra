@@ -20,6 +20,8 @@ export interface DocumentSettings {
   chapterTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
   blankLinesAfterChapter: number;
   pageBreakAfterChapter: boolean;
+  defaultFirstLineIndent: number;
+  defaultFirstLineIndentUnit: "cm" | "in" | "mm";
 }
 
 // BUG FIX 1: Apply document settings to page container via CSS
@@ -80,6 +82,8 @@ const DEFAULT_SETTINGS: DocumentSettings = {
   chapterTitleStyle: "bold",
   blankLinesAfterChapter: 2,
   pageBreakAfterChapter: true,
+  defaultFirstLineIndent: 0,
+  defaultFirstLineIndentUnit: "cm",
 };
 
 interface DocumentSettingsContextType {

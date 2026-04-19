@@ -21,6 +21,8 @@ class DocumentSettings(BaseModel):
     defaultAlignment: DefaultAlignment
     defaultFont: str = Field(..., min_length=1, description="Default font family must be a non-empty string")
     defaultFontSize: conint(ge=1, le=200) = Field(..., description="Default font size in pixels must be between 1 and 200")
+    defaultFirstLineIndent: conint(ge=0) = Field(..., description="Default first line indent must be zero or positive")
+    defaultFirstLineIndentUnit: MarginUnit
     chapterTitleFormat: ChapterTitleFormat
     chapterTitleSize: conint(ge=0, le=200) = Field(..., description="Chapter title font size must be zero or positive")
     chapterTitleAlignment: ChapterTitleAlignment

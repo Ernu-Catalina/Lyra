@@ -590,6 +590,16 @@ async def apply_document_settings_to_content(
                     f'text-align:{settings.get("defaultAlignment", "left")};',
                     content
                 )
+                content = re.sub(
+                    r'text-indent:[^;"]*px[^;"]*;?',
+                    '',
+                    content
+                )
+                content = re.sub(
+                    r'text-indent:\s*var\(--default-first-line-indent,\s*0\)[^;"]*;?',
+                    'text-indent: var(--default-first-line-indent, 0);',
+                    content
+                )
 
                 scene["content"] = content
                 updated_scenes += 1

@@ -8,6 +8,7 @@ import FontFamily from "@tiptap/extension-font-family";
 import { FontSize } from "../../extensions/FontSize";
 import { Indentation } from "../../extensions/Indentation";
 import { HeadingWithSize } from "../../extensions/HeadingWithSize";
+import { useDocumentSettings } from "../../context/DocumentSettingsContext";
 
 interface SceneEditorProps {
   content: string; // now always HTML string
@@ -54,59 +55,62 @@ function sanitizeContent(html: string): string {
     return doc.body.innerHTML;
   }
 
-
-
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
-  ({ content, onChange, editable = true, onEditorReady }, ref) => {
-    const editor = useEditor({
-      extensions: [
-        StarterKit.configure({ 
-          heading: false 
-        }),
-        HeadingWithSize.configure({ 
-          levels: [1, 2, 3, 4],
-        }),
-        TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
-        TextStyle,
-        FontFamily,
-        FontSize,
-        Indentation,
-      ],
-      content,
-      editable,
-      editorProps: {
-        attributes: {
-          class: "focus:outline-none min-h-full",
+    ({ content, onChange, editable = true, onEditorReady }, ref) => {
+
+      // 1. ALL hooks must come first, before any other code
+      const { settings } = useDocumentSettings();
+
+      // 2. useEditor comes after hooks, and can now reference settings
+      const editor = useEditor({
+        extensions: [
+          StarterKit.configure({ heading: false }),
+          HeadingWithSize.configure({ levels: [1, 2, 3, 4] }),
+          TextAlign.configure({
+            types: ["heading", "paragraph"],
+            alignments: ["left", "center", "right", "justify"],
+          }),
+          TextStyle,
+          FontFamily,
+          FontSize,
+          Indentation,
+        ],
+        content,
+        editable,
+        editorProps: {
+          attributes: {
+            class: "focus:outline-none min-h-full",
+          },
         },
-      },
-      onUpdate: ({ editor }) => {
-        onChange(editor.getHTML());
-      },
-      parseOptions: {
-        preserveWhitespace: "full",
-      },
-    });
+        onUpdate: ({ editor }) => {
+          onChange(editor.getHTML());
+        },
+        parseOptions: {
+          preserveWhitespace: "full",
+        },
+      });
 
-    useImperativeHandle(ref, () => editor, [editor]);
+      // 3. useImperativeHandle and other effects after useEditor
+      useImperativeHandle(ref, () => editor, [editor]);
 
-    useEffect(() => {
-      onEditorReady?.(editor);
-    }, [editor, onEditorReady]);
+      useEffect(() => {
+        onEditorReady?.(editor);
+      }, [editor, onEditorReady]);
 
-  useEffect(() => {
-    if (!editor) return;
-    const currentHtml = editor.getHTML();
-    if (content !== currentHtml) {
-      const clean = sanitizeContent(content);
-      editor.chain().setContent(clean, false).run();
+      useEffect(() => {
+        if (!editor) return;
+        const currentHtml = editor.getHTML();
+        if (content !== currentHtml) {
+          const clean = sanitizeContent(content);
+          editor.chain().setContent(clean, false).run();
+        }
+      }, [content, editor]);
+
+      if (!editor) return null;
+
+      return <EditorContent editor={editor} />;
     }
-  }, [content, editor]);
-
-    if (!editor) return null;
-
-    return <EditorContent editor={editor} />;
-  }
-);
+  );
 
 SceneEditor.displayName = "SceneEditor";
 
