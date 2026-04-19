@@ -25,6 +25,9 @@ const LINE_HEIGHTS = [
   { label: "2.0", value: "2" },
 ];
 
+const PX_TO_PT = 0.75; // 1px = 0.75pt at 96dpi
+const PT_TO_PX = 1.333;
+
 interface EditorToolbarProps {
   editor: Editor | null;
   onSettingsApplied?: () => void;
@@ -66,20 +69,52 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
     return attrs.fontFamily || getCurrentNodeAttrs().fontFamily || "";
   };
 
-  const getFontSize = () => {
+const getFontSize = (): number => {
     if (!editor) return 12;
     const attrs = editor.getAttributes("textStyle");
-    const size = attrs.fontSize || getCurrentNodeAttrs().fontSize || "12px";
-    return parseInt(String(size).replace("px", ""), 10);
+    const raw: string = attrs.fontSize || "";
+
+    if (!raw) {
+
+      const el = document.querySelector<HTMLElement>(".page-container");
+      if (el) {
+        const computed = window.getComputedStyle(el).fontSize; // returns px
+        const px = parseFloat(computed);
+        return Math.round(px * PX_TO_PT); // convert to pt
+      }
+      return 12;
+    }
+
+    if (raw.endsWith("pt")) {
+      return Math.round(parseFloat(raw));
+    }
+    if (raw.endsWith("px")) {
+      // Legacy px value — convert to pt for display
+      return Math.round(parseFloat(raw) * PX_TO_PT);
+    }
+    return Math.round(parseFloat(raw));
   };
+
 
   const getLineHeight = () => {
     if (!editor) return "1.15";
-    const attrs = editor.getAttributes("textStyle");
-    return attrs.lineHeight || getCurrentNodeAttrs().lineHeight || "1.15";
+    const { from } = editor.state.selection;
+    let lh = "1.15";
+    editor.state.doc.nodesBetween(from, from, (node) => {
+      if (
+        node.type.name === "paragraph" ||
+        node.type.name === "heading"
+      ) {
+        lh = node.attrs.lineHeight || "1.15";
+        return false;
+      }
+    });
+    return lh;
   };
 
-  const currentFont = FONT_FAMILIES.find((f) => f.value === getFontFamily()) || FONT_FAMILIES[0];
+    const currentFont = editor
+    ? FONT_FAMILIES.find((f) => f.value === getFontFamily()) || FONT_FAMILIES[0]
+    : FONT_FAMILIES[0];
   const currentFontSize = getFontSize();
   const currentLineHeight = getLineHeight();
 
@@ -109,21 +144,21 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
   const handleIncreaseFont = () => {
     if (!editor) return;
     const newSize = Math.min(72, currentFontSize + 1);
-    editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}px` }).run();
+    editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}pt` }).run();
   };
 
   const handleDecreaseFont = () => {
     if (!editor) return;
-    const newSize = Math.max(8, currentFontSize - 1);
-    editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}px` }).run();
+    const newSize = Math.max(6, currentFontSize - 1);
+    editor.chain().focus().setMark("textStyle", { fontSize: `${newSize}pt` }).run();
   };
 
   const handleFontSizeChange = (value: string) => {
     if (!editor) return;
     const num = parseInt(value, 10);
-    if (!isNaN(num) && num >= 8 && num <= 72) {
+    if (!isNaN(num) && num >= 6 && num <= 72) {
       setInputFontSize(value);
-      editor.chain().focus().setMark("textStyle", { fontSize: `${num}px` }).run();
+      editor.chain().focus().setMark("textStyle", { fontSize: `${num}pt` }).run();
     } else if (value === "") {
       setInputFontSize(value);
     }
@@ -132,13 +167,30 @@ export function EditorToolbar({ editor, onSettingsApplied }: EditorToolbarProps)
   const handleFontSizeSelect = (size: number) => {
     if (!editor) return;
     setInputFontSize(String(size));
-    editor.chain().focus().setMark("textStyle", { fontSize: `${size}px` }).run();
+    editor.chain().focus().setMark("textStyle", { fontSize: `${size}pt` }).run();
     setFontSizeDropdown(false);
   };
 
-  const handleLineHeightSelect = (value: string) => {
+const handleLineHeightSelect = (value: string) => {
     if (!editor) return;
-    editor.chain().focus().setMark("textStyle", { lineHeight: value }).run();
+    const { from, to } = editor.state.selection;
+    const tr = editor.state.tr;
+    let changed = false;
+
+    editor.state.doc.nodesBetween(from, to, (node, pos) => {
+      if (
+        node.type.name === "paragraph" ||
+        node.type.name === "heading"
+      ) {
+        tr.setNodeMarkup(pos, undefined, {
+          ...node.attrs,
+          lineHeight: value,
+        });
+        changed = true;
+      }
+    });
+
+    if (changed) editor.view.dispatch(tr);
     setLineDropdown(false);
   };
 

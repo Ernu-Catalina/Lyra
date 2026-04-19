@@ -6,6 +6,14 @@ interface SceneEditorPageViewProps {
   scale?: number;
 }
 
+/**
+ * Base font size calibration for Google Docs visual match.
+ * Current value: 1.35
+ * Increase to 1.40–1.45 if default text is still too small.
+ * This only affects default text. Toolbar changes (px) remain fully functional.
+ */
+const VISUAL_CORRECTION = 1;
+
 const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; height: number }> = {
   A4: { width: 210, height: 297 },
   Letter: { width: 215.9, height: 279.4 },
@@ -42,14 +50,19 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
   const marginLeftMm = convertToMm(settings.marginLeft, settings.marginUnit);
   const marginRightMm = convertToMm(settings.marginRight, settings.marginUnit);
 
-  const pageWidthPx = mmToPx(paperSize.width);
-  const pageHeightPx = mmToPx(paperSize.height);
+  const pageWidthMm = paperSize.width;
+  const pageHeightMm = paperSize.height;
+  const pageWidthPx = mmToPx(pageWidthMm);
+  const pageHeightPx = mmToPx(pageHeightMm);
   const marginTopPx = mmToPx(marginTopMm);
   const marginBottomPx = mmToPx(marginBottomMm);
   const marginLeftPx = mmToPx(marginLeftMm);
   const marginRightPx = mmToPx(marginRightMm);
 
   const GAP = 24;
+  const GAP_MM = GAP / MM_TO_PX;
+
+  const effectiveScale = scale;
 
   useEffect(() => {
     const el = contentRef.current;
@@ -57,12 +70,10 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
 
     const observer = new ResizeObserver(() => {
       const rawContentHeight = el.scrollHeight;
-      // Subtract the gap padding using previousPageCountRef to avoid feedback loop
       const actualContentHeight = rawContentHeight - (previousPageCountRef.current - 1) * GAP;
       const usablePageHeight = pageHeightPx - marginTopPx - marginBottomPx;
       const pages = Math.max(1, Math.ceil(actualContentHeight / usablePageHeight));
-      
-      // Only update if pages differ from current to prevent oscillation
+
       if (pages !== pageCount) {
         setPageCount(pages);
         previousPageCountRef.current = pages;
@@ -73,10 +84,13 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
     return () => observer.disconnect();
   }, [pageHeightPx, marginTopPx, marginBottomPx, pageCount]);
 
-  const totalHeight = pageCount * pageHeightPx + (pageCount - 1) * GAP;
+  const totalHeightMm = pageCount * pageHeightMm + (pageCount - 1) * GAP_MM;
+  const totalHeightPx = totalHeightMm * MM_TO_PX;
 
-  const scaledWidth = pageWidthPx * scale;
-  const scaledTotalHeight = totalHeight * scale;
+  const scaledWidth = pageWidthPx * effectiveScale;
+  const scaledTotalHeight = totalHeightPx * effectiveScale;
+
+  const correctedFontSize = settings.defaultFontSize * VISUAL_CORRECTION;
 
   return (
     <div
@@ -89,18 +103,16 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
         boxSizing: "border-box",
       }}
     >
-      {/* Outer div reserves the scaled screen space */}
       <div style={{ width: scaledWidth, height: scaledTotalHeight, position: "relative" }}>
-        {/* Inner div is rendered at 100% then scaled via CSS transform */}
         <div
           style={{
             position: "absolute",
             top: 0,
             left: 0,
-            width: pageWidthPx,
-            height: totalHeight,
+            width: `${pageWidthMm}mm`,
+            height: `${totalHeightMm}mm`,
             transformOrigin: "top left",
-            transform: `scale(${scale})`,
+            transform: `scale(${effectiveScale})`,
           }}
         >
           {/* Page backgrounds */}
@@ -109,10 +121,10 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               key={i}
               style={{
                 position: "absolute",
-                top: i * (pageHeightPx + GAP),
+                top: `${i * (pageHeightMm + GAP_MM)}mm`,
                 left: 0,
-                width: pageWidthPx,
-                height: pageHeightPx,
+                width: `${pageWidthMm}mm`,
+                height: `${pageHeightMm}mm`,
                 background: "white",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
                 borderRadius: 2,
@@ -121,45 +133,47 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
             />
           ))}
 
-          {/* Gap covers — grey bars that sit on top of content in gap regions */}
+          {/* Gap covers */}
           {Array.from({ length: pageCount - 1 }).map((_, i) => (
-            <div key={`gap-${i}`} style={{
-              position: "absolute",
-              top: (i + 1) * pageHeightPx + i * GAP,
-              left: -40,                          // extend beyond page edges
-              width: pageWidthPx + 80,
-              height: GAP,
-              background: "#C8C8C8",              // same as scroll area background
-              zIndex: 2,
-              pointerEvents: "none",
-            }} />
+            <div
+              key={`gap-${i}`}
+              style={{
+                position: "absolute",
+                top: `${(i + 1) * pageHeightMm + i * GAP_MM}mm`,
+                left: "-40px",
+                width: `calc(${pageWidthMm}mm + 80px)`,
+                height: `${GAP_MM}mm`,
+                background: "#C8C8C8",
+                zIndex: 2,
+                pointerEvents: "none",
+              }}
+            />
           ))}
 
-          {/* Editor content — single instance, flows continuously, gaps are masked above it */}
+          {/* Editor content */}
           <div
             ref={contentRef}
+            className="page-container"
             style={{
               position: "absolute",
               top: 0,
               left: 0,
-              width: pageWidthPx,
+              width: `${pageWidthMm}mm`,
               zIndex: 1,
               boxSizing: "border-box",
-              paddingTop: marginTopPx,
-              paddingLeft: marginLeftPx,
-              paddingRight: marginRightPx,
-              // Bottom padding accounts for all gaps so content shifts down correctly
-              paddingBottom: marginBottomPx + (pageCount - 1) * GAP,
+              paddingTop: `${marginTopMm}mm`,
+              paddingLeft: `${marginLeftMm}mm`,
+              paddingRight: `${marginRightMm}mm`,
+              paddingBottom: `${marginBottomMm + (pageCount - 1) * GAP_MM}mm`,
               fontFamily: settings.defaultFont,
-              fontSize: `${settings.defaultFontSize}px`,
+              fontSize: `${correctedFontSize}pt`,
+              textAlign: settings.defaultAlignment,
             }}
           >
             {children}
           </div>
         </div>
       </div>
-
-      {/* Zoom controls removed – now in EditorFooter component */}
     </div>
   );
 }

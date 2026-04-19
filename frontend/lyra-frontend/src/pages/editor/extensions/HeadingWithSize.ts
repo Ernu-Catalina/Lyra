@@ -17,9 +17,10 @@ export const HeadingWithSize = Heading.extend({
     };
   },
 
-  addCommands() {
+addCommands() {
     return {
       ...this.parent?.(),
+
       setHeading:
         ({ level }: { level: number }) =>
         ({ chain }: { chain: any }) => {
@@ -28,6 +29,38 @@ export const HeadingWithSize = Heading.extend({
             .setNode(this.name, { level })
             .setMark("textStyle", { fontSize })
             .run();
+        },
+
+      // Override toggleHeading to clean up fontSize when going back to paragraph
+      toggleHeading:
+        ({ level }: { level: number }) =>
+        ({ chain, state }: { chain: any; state: any }) => {
+          const { from, to } = state.selection;
+          let isHeading = false;
+
+          state.doc.nodesBetween(from, to, (node: any) => {
+            if (
+              node.type.name === "heading" &&
+              node.attrs.level === level
+            ) {
+              isHeading = true;
+            }
+          });
+
+          if (isHeading) {
+            // Toggling OFF: convert to paragraph and remove fontSize mark
+            return chain()
+              .setNode("paragraph")
+              .unsetMark("textStyle")
+              .run();
+          } else {
+            // Toggling ON: set heading with size
+            const fontSize = headingSizes[level] ?? "16px";
+            return chain()
+              .setNode(this.name, { level })
+              .setMark("textStyle", { fontSize })
+              .run();
+          }
         },
     };
   },

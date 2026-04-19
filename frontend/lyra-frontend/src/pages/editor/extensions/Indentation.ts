@@ -3,13 +3,9 @@ import { Extension } from "@tiptap/core";
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     indentation: {
-      /**
-       * Increase the indentation of the current selection
-       */
+
       sinkIndent: () => ReturnType;
-      /**
-       * Decrease the indentation of the current selection
-       */
+
       liftIndent: () => ReturnType;
     };
   }
@@ -48,6 +44,19 @@ export const Indentation = Extension.create({
                 };
               }
               return {};
+            },
+          },
+          lineHeight: {
+            default: "1.15",
+            parseHTML: (element) => element.style.lineHeight || "1.15",
+            renderHTML: (attributes) => {
+              if (
+                !attributes.lineHeight ||
+                attributes.lineHeight === "1.15"
+              ) {
+                return {};
+              }
+              return { style: `line-height: ${attributes.lineHeight};` };
             },
           },
         },

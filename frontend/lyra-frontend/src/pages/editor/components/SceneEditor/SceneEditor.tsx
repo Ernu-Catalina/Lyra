@@ -16,6 +16,46 @@ interface SceneEditorProps {
   onEditorReady?: (editor: Editor | null) => void;
 }
 
+function sanitizeContent(html: string): string {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    doc.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+      const fs = el.style.fontSize;
+      if (fs && fs.endsWith("px")) {
+        // Legacy px value written by old toolbar — strip it entirely.
+        // Text will inherit the correct size from .page-container.
+        el.style.removeProperty("font-size");
+      }
+      // pt values written by the new toolbar are kept as-is.
+
+      // Strip line-height from spans — belongs on block nodes only.
+      if (el.tagName === "SPAN") {
+        el.style.removeProperty("line-height");
+      }
+
+      // Remove empty style attributes.
+      if (!el.getAttribute("style")?.trim()) {
+        el.removeAttribute("style");
+      }
+
+      // Unwrap spans with no remaining attributes.
+      if (
+        el.tagName === "SPAN" &&
+        !el.hasAttributes() &&
+        el.parentElement
+      ) {
+        const frag = doc.createDocumentFragment();
+        el.childNodes.forEach(child => frag.appendChild(child.cloneNode(true)));
+        el.parentElement.replaceChild(frag, el);
+      }
+    });
+
+    return doc.body.innerHTML;
+  }
+
+
+
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
   ({ content, onChange, editable = true, onEditorReady }, ref) => {
     const editor = useEditor({
@@ -36,7 +76,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       editable,
       editorProps: {
         attributes: {
-          class: "prose prose-invert max-w-none focus:outline-none min-h-full",
+          class: "focus:outline-none min-h-full",
         },
       },
       onUpdate: ({ editor }) => {
@@ -53,15 +93,14 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
       onEditorReady?.(editor);
     }, [editor, onEditorReady]);
 
-    useEffect(() => {
-      if (!editor) return;
-
-      const currentHtml = editor.getHTML();
-
-      if (content !== currentHtml) {
-        editor.chain().setContent(content, false).run();
-      }
-    }, [content, editor]);
+  useEffect(() => {
+    if (!editor) return;
+    const currentHtml = editor.getHTML();
+    if (content !== currentHtml) {
+      const clean = sanitizeContent(content);
+      editor.chain().setContent(clean, false).run();
+    }
+  }, [content, editor]);
 
     if (!editor) return null;
 

@@ -13,6 +13,7 @@ export interface DocumentSettings {
   defaultAlignment: "left" | "center" | "right" | "justify";
   defaultFont: string;
   defaultFontSize: number;
+  defaultLineHeight: number;
   chapterTitleFormat: "none" | "chapter-number" | "chapter-number-title" | "number-title" | "title-only";
   chapterTitleSize: number;
   chapterTitleAlignment: "left" | "center" | "right";
@@ -42,12 +43,21 @@ export function applyPageStyles(settings: DocumentSettings) {
   const el = document.querySelector<HTMLElement>(".page-container");
   if (!el) return;
 
-  el.style.paddingTop = `${toMm(settings.marginTop)}mm`;
-  el.style.paddingBottom = `${toMm(settings.marginBottom)}mm`;
-  el.style.paddingLeft = `${toMm(settings.marginLeft)}mm`;
-  el.style.paddingRight = `${toMm(settings.marginRight)}mm`;
-  el.style.width = `${width}mm`;
-  el.style.minHeight = `${height}mm`;
+  el.style.setProperty("--page-width", `${width}mm`);
+  el.style.setProperty("--page-height", `${height}mm`);
+  el.style.setProperty("--page-margin-top", `${toMm(settings.marginTop)}mm`);
+  el.style.setProperty("--page-margin-bottom", `${toMm(settings.marginBottom)}mm`);
+  el.style.setProperty("--page-margin-left", `${toMm(settings.marginLeft)}mm`);
+  el.style.setProperty("--page-margin-right", `${toMm(settings.marginRight)}mm`);
+  el.style.setProperty("--page-font-size", `${settings.defaultFontSize}pt`);
+  el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
+  el.style.setProperty("--page-font-family", settings.defaultFont);
+  // Calibrated default font size for Google Docs match
+  const VISUAL_CORRECTION = 1;
+  const correctedFontSize = settings.defaultFontSize * VISUAL_CORRECTION;
+
+  el.style.setProperty("--editor-base-font-size", `${correctedFontSize}pt`);
+
   el.style.boxSizing = "border-box";
 }
 
@@ -63,6 +73,7 @@ const DEFAULT_SETTINGS: DocumentSettings = {
   defaultAlignment: "left",
   defaultFont: "Arial, sans-serif",
   defaultFontSize: 12,
+  defaultLineHeight: 1.5,
   chapterTitleFormat: "chapter-number-title",
   chapterTitleSize: 16,
   chapterTitleAlignment: "center",

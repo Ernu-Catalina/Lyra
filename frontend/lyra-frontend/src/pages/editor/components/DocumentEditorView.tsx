@@ -8,7 +8,7 @@ interface DocumentEditorViewProps {
 }
 
 export function DocumentEditorView({ outline }: DocumentEditorViewProps) {
-  const settings = useDocumentSettings();
+  const { settings } = useDocumentSettings();
 
   const fullContent = outline.chapters
     .map((ch, index) => {
@@ -25,7 +25,8 @@ export function DocumentEditorView({ outline }: DocumentEditorViewProps) {
         className="bg-white w-full max-w-[1200px] min-h-[1100px] rounded-lg shadow-xl border border-[var(--border)] p-12 flex flex-col items-stretch"
         style={{
           fontFamily: settings.defaultFont,
-          fontSize: `${settings.defaultFontSize}px`,
+          fontSize: `${settings.defaultFontSize}pt`,
+          lineHeight: settings.defaultLineHeight,
           textAlign: settings.defaultAlignment,
         }}
       >
