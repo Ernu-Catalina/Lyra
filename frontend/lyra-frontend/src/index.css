@@ -29,12 +29,12 @@
 
 /* ── Theme: sepia-classic ── */
 .sepia-classic {
-  --bg-primary: #fdf6e3;
+  --bg-primary: #f1eee3;
   --bg-secondary: #fffaf0;
   --text-primary: #5d4037;
-  --text-secondary: #8d6e63;
+  --text-secondary: #8d7763;
   --border: #d7ccc8;
-  --accent: #8d5524;
+  --accent: #b48f6f;
   --accent-dim: #b5651d;
   --glow: rgba(141, 85, 36, 0.1);
   --font-sans: 'Georgia', serif;

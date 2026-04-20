@@ -1,6 +1,7 @@
 // src/pages/editor/hooks/useAutosaveScene.ts
 import { useEffect } from "react";
 import api from "../../../api/client";
+import { stripSpacersFromHtml } from "../extensions/PageBreakSpacer";
 
 interface AutosaveProps {
   projectId?: string;
@@ -37,7 +38,7 @@ export function useAutosaveScene({
       try {
         await api.put(
           `/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`,
-          { content }
+          { content: stripSpacersFromHtml(content) }
         );
         onSaved?.(content);
         onStatusChange?.('saved', 'Saved');

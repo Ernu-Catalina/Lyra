@@ -9,17 +9,23 @@ import { FontSize } from "../../extensions/FontSize";
 import { Indentation } from "../../extensions/Indentation";
 import { HeadingWithSize } from "../../extensions/HeadingWithSize";
 import { useDocumentSettings } from "../../context/DocumentSettingsContext";
+import { PageBreakSpacer, stripSpacersFromHtml } from "../../extensions/PageBreakSpacer";
+import { usePaginator } from "../../hooks/usePaginator";
 
 interface SceneEditorProps {
   content: string; // now always HTML string
   onChange: (html: string) => void;
   editable?: boolean;
   onEditorReady?: (editor: Editor | null) => void;
+  scale?: number; 
 }
 
 function sanitizeContent(html: string): string {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+     // Strip any spacers that may have been accidentally saved
+     const withoutSpacers = stripSpacersFromHtml(html);
+     
+     const parser = new DOMParser();
+     const doc = parser.parseFromString(withoutSpacers, "text/html");
 
     doc.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
       const fs = el.style.fontSize;
@@ -56,7 +62,7 @@ function sanitizeContent(html: string): string {
   }
 
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
-    ({ content, onChange, editable = true, onEditorReady }, ref) => {
+    ({ content, onChange, editable = true, onEditorReady, scale = 1 }, ref) => {
 
       // 1. ALL hooks must come first, before any other code
       const { settings } = useDocumentSettings();
@@ -74,6 +80,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
           FontFamily,
           FontSize,
           Indentation,
+          PageBreakSpacer,
         ],
         content,
         editable,
@@ -82,13 +89,15 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
             class: "focus:outline-none min-h-full",
           },
         },
-        onUpdate: ({ editor }) => {
-          onChange(editor.getHTML());
-        },
-        parseOptions: {
-          preserveWhitespace: "full",
+             onUpdate: ({ editor }) => {
+          const html = editor.getHTML();
+          // Strip spacers before reporting content — they are layout only
+          const clean = stripSpacersFromHtml(html);
+          onChange(clean);
         },
       });
+
+      usePaginator(editor, settings, scale);
 
       // 3. useImperativeHandle and other effects after useEditor
       useImperativeHandle(ref, () => editor, [editor]);
