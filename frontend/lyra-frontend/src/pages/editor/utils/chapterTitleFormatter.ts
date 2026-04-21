@@ -28,16 +28,15 @@ export function formatChapterTitle(
       displayText = chapterTitle;
   }
 
-  const style: React.CSSProperties = {
-    fontFamily: settings.defaultFont,
-    fontSize: `${settings.chapterTitleSize}px`,
-    fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
-    fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
-    textAlign: settings.chapterTitleAlignment as any,
-    marginBottom: `${settings.blankLinesAfterChapter * 1.5}em`,
-    marginTop: 0,
-    pageBreakBefore: settings.pageBreakAfterChapter ? "always" : "avoid",
-  };
+const style = {
+  fontFamily: settings.defaultFont,
+  fontSize: `${settings.chapterTitleSize}px`,
+  fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
+  fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
+  textAlign: settings.chapterTitleAlignment,
+  pageBreakAfter: settings.pageBreakAfterChapter ? "always" : "avoid",
+  marginBottom: "1.5em",
+};
 
   return { html: displayText, style };
 }

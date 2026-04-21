@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useDocumentSettings } from "../context/DocumentSettingsContext";
 import { formatChapterTitle } from "../utils/chapterTitleFormatter";
 import SceneEditor from "./SceneEditor/SceneEditor";
@@ -10,7 +11,8 @@ interface ChapterEditorViewProps {
   initialContent?: string;
   onContentChange: (html: string) => void;
   onSceneUpdate?: (sceneId: string, content: string) => void;
-  readOnly?: boolean;  // ← NEW PROP (optional, default false)
+  readOnly?: boolean;
+  scale?: number;
 }
 
 export function ChapterEditorView({
@@ -18,10 +20,10 @@ export function ChapterEditorView({
   initialContent,
   onContentChange,
   onSceneUpdate,
-  readOnly = false,  // default: editable
+  readOnly = false,
+  scale = 1,
 }: ChapterEditorViewProps) {
   const { settings } = useDocumentSettings();
-  const htmlContent = initialContent ?? composeChapter(chapter.scenes);
 
   const { html: chapterTitleText, style: chapterTitleStyle } = formatChapterTitle(
     chapter.order + 1,
@@ -29,22 +31,29 @@ export function ChapterEditorView({
     settings
   );
 
+  const htmlContent = initialContent ?? composeChapter(chapter.scenes);
+
   return (
-    <SceneEditorPageView>
-      {/* Chapter Title */}
+    <SceneEditorPageView scale={scale}>
       {chapterTitleText && (
-        <div style={chapterTitleStyle}>
+        <div
+          contentEditable={false}
+          suppressContentEditableWarning
+          style={{
+            ...chapterTitleStyle,
+            userSelect: "none",
+            pointerEvents: "none",
+          }}
+        >
           {chapterTitleText}
         </div>
       )}
-      {/* Chapter Content */}
       <SceneEditor
         content={htmlContent}
         onChange={onContentChange}
-        editable={!readOnly}          // ← disables editing when readOnly=true
-        onEditorReady={(editor) => {
-          // No need for custom nodes or JSON parsing anymore
-        }}
+        editable={!readOnly}
+        scale={scale}
+        onEditorReady={() => {}}
       />
     </SceneEditorPageView>
   );

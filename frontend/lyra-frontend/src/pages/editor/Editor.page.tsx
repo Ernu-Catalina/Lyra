@@ -517,9 +517,14 @@ useEffect(() => {
                 onContentChange={setChapterEditorContent}
                 onSceneUpdate={handleSceneUpdateFromChapter}
                 readOnly={CHAPTER_VIEW_READ_ONLY}
+                scale={scale}
               />
             ) : editorMode === "document" ? (
-              outline ? <DocumentEditorView outline={outline} /> : <div>Loading...</div>
+              outline ? (
+                <SceneEditorPageView scale={scale}>
+                  <DocumentEditorView outline={outline} scale={scale} />
+                </SceneEditorPageView>
+              ) : <div>Loading...</div>
             ) : (
               <div className="p-8 text-center text-[var(--text-secondary)]">
                 Select a chapter or scene to begin editing

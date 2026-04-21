@@ -1,41 +1,80 @@
-import { composeChapter } from "../utils/chapterComposer";
 import { useDocumentSettings } from "../context/DocumentSettingsContext";
-import { getChapterTitleHTML } from "../utils/chapterTitleFormatter";
+import { formatChapterTitle } from "../utils/chapterTitleFormatter";
+import SceneEditor from "./SceneEditor/SceneEditor";
+import { SceneEditorPageView } from "./SceneEditor/SceneEditorPageView";
+import { composeChapter } from "../utils/chapterComposer";
 import type { DocumentOutline } from "../../../types/document";
 
 interface DocumentEditorViewProps {
   outline: DocumentOutline;
+  scale?: number;
 }
 
-export function DocumentEditorView({ outline }: DocumentEditorViewProps) {
+export function DocumentEditorView({ outline, scale = 1 }: DocumentEditorViewProps) {
   const { settings } = useDocumentSettings();
 
+  // Compose all chapters into a single HTML string with titles.
+  // Chapter titles use the same formatChapterTitle utility as ChapterEditorView
+  // so they always match document settings.
   const fullContent = outline.chapters
     .map((ch, index) => {
-      const chapterTitleHtml = getChapterTitleHTML(ch.order, ch.title, settings);
-      const chapterBodyHtml = composeChapter(ch.scenes);
-      const breakHtml = settings.pageBreakAfterChapter && index < outline.chapters.length - 1 ? '<div class="page-break"></div>' : "";
-      return `${chapterTitleHtml}${chapterBodyHtml}${breakHtml}`;
+      const { html: titleText, style: titleStyle } = formatChapterTitle(
+        ch.order + 1,
+        ch.title,
+        settings
+      );
+
+      const titleHtml = titleText
+        ? `<div style="${styleToCss(titleStyle)}">${titleText}</div>`
+        : "";
+
+      const bodyHtml = composeChapter(ch.scenes);
+
+      // Page break between chapters (not after last)
+      const breakHtml =
+        settings.pageBreakAfterChapter && index < outline.chapters.length - 1
+          ? '<div class="page-break"></div>'
+          : "";
+
+      return `${titleHtml}${bodyHtml}${breakHtml}`;
     })
     .join("");
 
   return (
-    <div className="min-h-screen flex justify-center items-start bg-[var(--bg-primary)] py-8 px-4">
-      <div
-        className="bg-white w-full max-w-[1200px] min-h-[1100px] rounded-lg shadow-xl border border-[var(--border)] p-12 flex flex-col items-stretch"
-        style={{
-          fontFamily: settings.defaultFont,
-          fontSize: `${settings.defaultFontSize}pt`,
-          lineHeight: settings.defaultLineHeight,
-          textAlign: settings.defaultAlignment,
-        }}
-      >
-        <h1 className="text-4xl font-bold mb-12">{outline.title}</h1>
-        <div className="prose prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: fullContent }} />
-        <p className="text-right mt-16 text-[var(--text-secondary)] text-sm">
-          Total document length: {outline.total_wordcount.toLocaleString()} words
-        </p>
-      </div>
-    </div>
+    <SceneEditorPageView scale={scale}>
+      <SceneEditor
+        content={fullContent}
+        onChange={() => {}} // document view is read-only
+        editable={false}
+        scale={scale}
+        onEditorReady={() => {}}
+      />
+    </SceneEditorPageView>
   );
+}
+
+const styleToCss = (style: Record<string, any>): string => {
+  if (!style || typeof style !== "object") return "";
+
+  const unitlessProperties = new Set([
+    "zIndex", "opacity", "flexGrow", "flexShrink", "lineHeight",
+    "order", "zoom", "fontWeight", "animationIterationCount",
+    "columnCount", "fillOpacity", "flex", "floodOpacity",
+    "stopOpacity", "strokeDasharray", "strokeDashoffset",
+    "strokeMiterlimit", "strokeOpacity", "strokeWidth"
+  ]);
+
+  return Object.entries(style)
+    .filter(([_, value]) => value != null) // skip null or undefined
+    .map(([key, value]) => {
+      const kebabKey = key.replace(/([A-Z])/g, "-$1").toLowerCase();
+
+      let cssValue = value;
+      if (typeof value === "number" && !unitlessProperties.has(key)) {
+        cssValue = `${value}px`;
+      }
+
+      return `${kebabKey}: ${cssValue}`;
+    })
+    .join("; ");
 }

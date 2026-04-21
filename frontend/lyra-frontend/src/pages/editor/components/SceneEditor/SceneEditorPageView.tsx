@@ -83,14 +83,11 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
     };
   }, [scale]);
 
-  // Total canvas height.
-  // When spacers have been measured, derive from last spacer position.
-  // Before first measurement, fall back to geometric estimate.
   const totalHeightPx = spacerTops.length > 0
-    ? (spacerTops[spacerTops.length - 1] ?? 0) +
-      spacerHeightPx +
-      usableHeightPx +
-      marginBottomPx
+    ? Math.max(
+        (spacerTops[spacerTops.length - 1] ?? 0) + spacerHeightPx + pageHeightPx * 1.1, // extra safety
+        pageCount * (pageHeightPx + spacerHeightPx)
+      )
     : marginTopPx +
       pageCount * usableHeightPx +
       (pageCount - 1) * spacerHeightPx +
@@ -132,18 +129,15 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               Using measured spacer positions so backgrounds always align
               with actual content breaks, not theoretical geometry. */}
           {Array.from({ length: pageCount }).map((_, i) => {
-           const pageTop = i === 0
-            ? 0
-            : (spacerTops[i - 1] ?? 0) + spacerHeightPx - marginTopPx;
+            // Page backgrounds always use pageHeightPx for height —
+            // the paper dimensions come from document settings, not content height.
+            // For positioning: page 0 always at 0, subsequent pages start after
+            // the previous spacer ends (spacerTop + spacerHeight - marginTop
+            // so the top margin zone overlaps into the spacer, appearing white).
+            const pageTop = i === 0
+              ? 0
+              : (spacerTops[i - 1] ?? 0) + spacerHeightPx - marginTopPx;
                     
-          const pageBottom = i < spacerTops.length
-            ? (spacerTops[i] ?? 0) + marginBottomPx
-            : totalHeightPx;
-                    
-          const pageHeight = Math.max(
-            pageBottom - pageTop,
-            marginTopPx + marginBottomPx
-          );
             return (
               <div
                 key={`page-${i}`}
@@ -152,7 +146,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
                   top: pageTop,
                   left: 0,
                   width: pageWidthPx,
-                  height: pageHeight,
+                  height: pageHeightPx,  // always exact paper height from settings
                   background: "var(--bg-secondary)",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
                   borderRadius: 2,

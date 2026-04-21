@@ -22,12 +22,14 @@ export function EditorFooter({
   wordCountText,
   scale,
   onScaleChange,
-  editorMode,
   isFullscreen = false,
   onFullscreenToggle,
 }: EditorFooterProps) {
-  // Only show zoom controls in scene mode
-  const showZoom = editorMode === "scene" && typeof scale === "number" && onScaleChange;
+
+  
+  // showZoom is computed based on whether we have a scale and onScaleChange handler.
+// It is shown in all editor modes (scene, chapter, document) as requested.
+const showZoom = typeof scale === "number" && typeof onScaleChange === "function";
 
   return (
     <footer className="border-t border-[var(--border)] bg-[var(--bg-secondary)] text-sm text-[var(--text-secondary)]">
