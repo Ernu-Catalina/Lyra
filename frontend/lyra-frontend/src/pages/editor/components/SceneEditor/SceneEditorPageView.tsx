@@ -27,8 +27,8 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
 export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageViewProps) {
   const { settings } = useDocumentSettings();
   const contentRef = useRef<HTMLDivElement>(null);
-  const previousPageCountRef = useRef(1);
   const [pageCount, setPageCount] = useState(1);
+  const [spacerTops, setSpacerTops] = useState<number[]>([]);
 
   const paperSize =
     settings.paperFormat === "Custom"
@@ -42,55 +42,63 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
   const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  // Must be declared after marginTopPx is defined
-  const GAP_PX = Math.min(40, Math.max(16, Math.round(marginTopPx * 0.15)));
-
+  const GAP_PX         = Math.round(Math.min(marginTopPx, marginBottomPx) / 4);
   const usableHeightPx = pageHeightPx - marginTopPx - marginBottomPx;
-  // spacer = the dead zone between two pages' usable areas
-  // = bottomMargin + grey gap + topMargin
   const spacerHeightPx = marginBottomPx + GAP_PX + marginTopPx;
-  // stride = distance from start of one page's usable area to next
-  const stride = usableHeightPx + spacerHeightPx;
 
-  // Total visual canvas height (all pages + all gaps, with outer margins)
-  // = marginTop + N*usable + (N-1)*spacer + marginBottom
-  // = marginTop + N*usable + (N-1)*(marginBottom+GAP+marginTop) + marginBottom
-  const totalHeightPx =
-    marginTopPx +
-    pageCount * usableHeightPx +
-    (pageCount - 1) * spacerHeightPx +
-    marginBottomPx;
-
+  // Measure actual spacer positions from the DOM.
+  // This is the ground truth for positioning page backgrounds and gap covers —
+  // we use where spacers actually rendered, not where geometry says they should be.
   useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      // content div has no fixed height — scrollHeight = natural content height
-      // including spacer nodes inserted by usePaginator.
-      // Each spacer = spacerHeightPx. Content grows by usableHeightPx per page.
-      // Total scrollHeight ≈ marginTop + N*usable + (N-1)*spacer + marginBottom
-      // So N ≈ (scrollHeight - marginTop - marginBottom + spacer) / (usable + spacer)
-      const sh = el.scrollHeight;
-      const pages = Math.max(
-        1,
-        Math.round(
-          (sh - marginTopPx - marginBottomPx + spacerHeightPx) /
-          (usableHeightPx + spacerHeightPx)
-        )
-      );
-      if (pages !== previousPageCountRef.current) {
-        setPageCount(pages);
-        previousPageCountRef.current = pages;
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [usableHeightPx, spacerHeightPx, marginTopPx, marginBottomPx]);
+    const container = contentRef.current;
+    if (!container) return;
+
+    const measureSpacers = () => {
+      const containerRect = container.getBoundingClientRect();
+      const spacerEls = container.querySelectorAll('[data-type="page-break-spacer"]');
+
+      const tops = Array.from(spacerEls).map((spacer) => {
+        const rect = spacer.getBoundingClientRect();
+        // Position relative to container top, corrected for CSS scale transform
+        return (rect.top - containerRect.top) / scale;
+      });
+
+      setSpacerTops(tops);
+      setPageCount(spacerEls.length + 1);
+    };
+
+    // Re-measure when spacers are inserted/removed by usePaginator
+    const mutationObserver = new MutationObserver(measureSpacers);
+    mutationObserver.observe(container, { childList: true, subtree: true });
+
+    // Re-measure when content height changes
+    const resizeObserver = new ResizeObserver(measureSpacers);
+    resizeObserver.observe(container);
+
+    measureSpacers();
+
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [scale]);
+
+  // Total canvas height.
+  // When spacers have been measured, derive from last spacer position.
+  // Before first measurement, fall back to geometric estimate.
+  const totalHeightPx = spacerTops.length > 0
+    ? (spacerTops[spacerTops.length - 1] ?? 0) +
+      spacerHeightPx +
+      usableHeightPx +
+      marginBottomPx
+    : marginTopPx +
+      pageCount * usableHeightPx +
+      (pageCount - 1) * spacerHeightPx +
+      marginBottomPx;
 
   const correctedFontSize = settings.defaultFontSize * VISUAL_CORRECTION;
 
   return (
-    // Outer scroll area — grey background fills the space between pages
     <div style={{
       minHeight: "100%",
       display: "flex",
@@ -100,7 +108,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
       boxSizing: "border-box",
       backgroundColor: "var(--bg-primary)",
     }}>
-      {/* Reserves the correct scaled space in the layout */}
+      {/* Reserves correct scaled space in layout flow */}
       <div style={{
         width: pageWidthPx * scale,
         height: totalHeightPx * scale,
@@ -118,46 +126,53 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
           transform: `scale(${scale})`,
         }}>
 
-          {/* White page sheet backgrounds.
-              Page i top = i * stride
-              where stride = usable + spacer
-              This places each sheet so:
-                - its top = start of page i's top margin zone
-                - its content area starts at top + marginTopPx
-                - its bottom margin ends at top + pageHeightPx
-                - the GAP_PX grey strip follows immediately after */}
-          {Array.from({ length: pageCount }).map((_, i) => (
-            <div
-              key={`page-${i}`}
-              style={{
-                position: "absolute",
-                top: i * stride,
-                left: 0,
-                width: pageWidthPx,
-                height: pageHeightPx,
-                background: "var(--bg-secondary)", 
-                boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-                borderRadius: 2,
-                pointerEvents: "none",
-                zIndex: 0,
-              }}
-            />
-          ))}
+          {/* White page backgrounds.
+              Each page covers the region from its top to the start of
+              the next spacer (or end of content for the last page).
+              Using measured spacer positions so backgrounds always align
+              with actual content breaks, not theoretical geometry. */}
+          {Array.from({ length: pageCount }).map((_, i) => {
+           const pageTop = i === 0
+            ? 0
+            : (spacerTops[i - 1] ?? 0) + spacerHeightPx - marginTopPx;
+                    
+          const pageBottom = i < spacerTops.length
+            ? (spacerTops[i] ?? 0) + marginBottomPx
+            : totalHeightPx;
+                    
+          const pageHeight = Math.max(
+            pageBottom - pageTop,
+            marginTopPx + marginBottomPx
+          );
+            return (
+              <div
+                key={`page-${i}`}
+                style={{
+                  position: "absolute",
+                  top: pageTop,
+                  left: 0,
+                  width: pageWidthPx,
+                  height: pageHeight,
+                  background: "var(--bg-secondary)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                  borderRadius: 2,
+                  pointerEvents: "none",
+                  zIndex: 0,
+                }}
+              />
+            );
+          })}
 
           {/* Grey gap strips between pages.
-              Gap i sits between page i and page i+1.
-              Gap top = page i bottom = i*stride + pageHeightPx
-              Gap height = GAP_PX
-              Gap bottom = i*stride + pageHeightPx + GAP_PX
-                         = i*stride + marginTop + usable + marginBottom + GAP
-                         = i*stride + spacer - marginTop + usable + marginTop
-                         ... simplifies to (i+1)*stride  ✓ (= top of page i+1) */}
-          {Array.from({ length: pageCount - 1 }).map((_, i) => (
+              The spacer node contains three zones: [marginBottom | GAP | marginTop].
+              The grey strip is the middle zone, starting marginBottomPx into
+              the spacer. Positioned using measured spacer tops for exact alignment. */}
+          {spacerTops.map((spacerTop, i) => (
             <div
               key={`gap-${i}`}
               style={{
                 position: "absolute",
-                top: i * stride + pageHeightPx,
+                top: spacerTop + marginBottomPx,
                 left: -40,
                 width: pageWidthPx + 80,
                 height: GAP_PX,
@@ -168,13 +183,12 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
             />
           ))}
 
-          {/* Editor content div — NO fixed height so ProseMirror can grow.
-              Spacer nodes inserted by usePaginator push content past each
-              page boundary (bottomMargin + GAP + topMargin per boundary).
-              The content div's paddingTop shifts content down by marginTopPx,
-              which aligns with page sheet i starting at i*stride:
-                sheet top    = i*stride
-                content top  = i*stride + marginTopPx  ✓ */}
+          {/* Editor content — single ProseMirror instance, no fixed height.
+              paddingTop/Bottom/Left/Right enforce the page margins.
+              Spacer nodes inserted by usePaginator create the dead zones
+              between pages (bottom margin + gap + top margin).
+              minHeight ensures the container is always at least totalHeightPx
+              tall so the outer reserved div doesn't collapse. */}
           <div
             ref={contentRef}
             className="page-container"
@@ -183,7 +197,6 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               top: 0,
               left: 0,
               width: pageWidthPx,
-              // NO height — let content grow naturally so ResizeObserver works
               minHeight: totalHeightPx,
               zIndex: 1,
               boxSizing: "border-box",

@@ -21,14 +21,15 @@ const PAPER_SIZES: Record<string, { width: number; height: number }> = {
 export function usePaginator(
   editor: Editor | null,
   settings: DocumentSettings,
-  scale: number
+  scale: number,
+  isLoading: boolean = false
 ) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Prevent re-entrant pagination runs
   const isRunningRef = useRef(false);
 
   useEffect(() => {
     if (!editor) return;
+    if (isLoading) return; // Wait for settings to load before paginating
 
     const runPagination = () => {
       if (isRunningRef.current) return;
@@ -45,18 +46,15 @@ export function usePaginator(
       }, 150);
     };
 
-    // Run on every document change
     editor.on("update", runPagination);
-    // Run once on mount and when settings/scale change
     runPagination();
 
     return () => {
       editor.off("update", runPagination);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [editor, settings, scale]);
+  }, [editor, settings, scale, isLoading]);
 }
-
 
 function paginate(
   editor: Editor,
@@ -68,29 +66,26 @@ function paginate(
       ? { width: settings.customWidth, height: settings.customHeight }
       : PAPER_SIZES[settings.paperFormat] ?? PAPER_SIZES.A4;
 
-  const marginTopMm    = convertToMm(settings.marginTop,    settings.marginUnit);
-  const marginBottomMm = convertToMm(settings.marginBottom, settings.marginUnit);
-
-  const pageHeightPx    = mmToPx(paperSize.height);
-  const marginTopPx     = mmToPx(marginTopMm);
-  const marginBottomPx  = mmToPx(marginBottomMm);
-  const usableHeightPx  = pageHeightPx - marginTopPx - marginBottomPx;
-
-  // GAP between page sheets on screen (matches SceneEditorPageView)
-  const GAP_PX = 24;
-  // Total spacer height per page boundary
+  const marginTopPx    = mmToPx(convertToMm(settings.marginTop,    settings.marginUnit));
+  const marginBottomPx = mmToPx(convertToMm(settings.marginBottom, settings.marginUnit));
+  const pageHeightPx   = mmToPx(paperSize.height);
+  const usableHeightPx = pageHeightPx - marginTopPx - marginBottomPx;
+  const GAP_PX         = Math.round(Math.min(marginTopPx, marginBottomPx) / 4);
   const spacerHeightPx = marginBottomPx + GAP_PX + marginTopPx;
 
-  const doc = editor.state.doc;
+  console.log("PAGINATOR GEOMETRY", {
+    pageHeightPx, marginTopPx, marginBottomPx,
+    usableHeightPx, spacerHeightPx, GAP_PX,
+  });
+
+  
+
+  const { state } = editor; // declared once, used throughout
+  const doc = state.doc;
   const view = editor.view;
 
-  // ── Step 1: collect all top-level block nodes with their positions ──
-  type BlockEntry = {
-    pos: number;          // ProseMirror position before the node
-    node: typeof doc.firstChild; // the node itself
-    isSpacer: boolean;
-  };
-
+  // ── Step 1: collect top-level blocks ──────────────────────────────
+  type BlockEntry = { pos: number; node: any; isSpacer: boolean; };
   const blocks: BlockEntry[] = [];
   doc.forEach((node, offset) => {
     blocks.push({
@@ -100,13 +95,13 @@ function paginate(
     });
   });
 
-  // ── Step 2: measure rendered height of each non-spacer block ────────
-  // We must measure from the DOM. Spacers are excluded from height sum.
+  // ── Step 2: measure rendered height of non-spacer blocks ──────────
   type MeasuredBlock = {
     pos: number;
     heightPx: number;
     isSpacer: boolean;
     existingSpacerPageIndex?: number;
+    existingSpacerHeight?: number;
   };
 
   const measured: MeasuredBlock[] = [];
@@ -115,22 +110,19 @@ function paginate(
     if (block.isSpacer) {
       measured.push({
         pos: block.pos,
-        heightPx: 0, // excluded from content height
+        heightPx: 0,
         isSpacer: true,
-        existingSpacerPageIndex: (block.node as any).attrs?.pageIndex ?? 0,
+        existingSpacerPageIndex: block.node.attrs?.pageIndex ?? 0,
+        existingSpacerHeight: block.node.attrs?.height ?? 0,
       });
       continue;
     }
 
-    // Get the DOM node for this block
     let domNode: HTMLElement | null = null;
     try {
       const domResult = view.domAtPos(block.pos + 1);
       let el: Node | null = domResult.node;
-      // Walk up to find the block-level element
-      while (el && el.nodeType !== Node.ELEMENT_NODE) {
-        el = el.parentNode;
-      }
+      while (el && el.nodeType !== Node.ELEMENT_NODE) el = el.parentNode;
       while (
         el &&
         el.parentElement &&
@@ -141,58 +133,47 @@ function paginate(
       }
       domNode = el as HTMLElement;
     } catch {
-      // If measurement fails, assume 0 height — safe fallback
+      // measurement failed — use 0
     }
-
-    const heightPx = domNode
-      ? Math.round(domNode.getBoundingClientRect().height / scale)
-      : 0;
 
     measured.push({
       pos: block.pos,
-      heightPx,
+      heightPx: domNode
+        ? Math.round(domNode.getBoundingClientRect().height / scale)
+        : 0,
       isSpacer: false,
     });
   }
 
-  // ── Step 3: walk blocks and determine where spacers should go ────────
-  // We want spacers BETWEEN the block that overflows and the next block.
-  // pageIndex tracks which page break spacer this is (0 = between page 1 and 2)
-
-  type SpacerSpec = {
-    afterPos: number;   // insert spacer after the block at this pos
-    pageIndex: number;
-  };
-
+  // ── Step 3: determine where spacers should go ─────────────────────
+  type SpacerSpec = { afterPos: number; pageIndex: number; };
   const neededSpacers: SpacerSpec[] = [];
   let accumulatedPx = 0;
   let pageIndex = 0;
 
   for (const block of measured) {
-    if (block.isSpacer) continue; // skip existing spacers in the walk
-
+    if (block.isSpacer) continue;
     const blockH = block.heightPx;
 
+    console.log("BLOCK", {
+      pos: block.pos,
+      heightPx: blockH,
+      accumulatedBefore: accumulatedPx,
+      accumulatedAfter: accumulatedPx + blockH,
+      usableHeightPx,
+      wouldOverflow: accumulatedPx + blockH > usableHeightPx,
+    });
+
     if (accumulatedPx + blockH > usableHeightPx && accumulatedPx > 0) {
-      // This block would overflow — insert spacer before it
-      neededSpacers.push({
-        afterPos: block.pos,
-        pageIndex,
-      });
+      neededSpacers.push({ afterPos: block.pos, pageIndex });
       pageIndex++;
-      accumulatedPx = blockH; // this block starts the new page
+      accumulatedPx = blockH;
     } else {
       accumulatedPx += blockH;
-
-      // If the block itself is taller than a full page, it spans multiple pages
-      // Insert additional spacers for each full page it spans
       if (blockH > usableHeightPx) {
         const extraPages = Math.floor(blockH / usableHeightPx);
         for (let p = 0; p < extraPages; p++) {
-          neededSpacers.push({
-            afterPos: block.pos,
-            pageIndex,
-          });
+          neededSpacers.push({ afterPos: block.pos, pageIndex });
           pageIndex++;
         }
         accumulatedPx = blockH % usableHeightPx;
@@ -200,89 +181,59 @@ function paginate(
     }
   }
 
-  // ── Step 4: diff against existing spacers — only update if changed ──
+  // ── Step 4: diff — skip if already correct ────────────────────────
   const existingSpacers = measured.filter((b) => b.isSpacer);
-
-  const existingCount  = existingSpacers.length;
-  const neededCount    = neededSpacers.length;
-
-  // Check if spacers are already correct (count and positions match)
-  // If so, skip the transaction to avoid an infinite update loop
   const alreadyCorrect =
-    existingCount === neededCount &&
+    existingSpacers.length === neededSpacers.length &&
     existingSpacers.every((sp, i) => {
-      return sp.existingSpacerPageIndex === neededSpacers[i]?.pageIndex;
+      const heightOk = Math.abs((sp.existingSpacerHeight ?? 0) - spacerHeightPx) < 1;
+      return sp.existingSpacerPageIndex === neededSpacers[i]?.pageIndex && heightOk;
     });
 
   if (alreadyCorrect) return;
 
-  // ── Step 5: apply transaction ─────────────────────────────────────
-  // Remove all existing spacers, then insert new ones.
-  // We do this in a single transaction to avoid multiple re-renders.
-
-  const { state } = editor;
+  // ── Step 5: remove old spacers ────────────────────────────────────
   let tr = state.tr;
-
-  // Remove existing spacers (iterate in reverse to keep positions valid)
   const spacerPositions: number[] = [];
-  state.doc.forEach((node, offset) => {
-    if (node.type.name === PAGE_BREAK_SPACER_TYPE) {
-      spacerPositions.push(offset);
-    }
+  doc.forEach((node, offset) => {
+    if (node.type.name === PAGE_BREAK_SPACER_TYPE) spacerPositions.push(offset);
   });
-
-  // Delete in reverse order so earlier positions stay valid
   for (let i = spacerPositions.length - 1; i >= 0; i--) {
     const pos = spacerPositions[i];
-    tr = tr.delete(pos, pos + state.doc.nodeAt(pos)!.nodeSize);
+    tr = tr.delete(pos, pos + doc.nodeAt(pos)!.nodeSize);
   }
-
   const stateAfterDelete = state.apply(tr);
 
-  let insertTr = stateAfterDelete.tr;
-
-
-  const nonSpacerBlocks: number[] = [];
-  state.doc.forEach((node, offset) => {
-    if (node.type.name !== PAGE_BREAK_SPACER_TYPE) {
-      nonSpacerBlocks.push(offset);
-    }
+  // ── Step 6: insert new spacers ────────────────────────────────────
+  // Map needed spacers from original block positions to block indices
+  const nonSpacerPositions: number[] = [];
+  doc.forEach((node, offset) => {
+    if (node.type.name !== PAGE_BREAK_SPACER_TYPE) nonSpacerPositions.push(offset);
   });
-
 
   const insertions: Array<{ blockIndex: number; pageIndex: number }> = [];
   for (const spec of neededSpacers) {
-    const blockIdx = nonSpacerBlocks.indexOf(spec.afterPos);
-    if (blockIdx >= 0) {
-      insertions.push({ blockIndex: blockIdx, pageIndex: spec.pageIndex });
-    }
+    const blockIdx = nonSpacerPositions.indexOf(spec.afterPos);
+    if (blockIdx >= 0) insertions.push({ blockIndex: blockIdx, pageIndex: spec.pageIndex });
   }
-
-  // Sort insertions in reverse order so later insertions don't shift earlier ones
   insertions.sort((a, b) => b.blockIndex - a.blockIndex);
 
-  // Walk the post-delete doc to find actual positions
-  const postDeleteBlocks: number[] = [];
-  stateAfterDelete.doc.forEach((node, offset) => {
-    postDeleteBlocks.push(offset);
-  });
+  // Find positions in the post-delete doc
+  const postDeletePositions: number[] = [];
+  stateAfterDelete.doc.forEach((_, offset) => postDeletePositions.push(offset));
 
+  let insertTr = stateAfterDelete.tr;
   for (const ins of insertions) {
-    const insertPos = postDeleteBlocks[ins.blockIndex];
+    const insertPos = postDeletePositions[ins.blockIndex];
     if (insertPos === undefined) continue;
-
     const spacerNode = stateAfterDelete.schema.nodes[PAGE_BREAK_SPACER_TYPE].create({
       height: spacerHeightPx,
       pageIndex: ins.pageIndex,
     });
-
     insertTr = insertTr.insert(insertPos, spacerNode);
   }
 
-  // Mark transaction as not adding to undo history
-  // (spacers are layout artifacts, not user edits)
   insertTr.setMeta("addToHistory", false);
   insertTr.setMeta("pagination", true);
-
   editor.view.dispatch(insertTr);
 }

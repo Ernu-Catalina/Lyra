@@ -65,7 +65,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
     ({ content, onChange, editable = true, onEditorReady, scale = 1 }, ref) => {
 
       // 1. ALL hooks must come first, before any other code
-      const { settings } = useDocumentSettings();
+      const { settings, isLoading } = useDocumentSettings();
 
       // 2. useEditor comes after hooks, and can now reference settings
       const editor = useEditor({
@@ -97,7 +97,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         },
       });
 
-      usePaginator(editor, settings, scale);
+      usePaginator(editor, settings, scale, isLoading);
 
       // 3. useImperativeHandle and other effects after useEditor
       useImperativeHandle(ref, () => editor, [editor]);
