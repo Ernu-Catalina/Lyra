@@ -28,6 +28,7 @@ export interface PaginatorSettings {
   fontSize: string;       // e.g. "12pt"
   lineHeight: number;     // e.g. 1.5
   textAlign: string;      // e.g. "left"
+  firstLineIndent: string;
 }
 
 /**
@@ -70,6 +71,7 @@ export function paginateHtml(
     visibility: hidden;
     pointer-events: none;
     box-sizing: border-box;
+    --default-first-line-indent: ${settings.firstLineIndent};
   `;
   container.innerHTML = html;
   document.body.appendChild(container);
@@ -180,6 +182,10 @@ function trySplitBlock(
   if (!["P", "DIV", "BLOCKQUOTE", "LI"].includes(block.tagName)) return null;
 
   const lineRects = getLineRects(block);
+  // Don't attempt split if remaining space is less than one full line
+  const firstLineHeight = lineRects[0]?.height ?? 0;
+  if (remainingPx < firstLineHeight) return null;
+
   if (lineRects.length <= 1) return null;
 
   // Find how many lines fit in the remaining space

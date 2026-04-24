@@ -96,6 +96,9 @@ export function compileDocument(
     fontSize: `${settings.defaultFontSize}pt`,
     lineHeight: settings.defaultLineHeight,
     textAlign: settings.defaultAlignment,
+    firstLineIndent: settings.defaultFirstLineIndent > 0
+  ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
+  : "0",
   };
 
   return paginateHtml(fullHtml, paginatorSettings);

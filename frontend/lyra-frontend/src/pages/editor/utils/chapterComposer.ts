@@ -1,7 +1,7 @@
 // src/utils/chapterComposer.ts
 import type { Scene } from "../../../types/document";
 
-const SEPARATOR = `<p></p><p style="text-align: center; margin: 2rem 0;">*****</p><p></p>`; // HTML separator for scenes
+const SEPARATOR = `<p style="text-align: center; padding: 1rem 0; margin: 0;">* * *</p>`;
 
 export function composeChapter(scenes: Scene[]): string {
   const ordered = [...scenes].sort((a, b) => a.order - b.order);

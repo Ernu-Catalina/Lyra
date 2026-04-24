@@ -3,6 +3,7 @@ import { useDocumentSettings } from "../context/DocumentSettingsContext";
 import { PaginatedPageView } from "./PaginatedPageView";
 import { compileChapter } from "../utils/chapterCompiler";
 import type { Chapter } from "../../../types/document";
+import { useState, useEffect } from "react";
 
 interface ChapterEditorViewProps {
   chapter: Chapter;
@@ -19,10 +20,14 @@ interface ChapterEditorViewProps {
 export function ChapterEditorView({ chapter, scale = 1 }: ChapterEditorViewProps) {
   const { settings } = useDocumentSettings();
 
-  const pages = useMemo(
-    () => compileChapter(chapter, settings),
-    [chapter, settings]
-  );
+  const [pages, setPages] = useState<string[]>(() => compileChapter(chapter, settings));
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPages(compileChapter(chapter, settings));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [chapter, settings]);
 
   return <PaginatedPageView pages={pages} scale={scale} />;
 }
