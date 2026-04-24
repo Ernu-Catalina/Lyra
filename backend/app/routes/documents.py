@@ -530,24 +530,27 @@ async def get_document_settings(
         raise HTTPException(404, "Document not found or not owned")
 
     DEFAULT_SETTINGS = {
-        "marginTop": 2.5,
-        "marginBottom": 2.5,
-        "marginLeft": 2.5,
-        "marginRight": 2.5,
-        "marginUnit": "cm",
-        "paperFormat": "A4",
-        "customWidth": 210,
-        "customHeight": 297,
-        "defaultAlignment": "left",
-        "defaultFont": "Arial, sans-serif",
-        "defaultFontSize": 12,
-        "chapterTitleFormat": "chapter-number-title",
-        "chapterTitleSize": 16,
-        "chapterTitleAlignment": "center",
-        "chapterTitleStyle": "bold",
-        "blankLinesAfterChapter": 2,
-        "pageBreakAfterChapter": True,
-    }
+    "marginTop": 2.5,
+    "marginBottom": 2.5,
+    "marginLeft": 2.5,
+    "marginRight": 2.5,
+    "marginUnit": "cm",
+    "paperFormat": "A4",
+    "customWidth": 0,
+    "customHeight": 0,
+    "defaultAlignment": "left",
+    "defaultFont": "Arial, sans-serif",
+    "defaultFontSize": 12,
+    "defaultLineHeight": 1.5,
+    "defaultFirstLineIndent": 0,
+    "defaultFirstLineIndentUnit": "cm",
+    "chapterTitleFormat": "chapter-number-title",
+    "chapterTitleSize": 16,
+    "chapterTitleAlignment": "center",
+    "chapterTitleStyle": "bold",
+    "blankLinesAfterChapter": 2,
+    "pageBreakAfterChapter": True,
+}
 
     settings = document.get("settings") or DEFAULT_SETTINGS
     return {"settings": settings}
@@ -582,7 +585,7 @@ async def apply_document_settings_to_content(
                 )
                 content = re.sub(
                     r'font-size:[^;"]*;?',
-                    f'font-size:{settings.get("defaultFontSize", 12)}px;',
+                    f'font-size:{settings.get("defaultFontSize", 12)}pt;',
                     content
                 )
                 content = re.sub(

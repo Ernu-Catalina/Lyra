@@ -32,28 +32,24 @@ import { Extension } from "@tiptap/core";
               parseHTML: (element) => {
                 const raw = element.style.textIndent;
                 if (!raw) return 0;
-                // Strip so renderHTML is the single source of truth
-                element.style.removeProperty("text-indent");
                 const em = parseFloat(raw);
                 if (isNaN(em) || em === 0) return 0;
-                // Reverse the em multiplier to recover the integer level.
-                // Round to nearest integer to avoid floating point drift.
+                // Don't strip the style here — leave it so the DOM reflects the value.
+                // renderHTML is the single source of truth for output.
                 return Math.round(em / this.options.indentSize);
               },
               renderHTML: (attributes) => {
                 const level = attributes.indent ?? 0;
-                            
                 if (level > 0) {
-                  // User indent: base default + em levels stacked on top
                   return {
                     style: `text-indent: calc(var(--default-first-line-indent, 0) + ${level * this.options.indentSize}em);`,
                   };
                 }
-              
-                // No user indent: just the document default
-                return {
-                  style: `text-indent: var(--default-first-line-indent, 0);`,
-                };
+                // Don't emit any style for indent=0 — let the container's
+                // --default-first-line-indent variable handle the default indent.
+                // Emitting the var() reference causes it to be serialized as a literal
+                // string that parseHTML cannot recover an indent level from.
+                return {};
               },
             },
 

@@ -114,16 +114,11 @@ export function paginateHtml(
       pages.push([]);
       pageContentUsed = 0;
 
-      if (bottomHtml) {
-        const botEl = document.createElement(block.tagName);
-        botEl.innerHTML = bottomHtml;
-        copyAttributes(block, botEl);
-        pages[pages.length - 1].push(botEl);
-        pageContentUsed = bottomHeight;
-      }
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = bottomHtml;
+      const botEl = tempDiv.firstElementChild as HTMLElement;
+      if (botEl) pages[pages.length - 1].push(botEl);
     } else {
-      // Can't split — push whole block to new page
-      // (unless current page is empty, in which case just add it)
       if (pageContentUsed > 0) {
         pages.push([]);
         pageContentUsed = 0;
@@ -182,7 +177,7 @@ function trySplitBlock(
   if (!["P", "DIV", "BLOCKQUOTE", "LI"].includes(block.tagName)) return null;
 
   const lineRects = getLineRects(block);
-  // Don't attempt split if remaining space is less than one full line
+  const marginBottom = parseFloat(window.getComputedStyle(block).marginBottom) || 0;
   const firstLineHeight = lineRects[0]?.height ?? 0;
   if (remainingPx < firstLineHeight) return null;
 
@@ -193,14 +188,17 @@ function trySplitBlock(
   let fittingHeight = 0;
   const blockTop = block.getBoundingClientRect().top;
 
-  for (const rect of lineRects) {
-    if (fittingHeight + rect.height <= remainingPx) {
-      fittingHeight += rect.height;
-      fittingLines++;
-    } else {
-      break;
-    }
+  for (let li = 0; li < lineRects.length; li++) {
+  const rect = lineRects[li];
+  const isLast = li === lineRects.length - 1;
+  const effectiveHeight = rect.height + (isLast ? marginBottom : 0);
+  if (fittingHeight + effectiveHeight <= remainingPx) {
+    fittingHeight += rect.height;
+    fittingLines++;
+  } else {
+    break;
   }
+}
 
   // Need at least one line on current page and one on next
   if (fittingLines === 0 || fittingLines >= lineRects.length) return null;
@@ -223,10 +221,16 @@ function trySplitBlock(
   const topHtml  = extractHtmlSlice(block, 0, splitOffset);
   const bottomHtml = extractHtmlSlice(block, splitOffset, fullText.length);
 
-  // Measure the bottom portion height
+  // Build bottom element with text-indent removed
+  const botEl = document.createElement(block.tagName);
+  botEl.innerHTML = bottomHtml;
+  copyAttributes(block, botEl);
+  botEl.style.removeProperty("text-indent");
+  
+  // Measure bottom height using the cleaned element
   const probe = document.createElement(block.tagName);
-  probe.innerHTML = bottomHtml;
-  copyAttributes(block, probe);
+  probe.innerHTML = botEl.innerHTML;
+  copyAttributes(botEl, probe);
   probe.style.cssText += `
     position: fixed; top: -99999px; left: -99999px;
     width: ${container.offsetWidth}px; visibility: hidden;
@@ -235,9 +239,14 @@ function trySplitBlock(
   void probe.offsetHeight;
   const bottomHeight = probe.offsetHeight;
   document.body.removeChild(probe);
-
-  return { topHtml, bottomHtml, bottomHeight };
-}
+  
+  // Serialize the full element so callers get attributes + cleaned style
+  const wrapper = document.createElement("div");
+  wrapper.appendChild(botEl);
+  const bottomHtmlFinal = wrapper.innerHTML;
+  
+  return { topHtml, bottomHtml: bottomHtmlFinal, bottomHeight };
+  }
 
 /**
  * Returns one DOMRect per visual line inside an element using the Range API.

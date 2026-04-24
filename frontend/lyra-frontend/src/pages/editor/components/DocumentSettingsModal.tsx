@@ -88,6 +88,12 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
   };
 
   const handleConfirmSave = async () => {
+    const settingsToSave = {
+      ...tempSettings,
+      customWidth: tempSettings.paperFormat === "Custom" ? tempSettings.customWidth : 0,
+      customHeight: tempSettings.paperFormat === "Custom" ? tempSettings.customHeight : 0,
+    };
+    await updateSettings(settingsToSave);
     // DEBUG - remove after verification
     console.log("=== SAVE BUTTON CLICKED ===");
     console.log("=== tempSettings ===", tempSettings);
@@ -343,7 +349,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                  Font Size (px)
+                  Font Size (pt)
                 </label>
                 <input
                   type="number"

@@ -30,12 +30,12 @@ export function formatChapterTitle(
 
 const style = {
   fontFamily: settings.defaultFont,
-  fontSize: `${settings.chapterTitleSize}px`,
+  fontSize: `${settings.chapterTitleSize}pt`,  // also fix px → pt here
   fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
   fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
   textAlign: settings.chapterTitleAlignment,
-  pageBreakAfter: settings.pageBreakAfterChapter ? "always" : "avoid",
-  marginBottom: "1.5em",
+  marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
+  display: "block",
 };
 
   return { html: displayText, style };
