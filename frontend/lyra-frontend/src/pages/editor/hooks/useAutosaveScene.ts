@@ -1,7 +1,5 @@
-// src/pages/editor/hooks/useAutosaveScene.ts
 import { useEffect } from "react";
 import api from "../../../api/client";
-import { stripSpacersFromHtml } from "../extensions/PageBreakSpacer";
 
 interface AutosaveProps {
   projectId?: string;
@@ -12,7 +10,7 @@ interface AutosaveProps {
   shouldSave: boolean;
   debounceMs?: number;
   onSaved?: (savedContent: string) => void;
-  onStatusChange?: (status: 'idle' | 'saving' | 'saved' | 'error', message?: string) => void;
+  onStatusChange?: (status: "idle" | "saving" | "saved" | "error", message?: string) => void;
 }
 
 export function useAutosaveScene({
@@ -28,30 +26,30 @@ export function useAutosaveScene({
 }: AutosaveProps) {
   useEffect(() => {
     if (!shouldSave || !projectId || !documentId || !activeChapterId || !activeSceneId) {
-      onStatusChange?.('idle');
+      onStatusChange?.("idle");
       return;
     }
 
-    onStatusChange?.('saving', 'Saving scene...');
+    onStatusChange?.("saving", "Saving...");
 
     const timer = setTimeout(async () => {
       try {
         await api.put(
           `/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`,
-          { content: stripSpacersFromHtml(content) }
+          { content }
         );
         onSaved?.(content);
-        onStatusChange?.('saved', 'Saved');
-        setTimeout(() => onStatusChange?.('idle'), 3000); // fade out success
+        onStatusChange?.("saved", "Saved");
+        setTimeout(() => onStatusChange?.("idle"), 3000);
       } catch (err) {
         console.error("Autosave failed:", err);
-        onStatusChange?.('error', 'Failed to save');
+        onStatusChange?.("error", "Failed to save");
       }
     }, debounceMs);
 
     return () => {
       clearTimeout(timer);
-      onStatusChange?.('idle');
+      onStatusChange?.("idle");
     };
   }, [content, shouldSave, projectId, documentId, activeChapterId, activeSceneId, debounceMs, onSaved, onStatusChange]);
 }
