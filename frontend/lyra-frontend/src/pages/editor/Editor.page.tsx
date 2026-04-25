@@ -20,6 +20,7 @@ import type { Editor } from "@tiptap/react";
 import type { DocumentOutline } from "../../types/document";
 import { EditorFooter } from "./components/EditorFooter";
 import "./styles/editor.css";
+import { ExportModal } from "./components/ExportModal";
 
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
@@ -51,6 +52,7 @@ export default function EditorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDocumentWarning, setShowDocumentWarning] = useState(false);
   const editorLayoutRef = useRef<HTMLDivElement>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const toggleFullscreen = useFullscreen(editorLayoutRef, isFullscreen, setIsFullscreen);
 
@@ -142,6 +144,22 @@ export default function EditorPage() {
     if (userSettings.wordcountDisplay.includes("document"))
       wordCountParts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
   }
+
+  const handleExport = async (format: "pdf" | "docx") => {
+  if (!projectId || !documentId) throw new Error("Missing document context");
+  const response = await api.get(
+    `/projects/${projectId}/documents/${documentId}/export/${format}`,
+    { responseType: "blob" }
+  );
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${outline?.title || "document"}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
   // ── Project name ──────────────────────────────────────────────────
   useEffect(() => {
@@ -342,7 +360,7 @@ export default function EditorPage() {
             onLogout={() => { logout(); navigate("/login"); }}
             onSettings={() => navigate("/settings")}
             isEditorView={true}
-            onExport={() => {}}
+            onExport={() => setShowExportModal(true)}
             saveStatus={saveStatus}
             saveMessage={saveMessage}
           />
@@ -396,6 +414,12 @@ export default function EditorPage() {
           </div>
         )}
       </div>
+      {showExportModal && (
+        <ExportModal
+          onClose={() => setShowExportModal(false)}
+          onExport={handleExport}
+        />
+      )}
     </DocumentSettingsProvider>
   );
 }

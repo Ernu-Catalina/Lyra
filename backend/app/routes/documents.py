@@ -938,3 +938,46 @@ async def move_chapter(
     )
 
     return {"message": "Chapter moved"}
+
+
+# ────────────────────────────────────────────────
+# EXPORT DOCUMENT
+# ────────────────────────────────────────────────
+from fastapi.responses import Response as FastAPIResponse
+from app.services.export_service import build_docx, build_pdf
+
+@router.get("/{document_id}/export/{fmt}")
+async def export_document(
+    project_id: str,
+    document_id: str,
+    fmt: str,
+    user_id=Depends(get_current_user)
+):
+    if fmt not in ("pdf", "docx"):
+        raise HTTPException(400, "Format must be 'pdf' or 'docx'")
+
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+
+    settings = document.get("settings") or {}
+    chapters = sorted(document.get("chapters", []), key=lambda c: c.get("order", 0))
+    for ch in chapters:
+        ch["scenes"] = sorted(ch.get("scenes", []), key=lambda s: s.get("order", 0))
+
+    doc_title = document.get("title", "document")
+
+    if fmt == "docx":
+        data = build_docx(doc_title, chapters, settings)
+        return FastAPIResponse(
+            content=data,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{doc_title}.docx"'}
+        )
+    else:
+        data = build_pdf(doc_title, chapters, settings)
+        return FastAPIResponse(
+            content=data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{doc_title}.pdf"'}
+        )
