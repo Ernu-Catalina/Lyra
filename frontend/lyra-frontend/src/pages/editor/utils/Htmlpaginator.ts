@@ -93,7 +93,7 @@ export function paginateHtml(
     const relTop    = block.offsetTop - pageStart;
     const relBottom = relTop + block.offsetHeight;
 
-    if (relBottom <= usableHeightPx) {
+    if (relBottom <= usableHeightPx + 30) {
       // Block fits on current page
       pages[pages.length - 1].push(block.cloneNode(true));
       continue;
@@ -164,10 +164,10 @@ function copyAttributes(src: HTMLElement, dst: HTMLElement): void {
 /**
  * Attempts to split a block element at the line boundary that fits within
  * `remainingPx`. Returns { topHtml, bottomHtml, bottomHeight } or null if
- * the split is not possible (e.g. block has no text, only one line, etc).
+ * the split is not possible.
  *
- * Uses the Range API to get per-line bounding rects, finds how many lines
- * fit, then splits the text content at that character position.
+ * Improved version: more aggressive fitting, better line measurement,
+ * reduced safety margins, and prefers splitting when possible.
  */
 function trySplitBlock(
   block: HTMLElement,
@@ -175,61 +175,58 @@ function trySplitBlock(
   usableHeightPx: number,
   container: HTMLElement
 ): { topHtml: string; bottomHtml: string; bottomHeight: number } | null {
-  // Only attempt split on block-level text elements
   if (!["P", "DIV", "BLOCKQUOTE", "LI"].includes(block.tagName)) return null;
 
   const lineRects = getLineRects(block);
-  const marginBottom = parseFloat(window.getComputedStyle(block).marginBottom) || 0;
-  const firstLineHeight = lineRects[0]?.height ?? 0;
-  if (remainingPx < firstLineHeight) return null;
-
   if (lineRects.length <= 1) return null;
 
-  // Find how many lines fit in the remaining space
+  const marginBottom = parseFloat(window.getComputedStyle(block).marginBottom) || 0;
+  const firstLineHeight = lineRects[0]?.height ?? 0;
+
+  // Allow split even if very little space remains on current page
+  if (remainingPx < firstLineHeight * 0.6) return null;
+
+  // Find maximum fitting lines (greedier than before)
   let fittingLines = 0;
   let fittingHeight = 0;
-  const blockTop = block.getBoundingClientRect().top;
 
   for (let li = 0; li < lineRects.length; li++) {
-  const rect = lineRects[li];
-  const isLast = li === lineRects.length - 1;
-  const effectiveHeight = rect.height + (isLast ? marginBottom : 0);
-  if (fittingHeight + effectiveHeight <= remainingPx) {
-    fittingHeight += rect.height;
-    fittingLines++;
-  } else {
-    break;
-  }
-}
+    const rect = lineRects[li];
+    const isLast = li === lineRects.length - 1;
+    const effectiveHeight = rect.height + (isLast ? marginBottom : 0);
 
-  // Need at least one line on current page and one on next
+    if (fittingHeight + effectiveHeight <= remainingPx + 8) {   // +8px tolerance for better fill
+      fittingHeight += rect.height;
+      fittingLines++;
+    } else {
+      break;
+    }
+  }
+
+  // Require at least one line on current page and one on next
   if (fittingLines === 0 || fittingLines >= lineRects.length) return null;
 
   const splitLineTop = lineRects[fittingLines].top;
-
-  // Find the character offset where the split line begins
   const splitOffset = findCharOffsetAtLineTop(block, splitLineTop);
-  if (splitOffset === null) return null;
 
-  // Extract full text content and split at character offset
+  if (splitOffset === null || splitOffset === 0) return null;
+
   const fullText = block.textContent ?? "";
   const topText = fullText.slice(0, splitOffset);
   const bottomText = fullText.slice(splitOffset);
 
   if (!topText.trim() && !bottomText.trim()) return null;
 
-  // Build top and bottom HTML by cloning the block and trimming text nodes.
-  // This preserves inline styles/marks (bold, italic, etc).
-  const topHtml  = extractHtmlSlice(block, 0, splitOffset);
+  const topHtml = extractHtmlSlice(block, 0, splitOffset);
   const bottomHtml = extractHtmlSlice(block, splitOffset, fullText.length);
 
-  // Build bottom element with text-indent removed
+  // Build bottom element (continuation — no first-line indent)
   const botEl = document.createElement(block.tagName);
   botEl.innerHTML = bottomHtml;
   copyAttributes(block, botEl);
-  botEl.style.textIndent = "0"; // continuation paragraph — no indent even if container sets a default
-  
-  // Measure bottom height using the cleaned element
+  botEl.style.textIndent = "0";
+
+  // Measure bottom height accurately
   const probe = document.createElement(block.tagName);
   probe.innerHTML = botEl.innerHTML;
   copyAttributes(botEl, probe);
@@ -241,14 +238,13 @@ function trySplitBlock(
   void probe.offsetHeight;
   const bottomHeight = probe.offsetHeight;
   document.body.removeChild(probe);
-  
-  // Serialize the full element so callers get attributes + cleaned style
+
   const wrapper = document.createElement("div");
   wrapper.appendChild(botEl);
   const bottomHtmlFinal = wrapper.innerHTML;
-  
+
   return { topHtml, bottomHtml: bottomHtmlFinal, bottomHeight };
-  }
+}
 
 /**
  * Returns one DOMRect per visual line inside an element using the Range API.
