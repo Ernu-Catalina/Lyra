@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { X, Eye } from "lucide-react";
 import api from "../../../api/client";
 import { useDocumentSettings, type DocumentSettings, applyPageStyles } from "../context/DocumentSettingsContext";
+import { resetAllTextFormatting } from "../context/DocumentSettingsContext";
 
 interface DocumentSettingsModalProps {
   editor: Editor | null;
@@ -87,52 +88,29 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
     setShowWarning(true);
   };
 
-  const handleConfirmSave = async () => {
-    const settingsToSave = {
-      ...tempSettings,
-      customWidth: tempSettings.paperFormat === "Custom" ? tempSettings.customWidth : 0,
-      customHeight: tempSettings.paperFormat === "Custom" ? tempSettings.customHeight : 0,
-    };
-    await updateSettings(settingsToSave);
-    // DEBUG - remove after verification
-    console.log("=== SAVE BUTTON CLICKED ===");
-    console.log("=== tempSettings ===", tempSettings);
-    console.log("=== context updateSettings function exists:", typeof updateSettings === "function");
-    
-    if (!projectId || !documentId) {
-      setError("Unable to save settings without a valid project or document.");
-      setShowWarning(false);
-      return;
+const handleConfirmSave = async () => {
+  setSaving(true);
+  setError(null);
+
+  try {
+    await updateSettings(tempSettings);
+
+    // Reset toolbar formatting so Document Settings fully override
+    if (editor) {
+      resetAllTextFormatting(editor);   // ← Add this
     }
 
-    setSaving(true);
-    setError(null);
-
-    try {
-      // FIX: updateSettings now handles backend persistence and will throw on failure
-      console.log("=== Calling updateSettings...");
-      await updateSettings(tempSettings);
-      console.log("=== updateSettings completed successfully");
-      
-      // Optionally apply settings to existing content
-      try {
-        await api.post(`/projects/${projectId}/documents/${documentId}/apply-settings`);
-      } catch (applyErr) {
-        console.warn("Could not apply settings to document content:", applyErr);
-        // Don't fail the entire operation if apply fails
-      }
-
-      applyPageStyles(tempSettings);
-      setShowWarning(false);
-      onSettingsApplied?.();
-      onClose();
-    } catch (err: any) {
-      console.error("Failed to save document settings", err);
-      setError(err?.response?.data?.detail || err.message || "Failed to save document settings. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+    applyPageStyles(tempSettings);
+    setShowWarning(false);
+    onSettingsApplied?.();
+    onClose();
+  } catch (err: any) {
+    console.error("Failed to save document settings", err);
+    setError(err?.response?.data?.detail || err.message || "Failed to save document settings.");
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleCancel = () => {
     setTempSettings(settings);

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -20,23 +20,16 @@ function sanitizeContent(html: string): string {
   const doc = parser.parseFromString(html, "text/html");
 
   doc.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
-    // Strip legacy px font sizes — pt values from the toolbar are kept as-is
     const fs = el.style.fontSize;
     if (fs && fs.endsWith("px")) {
       el.style.removeProperty("font-size");
     }
-
-    // Line-height belongs on block nodes, not spans
     if (el.tagName === "SPAN") {
       el.style.removeProperty("line-height");
     }
-
-    // Remove empty style attributes
     if (!el.getAttribute("style")?.trim()) {
       el.removeAttribute("style");
     }
-
-    // Unwrap attribute-less spans to keep the DOM clean
     if (el.tagName === "SPAN" && !el.hasAttributes() && el.parentElement) {
       const frag = doc.createDocumentFragment();
       el.childNodes.forEach((child) => frag.appendChild(child.cloneNode(true)));
@@ -47,16 +40,11 @@ function sanitizeContent(html: string): string {
   return doc.body.innerHTML;
 }
 
-/**
- * SceneEditor
- *
- * Plain Tiptap rich-text editor with no pagination logic.
- * Content flows continuously — SceneEditorPageView wraps it in a
- * single growing paper surface. Pagination only happens in the
- * read-only Chapter and Document views (PaginatedPageView).
- */
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
   ({ content, onChange, editable = true, onEditorReady }, ref) => {
+    const editorRef = useRef<Editor | null>(null);
+    const lastSetContentRef = useRef<string>("");
+
     const editor = useEditor({
       extensions: [
         StarterKit.configure({ heading: false }),
@@ -76,23 +64,33 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         attributes: { class: "focus:outline-none min-h-full" },
       },
       onUpdate: ({ editor }) => {
-        onChange(editor.getHTML());
+        const html = editor.getHTML();
+        onChange(html);
       },
     });
 
-    useImperativeHandle(ref, () => editor, [editor]);
-
+    // Keep a ref to the current editor instance
     useEffect(() => {
+      editorRef.current = editor;
       onEditorReady?.(editor);
     }, [editor, onEditorReady]);
 
-    // Sync external content changes (e.g. switching scenes)
+    // Safe content sync — only update when content actually changes and editor is ready
     useEffect(() => {
-      if (!editor) return;
-      if (content !== editor.getHTML()) {
-        editor.chain().setContent(sanitizeContent(content), false).run();
+      const currentEditor = editorRef.current;
+      if (!currentEditor) return;
+
+      const cleanContent = sanitizeContent(content);
+      const currentHtml = sanitizeContent(currentEditor.getHTML());
+
+      // Strong guard: only set if content is meaningfully different
+      if (cleanContent !== currentHtml && cleanContent !== lastSetContentRef.current) {
+        lastSetContentRef.current = cleanContent;
+        currentEditor.commands.setContent(cleanContent, false); // false = don't trigger onUpdate
       }
-    }, [content, editor]);
+    }, [content]);
+
+    useImperativeHandle(ref, () => editor, [editor]);
 
     if (!editor) return null;
 

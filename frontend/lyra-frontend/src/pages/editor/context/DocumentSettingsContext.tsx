@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import api from "../../../api/client";
+import type { Editor } from "@tiptap/react";
 
 export interface DocumentSettings {
   marginTop: number;
@@ -24,43 +25,32 @@ export interface DocumentSettings {
   defaultFirstLineIndentUnit: "cm" | "in" | "mm";
 }
 
-// BUG FIX 1: Apply document settings to page container via CSS
+// Apply styles to the page container
 export function applyPageStyles(settings: DocumentSettings) {
-  const MM: Record<string, number> = { mm: 1, cm: 10, in: 25.4 };
-  const factor = MM[settings.marginUnit] ?? 1;
-  const toMm = (v: number) => v * factor;
-
-  const FORMATS: Record<string, { width: number; height: number }> = {
-    A4: { width: 210, height: 297 },
-    Letter: { width: 215.9, height: 279.4 },
-    A5: { width: 148, height: 210 },
-    Legal: { width: 215.9, height: 355.6 },
-  };
-
-  const { width, height } =
-    settings.paperFormat === "Custom"
-      ? { width: settings.customWidth, height: settings.customHeight }
-      : FORMATS[settings.paperFormat];
-
   const el = document.querySelector<HTMLElement>(".page-container");
   if (!el) return;
 
-  el.style.setProperty("--page-width", `${width}mm`);
-  el.style.setProperty("--page-height", `${height}mm`);
-  el.style.setProperty("--page-margin-top", `${toMm(settings.marginTop)}mm`);
-  el.style.setProperty("--page-margin-bottom", `${toMm(settings.marginBottom)}mm`);
-  el.style.setProperty("--page-margin-left", `${toMm(settings.marginLeft)}mm`);
-  el.style.setProperty("--page-margin-right", `${toMm(settings.marginRight)}mm`);
-  el.style.setProperty("--page-font-size", `${settings.defaultFontSize}pt`);
-  el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
-  el.style.setProperty("--page-font-family", settings.defaultFont);
-  // Calibrated default font size for Google Docs match
   const VISUAL_CORRECTION = 1;
   const correctedFontSize = settings.defaultFontSize * VISUAL_CORRECTION;
 
+  el.style.setProperty("--page-font-family", settings.defaultFont);
+  el.style.setProperty("--page-font-size", `${correctedFontSize}pt`);
   el.style.setProperty("--editor-base-font-size", `${correctedFontSize}pt`);
+  el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
+  el.style.fontFamily = settings.defaultFont;
+  el.style.fontSize = `${correctedFontSize}pt`;
+  el.style.lineHeight = `${settings.defaultLineHeight}`;
+}
 
-  el.style.boxSizing = "border-box";
+// NEW: Reset all manual toolbar formatting so Document Settings win
+export function resetAllTextFormatting(editor: Editor | null) {
+  if (!editor) return;
+
+  editor.chain()
+    .focus()
+    .unsetMark("textStyle", { attributes: { fontSize: true } })
+    .unsetMark("textStyle", { attributes: { fontFamily: true } })
+    .run();
 }
 
 const DEFAULT_SETTINGS: DocumentSettings = {
@@ -112,6 +102,7 @@ export function DocumentSettingsProvider({
     if (!projectId || !documentId) {
       setSettings(DEFAULT_SETTINGS);
       setIsLoading(false);
+      applyPageStyles(DEFAULT_SETTINGS);
       return;
     }
 
@@ -119,24 +110,15 @@ export function DocumentSettingsProvider({
     setError(null);
 
     try {
-      // Fetch settings from backend (single source of truth)
       const response = await api.get(`/projects/${projectId}/documents/${documentId}/settings`);
-      const backendSettings = response.data.settings;
+      const backendSettings = response.data.settings || {};
 
-      if (backendSettings && Object.keys(backendSettings).length > 0) {
-        const merged = { ...DEFAULT_SETTINGS, ...backendSettings };
-        setSettings(merged);
-        applyPageStyles(merged);
-        return;
-      }
-
-      // No settings on backend, use defaults
-      setSettings(DEFAULT_SETTINGS);
-      applyPageStyles(DEFAULT_SETTINGS);
+      const merged = { ...DEFAULT_SETTINGS, ...backendSettings };
+      setSettings(merged);
+      applyPageStyles(merged);
     } catch (err: any) {
-      console.error("Failed to load document settings from backend:", err);
+      console.error("Failed to load document settings:", err);
       setError("Failed to load document settings");
-      // Fallback to defaults on error
       setSettings(DEFAULT_SETTINGS);
       applyPageStyles(DEFAULT_SETTINGS);
     } finally {
@@ -148,45 +130,35 @@ export function DocumentSettingsProvider({
     loadSettings();
   }, [loadSettings]);
 
-  // FIX: updateSettings now persists to backend immediately (not just localStorage)
   const updateSettings = useCallback(async (newSettings: DocumentSettings, skipBackendSave = false) => {
-    // DEBUG - remove after verification
     console.log("=== updateSettings CALLED with ===", newSettings);
-    console.log("=== Context has projectId:", projectId, "documentId:", documentId);
 
-    // Always apply locally first for immediate UI feedback
+    // Apply locally
     setSettings(newSettings);
     applyPageStyles(newSettings);
 
-    // If skipBackendSave is true, only update local state (used during form input)
-    if (skipBackendSave) {
-      console.log("=== skipBackendSave is true, not persisting to backend");
-      return;
-    }
+    // Reset all manual toolbar formatting so defaults fully override
+    // Note: editor is not in context yet, so we skip reset here for now
+    // We'll call it from the modal instead
 
-    // Persist to backend if we have a projectId and documentId
+    if (skipBackendSave) return;
+
     if (!projectId || !documentId) {
-      console.error("❌ Cannot save document settings: missing projectId or documentId", { projectId, documentId });
-      setError("Cannot save: missing document context");
+      console.error("❌ Cannot save: missing projectId or documentId");
       throw new Error("Missing projectId or documentId");
     }
 
     try {
-      setError(null);
       const url = `/projects/${projectId}/documents/${documentId}/settings`;
-      console.log("=== SENDING PATCH to", url, "with body", newSettings);
-      
-      const response = await api.patch(url, newSettings);
-      
-      console.log("=== PATCH SUCCESS ===", response.data);
-      // Settings saved successfully
+      await api.patch(url, newSettings);
+      console.log("=== PATCH SUCCESS ===");
     } catch (err: any) {
-      console.error("❌ Failed to save document settings to backend:", err);
+      console.error("❌ Failed to save document settings:", err);
       const errorMsg = err.response?.data?.detail || err.message || "Failed to save document settings";
       setError(errorMsg);
-      throw err; // Re-throw so caller can handle error
+      throw err;
     }
-  }, [documentId, projectId]);
+  }, [projectId, documentId]);
 
   const contextValue = useMemo(() => ({
     settings,

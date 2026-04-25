@@ -76,14 +76,14 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               paddingLeft: marginLeftPx,
               paddingRight: marginRightPx,
               fontFamily: settings.defaultFont,
-              fontSize: `${settings.defaultFontSize}pt`,
+              fontSize: `${settings.defaultFontSize}pt !important`,   // ← force override
               lineHeight: settings.defaultLineHeight,
               textAlign: settings.defaultAlignment as any,
               "--default-first-line-indent": settings.defaultFirstLineIndent > 0
                 ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
                 : "0",
               textIndent: "var(--default-first-line-indent, 0)",
-              minHeight: "100vh",           // ensures at least one page height
+              minHeight: "100vh",
             } as React.CSSProperties}
           >
             {children}

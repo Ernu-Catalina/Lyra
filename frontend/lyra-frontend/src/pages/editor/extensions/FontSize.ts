@@ -23,7 +23,7 @@ export const FontSize = Extension.create<FontSizeOptions>({
             parseHTML: element => element.style.fontSize || null,
             renderHTML: attributes => {
               if (!attributes.fontSize) {
-                return {};
+                return {};   // let container styles win
               }
               return {
                 style: `font-size: ${attributes.fontSize}`,
