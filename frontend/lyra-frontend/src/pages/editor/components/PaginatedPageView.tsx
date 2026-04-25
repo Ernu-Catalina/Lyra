@@ -1,12 +1,7 @@
 /**
  * PaginatedPageView
  *
- * Renders an array of pre-computed HTML page strings as paginated pages.
- * Each string is a complete HTML fragment for exactly one page, produced
- * by chapterCompiler or documentCompiler via htmlPaginator.
- *
- * This component is purely presentational — no measurement, no clipping,
- * no shared children across pages. Each page renders its own isolated HTML.
+ * Renders pre-computed HTML pages without extra scroll space at the end.
  */
 
 import { useDocumentSettings, type DocumentSettings } from "../context/DocumentSettingsContext";
@@ -49,31 +44,30 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
   const marginLeftPx  = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  const pageCount    = Math.max(pages.length, 1);
+  const pageCount = Math.max(pages.length, 1);
+  // Tight total height: no extra padding or safety margin at the very bottom
   const totalHeightPx = pageCount * pageHeightPx + (pageCount - 1) * GAP_PX;
 
   return (
     <div
       style={{
-        minHeight: "100%",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "40px 20px",
         boxSizing: "border-box",
         backgroundColor: "var(--bg-primary)",
+        minHeight: "100%",
       }}
     >
-      {/* Reserves correct scaled space in layout flow */}
       <div
         style={{
           width: pageWidthPx * scale,
-          height: totalHeightPx * scale,
+          height: totalHeightPx * scale,   // exact height only
           position: "relative",
           flexShrink: 0,
         }}
       >
-        {/* Full-size inner div scaled from top-left */}
         <div
           style={{
             position: "absolute",
@@ -111,8 +105,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
                   ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
                   : "0",
                 textIndent: "var(--default-first-line-indent, 0)",
-                } as React.CSSProperties
-              }
+              } as React.CSSProperties}
               dangerouslySetInnerHTML={{ __html: pageHtml }}
             />
           ))}

@@ -22,14 +22,6 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
   return value;
 }
 
-/**
- * SceneEditorPageView
- *
- * Wraps the scene editor in a single continuous "paper" surface.
- * No pagination — the page grows with content.
- * Margins are applied as padding so the editor respects page boundaries visually.
- * Chapter and Document views have their own paginated renderer (PaginatedPageView).
- */
 export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageViewProps) {
   const { settings } = useDocumentSettings();
 
@@ -38,25 +30,24 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
       ? { width: settings.customWidth, height: settings.customHeight }
       : PAPER_SIZES[settings.paperFormat];
 
-  const pageWidthPx  = mmToPx(paperSize.width);
-  const marginTopPx  = mmToPx(convertToMm(settings.marginTop,    settings.marginUnit));
-  const marginBotPx  = mmToPx(convertToMm(settings.marginBottom, settings.marginUnit));
-  const marginLeftPx = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
-  const marginRightPx= mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
+  const pageWidthPx   = mmToPx(paperSize.width);
+  const marginTopPx   = mmToPx(convertToMm(settings.marginTop,    settings.marginUnit));
+  const marginBotPx   = mmToPx(convertToMm(settings.marginBottom, settings.marginUnit));
+  const marginLeftPx  = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
+  const marginRightPx = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
   return (
     <div
       style={{
-        minHeight: "100%",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "40px 20px",
         boxSizing: "border-box",
         backgroundColor: "var(--bg-primary)",
+        minHeight: "100%",           // keep this for layout stability
       }}
     >
-      {/* Outer wrapper reserves correct scaled width */}
       <div
         style={{
           width: pageWidthPx * scale,
@@ -64,7 +55,6 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
           flexShrink: 0,
         }}
       >
-        {/* Inner wrapper applies scale transform from top-left */}
         <div
           style={{
             width: pageWidthPx,
@@ -72,7 +62,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
             transform: `scale(${scale})`,
           }}
         >
-          {/* Paper surface — grows with content, no fixed height */}
+          {/* Paper surface — grows exactly with content + margins only */}
           <div
             className="page-container"
             style={{
@@ -93,6 +83,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
                 ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
                 : "0",
               textIndent: "var(--default-first-line-indent, 0)",
+              minHeight: "100vh",           // ensures at least one page height
             } as React.CSSProperties}
           >
             {children}
