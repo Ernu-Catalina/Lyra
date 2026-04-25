@@ -32,10 +32,11 @@ import { Extension } from "@tiptap/core";
               parseHTML: (element) => {
                 const raw = element.style.textIndent;
                 if (!raw) return 0;
+                // Handle the calc(var(--default-first-line-indent, 0) + Xem) pattern
+                const calcMatch = raw.match(/\+\s*([\d.]+)em/);
+                if (calcMatch) return Math.round(parseFloat(calcMatch[1]) / this.options.indentSize);
                 const em = parseFloat(raw);
                 if (isNaN(em) || em === 0) return 0;
-                // Don't strip the style here — leave it so the DOM reflects the value.
-                // renderHTML is the single source of truth for output.
                 return Math.round(em / this.options.indentSize);
               },
               renderHTML: (attributes) => {

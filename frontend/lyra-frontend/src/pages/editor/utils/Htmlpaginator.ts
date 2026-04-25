@@ -68,6 +68,7 @@ export function paginateHtml(
     font-size: ${fontSize};
     line-height: ${lineHeight};
     text-align: ${textAlign};
+    text-indent: ${settings.firstLineIndent};
     visibility: hidden;
     pointer-events: none;
     box-sizing: border-box;
@@ -82,25 +83,28 @@ export function paginateHtml(
   const blocks = Array.from(container.children) as HTMLElement[];
 
   // ── 2. Walk blocks and assign to pages ───────────────────────────
+  // Use block.offsetTop (layout-accurate) rather than accumulated offsetHeight so
+  // CSS margins between blocks are counted and don't cause overflow.
   const pages: Node[][] = [[]];
-  let pageContentUsed = 0; // px of usableHeightPx consumed on current page
+  let pageStart = 0; // the flow-Y (offsetTop in container) where the current page begins
 
-  for (const block of blocks) {
-    const blockH = block.offsetHeight;
+  for (let bi = 0; bi < blocks.length; bi++) {
+    const block = blocks[bi];
+    const relTop    = block.offsetTop - pageStart;
+    const relBottom = relTop + block.offsetHeight;
 
-    if (pageContentUsed + blockH <= usableHeightPx) {
+    if (relBottom <= usableHeightPx) {
       // Block fits on current page
       pages[pages.length - 1].push(block.cloneNode(true));
-      pageContentUsed += blockH;
       continue;
     }
 
     // Block doesn't fit — try line-level split for paragraphs
-    const remaining = usableHeightPx - pageContentUsed;
+    const remaining = usableHeightPx - relTop;
     const splitResult = trySplitBlock(block, remaining, usableHeightPx, container);
 
     if (splitResult) {
-      const { topHtml, bottomHtml, bottomHeight } = splitResult;
+      const { topHtml, bottomHtml } = splitResult;
 
       // Top portion goes on current page
       if (topHtml) {
@@ -110,26 +114,26 @@ export function paginateHtml(
         pages[pages.length - 1].push(topEl);
       }
 
-      // Start new page with bottom portion
+      // Start new page with bottom portion; advance pageStart by exactly one page height
       pages.push([]);
-      pageContentUsed = 0;
+      pageStart += usableHeightPx;
 
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = bottomHtml;
       const botEl = tempDiv.firstElementChild as HTMLElement;
       if (botEl) pages[pages.length - 1].push(botEl);
     } else {
-      if (pageContentUsed > 0) {
+      // Can't split — move whole block to next page (unless it's already at the top)
+      if (relTop > 0) {
         pages.push([]);
-        pageContentUsed = 0;
+        pageStart = block.offsetTop;
       }
       pages[pages.length - 1].push(block.cloneNode(true));
-      pageContentUsed = blockH;
 
-      // If this single block is taller than one full page, keep splitting
-      while (pageContentUsed > usableHeightPx) {
+      // If this single block is taller than one full page, span multiple empty pages
+      while (block.offsetTop + block.offsetHeight > pageStart + usableHeightPx) {
         pages.push([]);
-        pageContentUsed -= usableHeightPx;
+        pageStart += usableHeightPx;
       }
     }
   }
@@ -138,8 +142,6 @@ export function paginateHtml(
   document.body.removeChild(container);
 
   // ── 4. Serialize pages to HTML strings ───────────────────────────
-  const serializer = new XMLSerializer();
-
   return pages.map((nodes) => {
     if (nodes.length === 0) return "";
     const wrapper = document.createElement("div");
@@ -225,7 +227,7 @@ function trySplitBlock(
   const botEl = document.createElement(block.tagName);
   botEl.innerHTML = bottomHtml;
   copyAttributes(block, botEl);
-  botEl.style.removeProperty("text-indent");
+  botEl.style.textIndent = "0"; // continuation paragraph — no indent even if container sets a default
   
   // Measure bottom height using the cleaned element
   const probe = document.createElement(block.tagName);

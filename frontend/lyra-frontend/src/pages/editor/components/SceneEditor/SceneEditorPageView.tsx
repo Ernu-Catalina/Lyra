@@ -92,6 +92,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               "--default-first-line-indent": settings.defaultFirstLineIndent > 0
                 ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
                 : "0",
+              textIndent: "var(--default-first-line-indent, 0)",
             } as React.CSSProperties}
           >
             {children}

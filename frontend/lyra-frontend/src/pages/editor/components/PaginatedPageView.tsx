@@ -100,6 +100,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
                 overflow: "hidden",
                 boxSizing: "border-box",
                 paddingTop: marginTopPx,
+                paddingBottom: marginBotPx,
                 paddingLeft: marginLeftPx,
                 paddingRight: marginRightPx,
                 fontFamily: settings.defaultFont,
@@ -109,6 +110,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
                 "--default-first-line-indent": settings.defaultFirstLineIndent > 0
                   ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
                   : "0",
+                textIndent: "var(--default-first-line-indent, 0)",
                 } as React.CSSProperties
               }
               dangerouslySetInnerHTML={{ __html: pageHtml }}
