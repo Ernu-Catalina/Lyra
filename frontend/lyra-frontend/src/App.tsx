@@ -1,4 +1,3 @@
-// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "./pages/auth/Login.page";
@@ -12,52 +11,67 @@ import EditorPage from "./pages/editor/Editor.page";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import SettingsPage from "./pages/settings/Settings.page";
 
+import { useIsPhone } from "./hooks/useIsPhone";
+import MobileUnavailablePage from "./pages/mobile/MobileUnavailable.page";
+
+function AppContent() {
+  const isPhone = useIsPhone();
+
+  if (isPhone) {
+    return <MobileUnavailablePage />;
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+      <Route path="/reset-password" element={<ResetPasswordForm />} />
+
+      <Route
+        path="/projects"
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/projects/:projectId"
+        element={
+          <ProtectedRoute>
+            <DocumentsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/projects/:projectId/documents/:documentId"
+        element={
+          <ProtectedRoute>
+            <EditorPage />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-        <Route path="/reset-password" element={<ResetPasswordForm />} />
-
-        <Route
-          path="/projects"
-          element={
-            <ProtectedRoute>
-              <ProjectsPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/projects/:projectId"
-          element={
-            <ProtectedRoute>
-              <DocumentsPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/projects/:projectId/documents/:documentId"
-          element={
-            <ProtectedRoute>
-              <EditorPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <AppContent />
     </BrowserRouter>
   );
 }
