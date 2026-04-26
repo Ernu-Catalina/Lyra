@@ -24,11 +24,11 @@ app = FastAPI(title="Lyra API", redirect_slashes=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # local dev
-        os.getenv("lyra-backend-production-98b7.up.railway.app", ""),  # Railway frontend
+        "http://localhost:5173",
+        "https://lyra-writing.up.railway.app",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
