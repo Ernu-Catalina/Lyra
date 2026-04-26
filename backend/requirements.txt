@@ -1,0 +1,50 @@
+# ============================================================================
+# LYRA THESIS PROJECT - Backend Dependencies
+# Python 3.13+ on Windows, macOS, Linux
+# ============================================================================
+
+# Core Framework & Server
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+
+# Database
+motor==3.3.2
+pymongo==4.6.0
+
+# Data Validation & Configuration
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-decouple==3.8
+email-validator>=2.1.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Document Export (Core)
+python-docx==1.1.0
+beautifulsoup4==4.12.2
+
+# Document Export (PDF) - Pure Python, no system dependencies
+reportlab==4.4.10
+
+# ============================================================================
+# OPTIONAL DEPENDENCIES
+# ============================================================================
+# Gmail API support (for email notifications with attachments)
+# Uncomment below and run: pip install -r requirements.txt -e .[email]
+# OR manually: pip install google-auth-oauthlib google-api-python-client
+#
+# [email]
+# google-auth-oauthlib>=1.1.0
+# google-api-python-client>=2.95.0
+
+# ============================================================================
+# DEVELOPMENT DEPENDENCIES (optional)
+# ============================================================================
+# For development, add to a separate requirements-dev.txt:
+# pytest==7.4.0
+# black==23.11.0
+# flake8==6.1.0
+# mypy==1.7.0
