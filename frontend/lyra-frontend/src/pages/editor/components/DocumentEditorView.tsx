@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useDocumentSettings } from "../context/DocumentSettingsContext";
 import { PaginatedPageView } from "./PaginatedPageView";
-import { compileDocument } from "../utils/DocumentCompiler";
+import { compileDocument } from "../utils/DocumentCompiler.ts";
 import type { DocumentOutline } from "../../../types/document";
 import { useState, useEffect } from "react";
 
