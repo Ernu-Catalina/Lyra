@@ -5,15 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # initialize MongoDB client with error handling
-try:
-    client = AsyncIOMotorClient(settings.MONGO_URL)
-    # optionally perform a quick server_info() call to validate connection immediately
-    # this will raise if the server is unreachable
-    client.server_info()
-except Exception as e:
-    logger.error("Failed to connect to MongoDB at %s: %s", settings.MONGO_URL, e)
-    # re-raise so startup code can catch/handle if desired
-    raise
+client = AsyncIOMotorClient(settings.MONGO_URL)
 
 # database reference
 db = client[settings.DB_NAME]
