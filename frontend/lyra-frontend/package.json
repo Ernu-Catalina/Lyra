@@ -5,6 +5,7 @@
   "main": "eslint.config.js",
 "scripts": {
   "build": "vite build",
+  "start": "npx serve dist -s -l $PORT",
   "dev": "vite",
   "preview": "vite preview"
 },

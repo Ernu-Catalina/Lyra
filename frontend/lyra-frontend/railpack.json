@@ -1,7 +1,0 @@
-{
-  "steps": {
-    "install": ["npm ci"],
-    "build": ["npm run build"],
-    "start": ["npx serve dist -s -l $PORT"]
-  }
-}
