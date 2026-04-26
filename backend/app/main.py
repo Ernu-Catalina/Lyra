@@ -14,15 +14,19 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Lyra API", redirect_slashes=True)
 
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://lyra-writing.up.railway.app",
+]
+_frontend_url = os.getenv("FRONTEND_URL", "")
+if _frontend_url:
+    ALLOWED_ORIGINS.append(_frontend_url)
+
 # CORS Middleware - MUST be the FIRST middleware added
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://lyra-writing.up.railway.app",
-        os.getenv("FRONTEND_URL", ""),
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,18 +58,20 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
         content={"detail": "Validation error", "errors": exc.errors()},
     )
 
-# General exception handler - IMPORTANT: Add CORS headers manually
+# General exception handler - mirrors the allowed origin back so CORS works
+# even when an unhandled exception bypasses CORSMiddleware.
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    origin = request.headers.get("origin", "")
+    allow_origin = origin if origin in ALLOWED_ORIGINS else ""
+    headers = {"Access-Control-Allow-Credentials": "true"}
+    if allow_origin:
+        headers["Access-Control-Allow-Origin"] = allow_origin
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "*",
-            "Access-Control-Allow-Headers": "*",
-        }
+        headers=headers,
     )
 
 # Startup event - make it more robust

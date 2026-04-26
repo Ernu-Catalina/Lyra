@@ -5,6 +5,7 @@ import AuthInput from "./AuthInput";
 import AuthButton from "./AuthButton";
 import AuthLink from "./AuthLink";
 import CodeInput from "./CodeInput";
+import api from "../../../api/client";
 
 export default function ForgotPasswordForm() {
   const navigate = useNavigate();
@@ -24,17 +25,11 @@ export default function ForgotPasswordForm() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Failed to send code");
+      const { data } = await api.post("/auth/forgot-password", { email });
       setMessage(data.message || "Code sent! Check your email.");
       setStep("reset");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.detail || err.message || "Failed to send code");
     } finally {
       setLoading(false);
     }
@@ -50,17 +45,11 @@ export default function ForgotPasswordForm() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, new_password: password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Invalid code");
+      await api.post("/auth/reset-password", { email, code, new_password: password });
       setMessage("Password reset successfully!");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.detail || err.message || "Invalid code");
     } finally {
       setLoading(false);
     }
