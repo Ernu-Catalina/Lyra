@@ -11,7 +11,7 @@ from app import database
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Lyra API", redirect_slashes=True)
+app = FastAPI(title="Lyra API", redirect_slashes=False)
 
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
