@@ -21,13 +21,12 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Lyra API", redirect_slashes=True)
 
-# CORS configuration for development and production
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-cors_origins = [origin.strip() for origin in cors_origins if origin.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=[
+        "http://localhost:5173",  # local dev
+        os.getenv("lyra-backend-production-98b7.up.railway.app", ""),  # Railway frontend
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
