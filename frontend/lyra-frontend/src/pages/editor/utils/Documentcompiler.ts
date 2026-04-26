@@ -13,7 +13,7 @@
 
 import type { DocumentOutline } from "../../../types/document";
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
-import { compileChapter } from "./ChapterCompiler";
+import { compileChapter } from "./Chaptercompiler";
 import { paginateHtml, type PaginatorSettings } from "./htmlPaginator";
 import { composeChapter } from "./chapterComposer";
 import { formatChapterTitle } from "./chapterTitleFormatter";
