@@ -7,16 +7,11 @@ import os
 import logging
 from app.routes import auth, projects, documents, users
 from app import database
-from fastapi import FastAPI
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Lyra API", redirect_slashes=True)
-
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
