@@ -9,9 +9,6 @@
  * fresh page — achieved by simply appending chapter pages sequentially
  * since compileChapter always starts a new chapter from page 1.
  *
- * When pageBreakAfterChapter is disabled, chapters flow continuously:
- * the last page of chapter N and the first page of chapter N+1 are merged
- * into a single page if there is remaining space.
  */
 
 import type { DocumentOutline } from "../../../types/document";
