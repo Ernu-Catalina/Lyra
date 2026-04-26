@@ -12,7 +12,7 @@ import type { Chapter } from "../../../types/document";
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import { composeChapter } from "./chapterComposer";
 import { formatChapterTitle } from "./chapterTitleFormatter";
-import { paginateHtml, type PaginatorSettings } from "./htmlPaginator";
+import { paginateHtml, type PaginatorSettings } from "./Htmlpaginator";
 
 const MM_TO_PX = 3.7795275591;
 function mmToPx(mm: number) { return mm * MM_TO_PX; }
