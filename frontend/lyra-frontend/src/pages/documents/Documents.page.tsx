@@ -117,42 +117,46 @@ export default function Documents() {
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, []);
+  
+// ────────────────────────────────────────────────
+// DATA FETCHING
+// ────────────────────────────────────────────────
+const fetchData = useCallback(async () => {
+  if (!projectId) return;
+  setLoading(true);
+  setError("");
 
-  // ────────────────────────────────────────────────
-  // DATA FETCHING
-  // ────────────────────────────────────────────────
-  const fetchData = useCallback(async () => {
-    if (!projectId) return;
-    setLoading(true);
-    setError("");
+  const controller = new AbortController();
 
-    const controller = new AbortController();
+  try {
+    // Fetch project details
+    const projectRes = await api.get(`/projects/${projectId}`, { 
+      signal: controller.signal 
+    });
+    setProject(projectRes.data);
 
-    try {
-      // Fetch project details
-      const projectRes = await api.get(`/projects/${projectId}`, { signal: controller.signal });
-      setProject(projectRes.data);
-
-      // Fetch current folder items
-      const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
-      const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { signal: controller.signal });
-      const allItems = itemsRes.data || [];
-      setItems(allItems);
-    } catch (err: any) {
-      if (err.name === "AbortError") return;
-      console.error("Fetch failed:", err);
-      const msg = err.response?.data?.detail || err.message || "Failed to load";
-      setError(msg);
-      if (err.response?.status === 401) {
-        logout();
-        navigate("/login");
-      }
-    } finally {
-      setLoading(false);
+    // Fetch current folder items - use relative path only
+    const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
+    const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { 
+      signal: controller.signal 
+    });
+    const allItems = itemsRes.data || [];
+    setItems(allItems);
+  } catch (err: any) {
+    if (err.name === "AbortError") return;
+    console.error("Fetch failed:", err);
+    const msg = err.response?.data?.detail || err.message || "Failed to load";
+    setError(msg);
+    if (err.response?.status === 401) {
+      logout();
+      navigate("/login");
     }
+  } finally {
+    setLoading(false);
+  }
 
-    return () => controller.abort();
-  }, [projectId, currentFolderId, logout, navigate]);
+  return () => controller.abort();
+}, [projectId, currentFolderId, logout, navigate]);
 
   useEffect(() => {
     fetchData();
