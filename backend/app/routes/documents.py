@@ -173,7 +173,7 @@ async def create_scene(
 # ────────────────────────────────────────────────
 # LIST DOCUMENTS / FOLDERS (root or nested)
 # ────────────────────────────────────────────────
-@router.get("/", response_model=List[ItemListResponse])
+@router.get("", response_model=List[ItemListResponse])
 async def get_documents(
     project_id: str,
     parent_id: Optional[str] = Query(None, description="Filter by parent folder ID (null for root)"),
