@@ -117,12 +117,13 @@ export default function Documents() {
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, []);
-  
+
 // ────────────────────────────────────────────────
 // DATA FETCHING
 // ────────────────────────────────────────────────
 const fetchData = useCallback(async () => {
   if (!projectId) return;
+
   setLoading(true);
   setError("");
 
@@ -135,18 +136,22 @@ const fetchData = useCallback(async () => {
     });
     setProject(projectRes.data);
 
-    // Fetch current folder items - use relative path only
+    // Fetch current folder items — use clean relative path
     const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
     const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { 
       signal: controller.signal 
     });
+
     const allItems = itemsRes.data || [];
     setItems(allItems);
   } catch (err: any) {
     if (err.name === "AbortError") return;
+
     console.error("Fetch failed:", err);
-    const msg = err.response?.data?.detail || err.message || "Failed to load";
+
+    const msg = err.response?.data?.detail || err.message || "Failed to load project";
     setError(msg);
+
     if (err.response?.status === 401) {
       logout();
       navigate("/login");

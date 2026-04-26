@@ -5,10 +5,10 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
-  withCredentials: true,        // Important for cookies/auth if needed
+  withCredentials: true,
 });
 
-// Attach JWT token to every request
+// Attach JWT token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
