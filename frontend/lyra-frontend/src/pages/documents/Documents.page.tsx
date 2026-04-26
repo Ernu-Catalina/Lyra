@@ -119,7 +119,7 @@ export default function Documents() {
   }, []);
 
 // ────────────────────────────────────────────────
-// DATA FETCHING
+// DATA FETCHING - FIXED & CLEAN
 // ────────────────────────────────────────────────
 const fetchData = useCallback(async () => {
   if (!projectId) return;
@@ -130,13 +130,13 @@ const fetchData = useCallback(async () => {
   const controller = new AbortController();
 
   try {
-    // Fetch project details
+    // 1. Fetch project details
     const projectRes = await api.get(`/projects/${projectId}`, { 
       signal: controller.signal 
     });
     setProject(projectRes.data);
 
-    // Fetch current folder items — use clean relative path
+    // 2. Fetch documents/items - clean relative path only
     const params = currentFolderId ? `?parent_id=${currentFolderId}` : "";
     const itemsRes = await api.get(`/projects/${projectId}/documents${params}`, { 
       signal: controller.signal 
@@ -144,6 +144,7 @@ const fetchData = useCallback(async () => {
 
     const allItems = itemsRes.data || [];
     setItems(allItems);
+
   } catch (err: any) {
     if (err.name === "AbortError") return;
 
