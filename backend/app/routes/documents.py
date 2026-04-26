@@ -73,7 +73,7 @@ async def get_owned_document(
 # ────────────────────────────────────────────────
 # CREATE DOCUMENT or FOLDER
 # ────────────────────────────────────────────────
-@router.post("/", response_model=DocumentResponse)
+@router.post("", response_model=DocumentResponse)
 async def create_document(
     project_id: str,
     data: CreateDocumentRequest,
