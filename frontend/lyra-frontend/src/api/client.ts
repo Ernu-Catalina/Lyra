@@ -1,17 +1,13 @@
 import axios from "axios";
-import type { InternalAxiosRequestConfig } from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
-  headers: {
-    "Content-Type": "application/json; charset=utf-8",
-  },
-  withCredentials: true,
+  baseURL: "https://lyra-backend-production-98b7.up.railway.app/api",
 });
 
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token && config.headers) {
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
