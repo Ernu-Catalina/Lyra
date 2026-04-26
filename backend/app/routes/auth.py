@@ -99,17 +99,22 @@ async def forgot_password(email: str = Body(..., embed=True)):
 
 @router.post("/verify-code")
 async def verify_code(data: VerifyCodeRequest):
-    email = data.email
-    code = data.code
-    reset_code = await reset_codes_collection.find_one({
-        "email": email.lower(),
-        "code": code,
+    user = await users_collection.find_one({"email": data.email.lower()})
+    if not user:
+        raise HTTPException(400, "Invalid or expired code")
+
+    reset_entry = await reset_codes_collection.find_one({
+        "user_id": user["_id"],
         "used": False,
         "expires_at": {"$gt": datetime.utcnow()}
     })
-    if not reset_code:
+    if not reset_entry:
         raise HTTPException(400, "Invalid or expired code")
-    
+
+    hashed_input = hashlib.sha256(data.code.encode()).hexdigest()
+    if hashed_input != reset_entry["hashed_code"]:
+        raise HTTPException(400, "Invalid or expired code")
+
     return {"valid": True}
 
 @router.post("/reset-password")

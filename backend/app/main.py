@@ -1,17 +1,8 @@
-# Before starting the FastAPI server make sure MongoDB is running locally:
-# 1. Create the data directory if it doesn't exist:
-#      mkdir C:\\data\\db
-# 2. Open an Administrator command prompt and run:
-#      "C:\\Program Files\\MongoDB\\Server\\8.2\\bin\\mongod.exe" --dbpath C:\\data\\db
-#    Leave that window open while the server is running.
-# 3. Then start the backend with uvicorn (e.g. uvicorn app.main:app --reload).
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-import os
 
 from app.routes import auth, projects, documents, users
 from app import database
