@@ -3,7 +3,7 @@ import axios from "axios";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://lyra-backend-production-98b7.up.railway.app";
 
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: `${BACKEND_URL}`,
 });
 
 api.interceptors.request.use((config) => {
