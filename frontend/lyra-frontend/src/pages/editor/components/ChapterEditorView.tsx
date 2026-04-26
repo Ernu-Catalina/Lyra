@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useDocumentSettings } from "../context/DocumentSettingsContext";
 import { PaginatedPageView } from "./PaginatedPageView";
-import { compileChapter } from "../utils/chapterCompiler";
+import { compileChapter } from "../utils/ChapterCompiler";
 import type { Chapter } from "../../../types/document";
 import { useState, useEffect } from "react";
 

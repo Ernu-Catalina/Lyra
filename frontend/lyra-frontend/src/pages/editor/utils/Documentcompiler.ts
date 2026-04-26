@@ -16,7 +16,7 @@
 
 import type { DocumentOutline } from "../../../types/document";
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
-import { compileChapter } from "./chapterCompiler";
+import { compileChapter } from "./ChapterCompiler";
 import { paginateHtml, type PaginatorSettings } from "./htmlPaginator";
 import { composeChapter } from "./chapterComposer";
 import { formatChapterTitle } from "./chapterTitleFormatter";
