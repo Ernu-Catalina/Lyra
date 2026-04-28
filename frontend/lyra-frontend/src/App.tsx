@@ -11,8 +11,6 @@ import EditorPage from "./pages/editor/Editor.page";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import SettingsPage from "./pages/settings/Settings.page";
 
-import { useIsPhone } from "./hooks/useIsPhone";
-
 function AppContent() {
 
   return (
