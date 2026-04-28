@@ -3,7 +3,7 @@ export default function DocumentHeader() {
   return (
     <div
       className="
-        grid grid-cols-[3fr_1fr_0.8fr_0.5fr_0.6fr] gap-6 px-6 py-3 
+        grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-6 px-6 py-3 
         text-sm font-semibold text-[var(--text-primary)] 
         sticky top-0 z-10 backdrop-blur-sm border-b border-[var(--border)]/30
       "

@@ -60,7 +60,7 @@ function FolderItem({
 
         <span
           className={`
-            font-medium text-center text-sm leading-tight
+            font-medium text-center text-[13.5px] leading-tight
             line-clamp-2                      /* max 2 lines */
             break-all                         /* force-break long unbreakable words */
             px-2 w-full

@@ -42,7 +42,7 @@ export default function DocumentListItem({
         });
       }}
       className="
-        grid grid-cols-[3fr_1fr_0.8fr_0.5fr_0.6fr] gap-6 px-6 py-4 
+        grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-6 px-6 py-4 
         hover:bg-[var(--accent)]/5 transition cursor-pointer 
         group items-center border-b border-[var(--border)]/30 last:border-b-0
       "
