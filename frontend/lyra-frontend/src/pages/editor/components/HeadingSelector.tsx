@@ -110,7 +110,7 @@ export function HeadingSelector({ editor }: HeadingSelectorProps) {
     <div className="relative" ref={containerRef}>
       <button
         ref={buttonRef}
-        className="px-3 py-1.5 bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[--border] rounded text-sm min-w-[140px] flex items-center justify-between transition-colors"
+        className="px-3 py-1.5 bg-[--bg-primary] hover:bg-[--bg-secondary] border border-[var(--border)] rounded text-sm min-w-[140px] flex items-center justify-between transition-colors"
         tabIndex={0}
         aria-haspopup="listbox"
         aria-expanded={open}

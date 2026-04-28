@@ -259,9 +259,21 @@ const handleLineHeightSelect = (value: string) => {
   }, [editor, formatPainterActive, copiedFormatting]);
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap bg-[var(--bg-secondary)] px-3 py-2 border-[var(--border)]">
+    <div className="flex items-center gap-1.5 flex-wrap  py-2 border-[var(--border)] ">
       {editor && (
         <>
+        {/* Format Painter */}
+          <ToolbarButton 
+            onClick={handleFormatPainterClick} 
+            active={formatPainterActive}
+            title={formatPainterActive ? "Click to apply copied formatting" : "Format Painter - Copy formatting"}
+          >
+            <Paintbrush size={18} />
+            
+          </ToolbarButton>
+
+          <div className="h-5 w-px bg-[var(--border)] mx-1" />
+          
           {/* Headings */}
           <HeadingSelector editor={editor} />
 
@@ -299,18 +311,9 @@ const handleLineHeightSelect = (value: string) => {
 
           <div className="h-5 w-px bg-[var(--border)] mx-1" />
 
-          {/* Format Painter */}
-          <ToolbarButton 
-            onClick={handleFormatPainterClick} 
-            active={formatPainterActive}
-            title={formatPainterActive ? "Click to apply copied formatting" : "Format Painter - Copy formatting"}
-          >
-            <Paintbrush size={18} />
-          </ToolbarButton>
-
           <div className="relative" ref={fontFamilyContainerRef}>
             <button
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36 bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-sm min-w-36  hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
               type="button"
           onClick={() => setFontDropdown((f) => !f)}
           style={{ fontFamily: currentFont.value || undefined }}
@@ -347,7 +350,7 @@ const handleLineHeightSelect = (value: string) => {
       {/* Font size with number input and +/- buttons */}
       <div className="relative flex items-center" ref={fontSizeContainerRef}>
         <button
-          className="px-2 py-1.5 rounded-l text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-r-0 border-[var(--border)] transition-colors font-medium"
+          className="px-2 py-1.5 rounded-l text-sm  border  border-[var(--border)] transition-colors font-medium"
           type="button"
           onClick={handleDecreaseFont}
           title="Decrease font size"
@@ -365,7 +368,7 @@ const handleLineHeightSelect = (value: string) => {
           onFocus={() => setFontSizeDropdown(true)}
         />
         <button
-          className="px-2 py-1.5 rounded-r text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-l-0 border-[var(--border)] transition-colors font-medium"
+          className="px-2 py-1.5 rounded-r text-sm  border  border-[var(--border)] transition-colors font-medium"
           type="button"
           onClick={handleIncreaseFont}
           title="Increase font size"
@@ -395,19 +398,12 @@ const handleLineHeightSelect = (value: string) => {
       {/* Line spacing dropdown */}
       <div className="relative" ref={lineHeightContainerRef}>
         <button
-          className="flex items-center justify-center py-1.5 px-1.5 rounded text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] border border-[var(--border)] transition-colors"
+          className="flex items-center justify-center py-1.5 px-1.5 rounded text-sm  transition-colors"
           type="button"
           onClick={() => setLineDropdown((l) => !l)}
           title="Line spacing"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M8 6h8" />
-            <path d="M8 12h8" />
-            <path d="M8 18h8" />
-            <path d="M3 6v12" />
-            <path d="M3 9h2" />
-            <path d="M3 15h2" />
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-chevrons-up-down-icon lucide-list-chevrons-up-down"><path d="M3 5h8"/><path d="M3 12h8"/><path d="M3 19h8"/><path d="m15 8 3-3 3 3"/><path d="m15 16 3 3 3-3"/></svg>
         </button>
         {lineDropdown && (
           <div className="absolute left-0 top-full z-50 mt-1 bg-white border border-[var(--border)] rounded shadow-lg min-w-28 overflow-hidden">

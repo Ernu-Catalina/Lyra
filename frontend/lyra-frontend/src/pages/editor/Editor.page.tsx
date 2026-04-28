@@ -76,6 +76,36 @@ export default function EditorPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Force landscape orientation on mobile
+useEffect(() => {
+  // Add viewport meta for better mobile control
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  if (viewportMeta) {
+    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape');
+  } else {
+    const meta = document.createElement('meta');
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape';
+    document.head.appendChild(meta);
+  }
+
+  // Optional: Show a message if user tries to rotate to portrait
+  const handleOrientationChange = () => {
+    if (window.innerWidth < window.innerHeight && window.innerWidth < 500) {
+      // You can show a toast or overlay here if desired
+      console.warn("Editor works best in landscape mode");
+    }
+  };
+
+  window.addEventListener('resize', handleOrientationChange);
+  window.addEventListener('orientationchange', handleOrientationChange);
+
+  return () => {
+    window.removeEventListener('resize', handleOrientationChange);
+    window.removeEventListener('orientationchange', handleOrientationChange);
+  };
+}, []);
+
   // Load saved sidebar width from localStorage
   useEffect(() => {
     const savedWidth = localStorage.getItem(`editor_sidebar_width_${documentId}`);
