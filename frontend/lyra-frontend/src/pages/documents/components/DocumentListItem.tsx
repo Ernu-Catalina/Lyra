@@ -14,14 +14,10 @@ export default function DocumentListItem({
   onContextMenu,
 }: DocumentListItemProps) {
   const safeNavigate = () => {
-    console.log("navigate clicked → document ID:", document?._id);
-    console.log("onNavigate type:", typeof onNavigate);
-
     if (typeof onNavigate !== 'function') {
       console.error("onNavigate is not a function!", onNavigate);
       return;
     }
-
     try {
       onNavigate();
     } catch (err) {
@@ -30,7 +26,6 @@ export default function DocumentListItem({
   };
 
   if (!document) {
-    console.error("DocumentListItem received no document prop");
     return <div className="text-[var(--accent)] p-4">Missing document data</div>;
   }
 
@@ -47,7 +42,7 @@ export default function DocumentListItem({
         });
       }}
       className="
-        grid grid-cols-[3fr_1fr_1fr_1fr] gap-6 px-6 py-4 
+        grid grid-cols-[3fr_1fr_0.8fr_0.5fr_0.6fr] gap-6 px-6 py-4 
         hover:bg-[var(--accent)]/5 transition cursor-pointer 
         group items-center border-b border-[var(--border)]/30 last:border-b-0
       "
@@ -60,17 +55,22 @@ export default function DocumentListItem({
         </span>
       </div>
 
-      {/* Last Modified – right-aligned */}
+      {/* Created Date - NEW COLUMN */}
+      <div className="text-right text-[var(--text-secondary)] text-sm">
+        {new Date(document.created_at).toLocaleDateString()}
+      </div>
+
+      {/* Last Modified */}
       <div className="text-right text-[var(--text-secondary)] text-sm">
         {new Date(document.updated_at).toLocaleDateString()}
       </div>
 
-      {/* Chapters – centered, right-aligned */}
+      {/* Chapters */}
       <div className="text-right text-[var(--text-secondary)] text-sm">
         {document.chapter_count ?? "—"}
       </div>
 
-      {/* Words – centered, right-aligned */}
+      {/* Words */}
       <div className="text-right text-[var(--text-secondary)] text-sm">
         {document.word_count ?? "—"}
       </div>
