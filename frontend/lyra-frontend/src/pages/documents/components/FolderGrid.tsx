@@ -37,7 +37,7 @@ function FolderItem({
       }}
       className={`
         group relative flex flex-col items-center justify-between
-        p-4 sm:p-5
+        p-2 sm:p-5
         bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
         transition-all duration-200 cursor-pointer
         w-[150px] h-[140px]              /* fixed size - adjust if you prefer larger/smaller */
@@ -66,7 +66,7 @@ function FolderItem({
             px-2 w-full
             overflow-hidden text-ellipsis     /* ellipsis when text overflows clamp */
             bg-[var(--bg-secondary)]
-            ${isOver ? "text-[var(--accent)] font-semibold" : "group-hover:text-[var(--accent)]"}
+            ${isOver ? "text-[var(--accent)] font-medium" : "group-hover:text-[var(--accent)]"}
           `}
           title={folder.title}              
         >

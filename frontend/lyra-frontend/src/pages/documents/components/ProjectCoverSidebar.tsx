@@ -9,40 +9,52 @@ interface ProjectCoverSidebarProps {
   isMobile: boolean;
 }
 
-export default function ProjectCoverSidebar({ project, isOpen, onToggle, isMobile }: ProjectCoverSidebarProps) {
+export default function ProjectCoverSidebar({ 
+  project, 
+  isOpen, 
+  onToggle 
+}: ProjectCoverSidebarProps) {
   return (
     <aside
       className={`
-        bg-[var(--bg-secondary)] border-r border-[var(--border)] transition-all duration-300
-        ${isOpen ? "w-80 lg:w-96" : "w-14"}
-        overflow-hidden flex-shrink-0
+        bg-[var(--bg-secondary)] border-r border-[var(--border)]
+        transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden
         fixed inset-y-0 left-0 z-40 lg:relative lg:inset-auto
         h-[calc(100vh-var(--nav-height,64px))]
+        
+        ${isOpen 
+          ? "w-72 sm:w-80 lg:w-80 xl:w-96" 
+          : "w-14"
+        }
       `}
     >
       {isOpen ? (
-        <div className="h-full flex flex-col">
+        <div className="relative h-full w-full flex flex-col overflow-hidden">
+          {/* Cover Area */}
           <div className="flex-1 relative bg-gradient-to-br from-[var(--accent)] to-indigo-600 overflow-hidden">
             {project?.cover_image_url ? (
               <img
                 src={project.cover_image_url}
                 alt={`${project.name} cover`}
                 className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-8xl font-bold text-white opacity-30">
+                <span className="text-8xl font-bold text-white opacity-30 select-none">
                   {project?.name?.charAt(0).toUpperCase() || "?"}
                 </span>
               </div>
             )}
           </div>
 
+          {/* Close Button */}
           <button
             type="button"
             onClick={onToggle}
-            className="absolute top-4 right-4 bg-transparent p-2 hover:bg-[var(--accent)]/20 rounded-full transition z-50"
+            className="absolute top-4 right-4 bg-black/40 hover:bg-black/70 p-2 rounded-full transition-colors z-50 text-white"
             aria-label="Close sidebar"
           >
             <ChevronLeft size={20} />
@@ -52,7 +64,9 @@ export default function ProjectCoverSidebar({ project, isOpen, onToggle, isMobil
         <button
           type="button"
           onClick={onToggle}
-          className="absolute inset-0 flex items-center justify-center text-[var(--text-primary)] hover:text-[var(--accent)] transition z-50"
+          className="absolute inset-0 flex items-center justify-center 
+                     text-[var(--text-primary)] hover:text-[var(--accent)] 
+                     hover:bg-[var(--bg-primary)] transition-all z-50 w-full h-full"
           aria-label="Open sidebar"
         >
           <ChevronRight size={24} />

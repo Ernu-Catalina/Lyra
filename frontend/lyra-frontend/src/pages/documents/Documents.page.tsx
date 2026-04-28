@@ -431,7 +431,8 @@ const fetchData = useCallback(async () => {
             fixed top-[var(--nav-height,60px)] left-0 z-40
             h-[calc(100vh-var(--nav-height,60px))]
             transition-all duration-300 ease-in-out
-            ${sidebarOpen ? "w-80 lg:w-96" : "w-14"}
+            ${sidebarOpen ? "w-72 sm:w-80 lg:w-80 xl:w-96" 
+          : "w-14"}
             bg-[var(--bg-secondary)] border-r border-[var(--border)]
             overflow-hidden
             ${isMobile && !sidebarOpen ? "-translate-x-full" : "translate-x-0"}
