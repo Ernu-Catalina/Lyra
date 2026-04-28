@@ -37,7 +37,7 @@ function FolderItem({
       }}
       className={`
         group relative flex flex-col items-center justify-between
-        p-2 sm:p-5
+        p-1 sm:p-5
         bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
         transition-all duration-200 cursor-pointer
         w-[150px] h-[140px]              /* fixed size - adjust if you prefer larger/smaller */
@@ -45,7 +45,7 @@ function FolderItem({
         shadow-sm hover:shadow-md
         ${
           isOver
-            ? "border-2 border-[var(--accent)] shadow-lg scale-[1.04] ring-1 ring-[var(--accent)]/30"
+            ? "border-1 border-[var(--accent)] shadow-lg scale-[1.04] ring-1 ring-[var(--accent)]/30"
             : "hover:border-[var(--accent)]/60 hover:scale-[1.02]"
         }
       `}
