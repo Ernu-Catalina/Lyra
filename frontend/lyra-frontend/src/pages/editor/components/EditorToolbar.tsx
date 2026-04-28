@@ -456,7 +456,7 @@ const handleLineHeightSelect = (value: string) => {
 
       {/* Document Settings */}
       <button
-        className="p-1.5 rounded text-sm bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+        className="text-right rounded text-sm hover:bg-[var(--bg-secondary)] transition-colors"
         type="button"
         onClick={() => setShowSettings(true)}
         title="Document settings"

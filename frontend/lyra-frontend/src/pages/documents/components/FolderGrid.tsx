@@ -37,22 +37,22 @@ function FolderItem({
       }}
       className={`
         group relative flex flex-col items-center justify-between
-        p-1 sm:p-5
+        p-3 sm:p-6
         bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
         transition-all duration-200 cursor-pointer
-        w-[150px] h-[140px]              /* fixed size - adjust if you prefer larger/smaller */
-        overflow-hidden                   /* prevent content overflow */
+        w-[150px] h-[140px]
+        overflow-hidden
         shadow-sm hover:shadow-md
         ${
           isOver
-            ? "border-1 border-[var(--accent)] shadow-lg scale-[1.04] ring-1 ring-[var(--accent)]/30"
+            ? "border-2 border-[var(--accent)] shadow-lg scale-[1.04] ring-1 ring-[var(--accent)]/30"
             : "hover:border-[var(--accent)]/60 hover:scale-[1.02]"
         }
       `}
     >
       <div className="flex flex-col items-center justify-center w-full space-y-4">
         <Folder
-          size={56}
+          size={50}
           className={`transition-colors ${
             isOver ? "text-[var(--accent)]" : "text-[var(--accent)]/70 group-hover:text-[var(--accent)]"
           }`}
@@ -60,15 +60,16 @@ function FolderItem({
 
         <span
           className={`
-            font-medium text-center text-[13.5px] leading-tight
-            line-clamp-2                      /* max 2 lines */
-            break-all                         /* force-break long unbreakable words */
-            px-2 w-full
-            overflow-hidden text-ellipsis     /* ellipsis when text overflows clamp */
-            bg-[var(--bg-secondary)]
-            ${isOver ? "text-[var(--accent)] font-medium" : "group-hover:text-[var(--accent)]"}
+            font-medium text-center 
+            text-[13px] sm:text-[14px]     /* 13px on mobile/tablet, 14px on larger screens */
+            leading-tight
+            line-clamp-2
+            break-words
+            px-1 w-full
+            text-[var(--text-primary)]
+            ${isOver ? "text-[var(--accent)]" : "group-hover:text-[var(--accent)]"}
           `}
-          title={folder.title}              
+          title={folder.title}
         >
           {folder.title}
         </span>
