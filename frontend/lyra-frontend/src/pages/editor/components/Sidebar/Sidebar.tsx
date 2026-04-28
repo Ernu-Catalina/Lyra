@@ -23,6 +23,8 @@ interface SidebarProps {
   projectId: string;
   documentId: string;
   reloadOutline: () => void;
+  isSidebarOpen: boolean;           // ← Add this
+  onSidebarToggle: () => void;      // ← Add this
 }
 
 export default function Sidebar({
@@ -41,6 +43,8 @@ export default function Sidebar({
   projectId,
   documentId,
   reloadOutline,
+  isSidebarOpen,           // ← Add this
+  onSidebarToggle,        // ← Add this
 }: SidebarProps) {
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -223,7 +227,13 @@ export default function Sidebar({
 
   return (
     <div className="flex flex-col h-full">
-      <SidebarHeader documentTitle={title} onAddChapter={onAddChapter} onDocumentClick={onDocumentClick} />
+      <SidebarHeader 
+        documentTitle={title} 
+        onAddChapter={onAddChapter} 
+        onDocumentClick={onDocumentClick}
+        isSidebarOpen={isSidebarOpen}           // ← Add this
+        onSidebarToggle={onSidebarToggle}       // ← Add this
+      />
 
       <div className="flex-1 overflow-y-auto px-1 py-1">
         {chapters.map(ch => (

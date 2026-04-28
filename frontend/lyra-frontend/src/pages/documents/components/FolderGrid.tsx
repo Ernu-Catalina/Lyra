@@ -40,7 +40,7 @@ function FolderItem({
         p-4
         bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
         transition-all duration-200 cursor-pointer
-        w-[150px] h-[120px]
+        w-[145px] h-[120px]
         overflow-hidden
         shadow-sm hover:shadow-md
         ${

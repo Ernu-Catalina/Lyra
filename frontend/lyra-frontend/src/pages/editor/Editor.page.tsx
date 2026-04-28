@@ -53,6 +53,9 @@ export default function EditorPage() {
   const [showDocumentWarning, setShowDocumentWarning] = useState(false);
   const editorLayoutRef = useRef<HTMLDivElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  // Add these new states
+  const [sidebarWidth, setSidebarWidth] = useState(300);        // Default width in px
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const toggleFullscreen = useFullscreen(editorLayoutRef, isFullscreen, setIsFullscreen);
 
@@ -72,6 +75,29 @@ export default function EditorPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Load saved sidebar width from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem(`editor_sidebar_width_${documentId}`);
+    if (savedWidth) {
+      setSidebarWidth(parseInt(savedWidth));
+    }
+
+    const savedOpen = localStorage.getItem(`editor_sidebar_open_${documentId}`);
+    if (savedOpen !== null) {
+      setIsSidebarOpen(savedOpen === "true");
+    }
+  }, [documentId]);
+
+  // Save sidebar width when changed
+  useEffect(() => {
+    localStorage.setItem(`editor_sidebar_width_${documentId}`, sidebarWidth.toString());
+  }, [sidebarWidth, documentId]);
+
+  // Save open/closed state
+  useEffect(() => {
+    localStorage.setItem(`editor_sidebar_open_${documentId}`, isSidebarOpen.toString());
+  }, [isSidebarOpen, documentId]);
 
   // ── User settings & default view ──────────────────────────────────
   useEffect(() => {
@@ -369,6 +395,10 @@ export default function EditorPage() {
         <EditorLayout
           ref={editorLayoutRef}
           isFullscreen={isFullscreen}
+          sidebarWidth={sidebarWidth}
+          isSidebarOpen={isSidebarOpen}
+          onSidebarResize={setSidebarWidth}
+          onSidebarToggle={() => setIsSidebarOpen(prev => !prev)}
           sidebar={
             <Sidebar
               title={outline.title}
@@ -386,6 +416,8 @@ export default function EditorPage() {
               projectId={projectId}
               documentId={documentId}
               reloadOutline={reloadOutline}
+              isSidebarOpen={isSidebarOpen}
+              onSidebarToggle={() => setIsSidebarOpen(prev => !prev)}
             />
           }
           toolbar={<EditorToolbar editor={editorInstance} onSettingsApplied={reloadOutline} />}
