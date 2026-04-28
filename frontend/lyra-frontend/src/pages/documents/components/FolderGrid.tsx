@@ -61,7 +61,7 @@ function FolderItem({
         <span
           className={`
             font-medium text-center 
-            text-[13px] sm:text-[14px]     /* 13px on mobile/tablet, 14px on larger screens */
+            text-[13px] lg:text-[14px]     /* 13px on mobile/tablet, 14px on larger screens */
             leading-tight
             line-clamp-2
             break-words
