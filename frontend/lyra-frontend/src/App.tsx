@@ -12,14 +12,8 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 import SettingsPage from "./pages/settings/Settings.page";
 
 import { useIsPhone } from "./hooks/useIsPhone";
-import MobileUnavailablePage from "./pages/mobile/MobileUnavailable.page";
 
 function AppContent() {
-  const isPhone = useIsPhone();
-
-  if (isPhone) {
-    return <MobileUnavailablePage />;
-  }
 
   return (
     <Routes>
