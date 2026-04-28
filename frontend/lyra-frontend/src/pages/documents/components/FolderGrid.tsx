@@ -37,10 +37,10 @@ function FolderItem({
       }}
       className={`
         group relative flex flex-col items-center justify-between
-        p-3 sm:p-6
+        p-4
         bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl
         transition-all duration-200 cursor-pointer
-        w-[150px] h-[140px]
+        w-[150px] h-[120px]
         overflow-hidden
         shadow-sm hover:shadow-md
         ${
@@ -50,7 +50,7 @@ function FolderItem({
         }
       `}
     >
-      <div className="flex flex-col items-center justify-center w-full space-y-4">
+      <div className="flex flex-col items-center justify-center w-full space-y-3">
         <Folder
           size={50}
           className={`transition-colors ${
@@ -61,7 +61,7 @@ function FolderItem({
         <span
           className={`
             font-medium text-center 
-            text-[13px] lg:text-[14px]     /* 13px on mobile/tablet, 14px on larger screens */
+            text-[13px] xl:text-[14px]     /* 13px on mobile/tablet, 14px on larger screens */
             leading-tight
             line-clamp-2
             break-words
