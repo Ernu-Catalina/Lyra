@@ -711,6 +711,7 @@ const fetchData = useCallback(async () => {
           setSelectedDocument(null);
         }}
         document={selectedDocument}
+        projectId={projectId!}
       />
 
       {pasteConflict && (

@@ -27,6 +27,17 @@ export interface Project {
   cover_image_url?: string;
 }
 
+export interface ChapterStat {
+  title: string;
+  word_count: number;
+}
+
+export interface SceneStat {
+  title: string;
+  word_count: number;
+  chapter_title?: string;
+}
+
 export interface Item {
   _id: string;
   title: string;
@@ -35,5 +46,24 @@ export interface Item {
   updated_at: string;
   chapter_count?: number;
   word_count?: number;
-  parent_id: string | null;  
+  parent_id: string | null;
+  scene_count?: number;
+  longest_chapter?: ChapterStat;
+  shortest_chapter?: ChapterStat;
+  longest_scene?: SceneStat;
+  shortest_scene?: SceneStat;
+}
+
+export interface DocumentStats {
+  document_id: string;
+  chapter_count: number;
+  scene_count: number;
+  word_count: number;
+  character_count_with_spaces: number;
+  character_count_without_spaces: number;
+  longest_chapter?: ChapterStat;
+  shortest_chapter?: ChapterStat;
+  longest_scene?: SceneStat;
+  shortest_scene?: SceneStat;
+  estimated_pages?: number;
 }

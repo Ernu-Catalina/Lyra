@@ -11,7 +11,7 @@ from app.database import (
     chapters_collection
 )
 from app.utils.auth import get_current_user
-from app.services.wordcount_service import count_words, sum_scene_wordcounts
+from app.services.wordcount_service import count_words, sum_scene_wordcounts, count_characters, estimate_pages
 from app.schemas.requests import (
     CreateDocumentRequest,
     CreateChapterRequest,
@@ -24,7 +24,8 @@ from app.schemas.document import (
     DocumentOutlineResponse,
     DocumentResponse,
     ChapterResponse,
-    ItemListResponse
+    ItemListResponse,
+    DocumentStatsResponse,
 )
 from app.schemas.document_settings import DocumentSettings
 from app.utils.mongo import serialize_mongo
@@ -216,6 +217,38 @@ async def get_documents(
             item_dict["chapter_count"] = len(chapters)
             item_dict["word_count"] = sum(ch.get("wordcount", 0) for ch in chapters)
 
+            # Flatten all scenes with their parent chapter title
+            all_scenes = [
+                (sc.get("title", ""), sc.get("wordcount", 0), ch.get("title", ""))
+                for ch in chapters
+                for sc in ch.get("scenes", [])
+            ]
+            item_dict["scene_count"] = len(all_scenes)
+
+            if chapters:
+                sorted_ch = sorted(chapters, key=lambda c: c.get("wordcount", 0))
+                item_dict["shortest_chapter"] = {
+                    "title": sorted_ch[0].get("title", ""),
+                    "word_count": sorted_ch[0].get("wordcount", 0),
+                }
+                item_dict["longest_chapter"] = {
+                    "title": sorted_ch[-1].get("title", ""),
+                    "word_count": sorted_ch[-1].get("wordcount", 0),
+                }
+
+            if all_scenes:
+                sorted_sc = sorted(all_scenes, key=lambda s: s[1])
+                item_dict["shortest_scene"] = {
+                    "title": sorted_sc[0][0],
+                    "word_count": sorted_sc[0][1],
+                    "chapter_title": sorted_sc[0][2],
+                }
+                item_dict["longest_scene"] = {
+                    "title": sorted_sc[-1][0],
+                    "word_count": sorted_sc[-1][1],
+                    "chapter_title": sorted_sc[-1][2],
+                }
+
         result.append(item_dict)
 
     return result
@@ -244,6 +277,71 @@ async def get_document(
         doc["word_count"] = sum(ch.get("wordcount", 0) for ch in chapters)
 
     return doc
+
+# ────────────────────────────────────────────────
+# DOCUMENT STATS (character counts, page estimate)
+# ────────────────────────────────────────────────
+DEFAULT_DOC_SETTINGS = {
+    "marginTop": 2.5, "marginBottom": 2.5, "marginLeft": 2.5, "marginRight": 2.5,
+    "marginUnit": "cm", "paperFormat": "A4", "customWidth": 0, "customHeight": 0,
+    "defaultFontSize": 12, "defaultLineHeight": 1.5,
+}
+
+@router.get("/{document_id}/stats", response_model=DocumentStatsResponse)
+async def get_document_stats(
+    project_id: str,
+    document_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document or document.get("type") == "folder":
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    chapters = document.get("chapters", [])
+    word_count = sum(ch.get("wordcount", 0) for ch in chapters)
+
+    all_scenes = []
+    total_chars_with = 0
+    total_chars_without = 0
+
+    for ch in chapters:
+        for sc in ch.get("scenes", []):
+            cw, cwo = count_characters(sc.get("content", ""))
+            total_chars_with += cw
+            total_chars_without += cwo
+            all_scenes.append((sc.get("title", ""), sc.get("wordcount", 0), ch.get("title", "")))
+
+    longest_chapter = None
+    shortest_chapter = None
+    if chapters:
+        sorted_ch = sorted(chapters, key=lambda c: c.get("wordcount", 0))
+        shortest_chapter = {"title": sorted_ch[0].get("title", ""), "word_count": sorted_ch[0].get("wordcount", 0)}
+        longest_chapter  = {"title": sorted_ch[-1].get("title", ""), "word_count": sorted_ch[-1].get("wordcount", 0)}
+
+    longest_scene = None
+    shortest_scene = None
+    if all_scenes:
+        sorted_sc = sorted(all_scenes, key=lambda s: s[1])
+        shortest_scene = {"title": sorted_sc[0][0],  "word_count": sorted_sc[0][1],  "chapter_title": sorted_sc[0][2]}
+        longest_scene  = {"title": sorted_sc[-1][0], "word_count": sorted_sc[-1][1], "chapter_title": sorted_sc[-1][2]}
+
+    settings = document.get("settings") or DEFAULT_DOC_SETTINGS
+    pages = estimate_pages(settings, total_chars_without)
+
+    return {
+        "document_id": str(document["_id"]),
+        "chapter_count": len(chapters),
+        "scene_count": len(all_scenes),
+        "word_count": word_count,
+        "character_count_with_spaces": total_chars_with,
+        "character_count_without_spaces": total_chars_without,
+        "longest_chapter": longest_chapter,
+        "shortest_chapter": shortest_chapter,
+        "longest_scene": longest_scene,
+        "shortest_scene": shortest_scene,
+        "estimated_pages": pages,
+    }
+
 
 # ────────────────────────────────────────────────
 # REORDER CHAPTERS
