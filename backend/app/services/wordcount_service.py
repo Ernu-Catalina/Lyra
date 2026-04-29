@@ -42,44 +42,67 @@ def count_characters(html: str) -> Tuple[int, int]:
     return with_spaces, without_spaces
 
 
-def estimate_pages(settings: dict, char_count_no_spaces: int) -> float:
+def estimate_pages(settings: dict, word_count: int, chapter_count: int = 0) -> float:
     """
-    Estimate page count from document settings and character count.
-    Uses paper dimensions, margins, font size, and line height.
+    Estimate page count from word count and document settings.
+
+    Font size is treated as points (pt), matching how the PDF/DOCX export
+    uses defaultFontSize directly. Leading uses the ReportLab formula:
+    leading = font_size_pt × line_height × 1.2.
     """
-    if char_count_no_spaces <= 0:
+    if word_count <= 0:
         return 0.0
+
+    # All dimensions in typographic points (1 pt = 1/72 inch)
+    PT_PER_MM = 2.83465
+    PT_PER_CM = 28.3465
+    PT_PER_IN = 72.0
+
+    margin_unit  = settings.get("marginUnit", "cm")
+    margin_scale = {"mm": PT_PER_MM, "in": PT_PER_IN}.get(margin_unit, PT_PER_CM)
+
+    PAPER_SIZES_PT = {
+        "A4":     (595.3, 841.9),
+        "Letter": (612.0, 792.0),
+        "A5":     (419.5, 595.3),
+        "Legal":  (612.0, 1008.0),
+    }
 
     paper_format = settings.get("paperFormat", "A4")
-    margin_unit = settings.get("marginUnit", "cm")
-    unit_mm = UNIT_TO_MM.get(margin_unit, 10.0)
-
     if paper_format == "Custom":
-        paper_w = float(settings.get("customWidth", 210))
-        paper_h = float(settings.get("customHeight", 297))
+        paper_w_pt = float(settings.get("customWidth",  210)) * PT_PER_MM
+        paper_h_pt = float(settings.get("customHeight", 297)) * PT_PER_MM
     else:
-        paper_w, paper_h = PAPER_SIZES_MM.get(paper_format, (210.0, 297.0))
+        paper_w_pt, paper_h_pt = PAPER_SIZES_PT.get(paper_format, (595.3, 841.9))
 
-    margin_top    = float(settings.get("marginTop",    2.5)) * unit_mm
-    margin_bottom = float(settings.get("marginBottom", 2.5)) * unit_mm
-    margin_left   = float(settings.get("marginLeft",   2.5)) * unit_mm
-    margin_right  = float(settings.get("marginRight",  2.5)) * unit_mm
+    mt = float(settings.get("marginTop",    2.5)) * margin_scale
+    mb = float(settings.get("marginBottom", 2.5)) * margin_scale
+    ml = float(settings.get("marginLeft",   2.5)) * margin_scale
+    mr = float(settings.get("marginRight",  2.5)) * margin_scale
 
-    usable_w = max(paper_w - margin_left - margin_right, 1.0)
-    usable_h = max(paper_h - margin_top  - margin_bottom, 1.0)
+    usable_w_pt = max(paper_w_pt - ml - mr, 1.0)
+    usable_h_pt = max(paper_h_pt - mt - mb, 1.0)
 
-    # px → mm: 1 px = 0.264583 mm
-    font_size_mm   = float(settings.get("defaultFontSize", 12)) * 0.264583
-    line_height_mm = max(font_size_mm * float(settings.get("defaultLineHeight", 1.5)), 0.1)
+    # defaultFontSize is stored in pt (matches PDF/DOCX export usage)
+    font_size_pt = max(float(settings.get("defaultFontSize", 12)), 1.0)
+    line_height  = max(float(settings.get("defaultLineHeight", 1.15)), 0.5)
 
-    # Average character width ≈ 0.5× font size for proportional fonts (Arial-like)
-    avg_char_width_mm = max(font_size_mm * 0.5, 0.1)
+    # PDF export (ReportLab) uses: leading = font_size_pt × line_height × 1.2
+    leading_pt = font_size_pt * line_height * 1.2
 
-    chars_per_line = usable_w / avg_char_width_mm
-    lines_per_page = usable_h / line_height_mm
-    chars_per_page = chars_per_line * lines_per_page
+    # Average char width for proportional fonts (Helvetica/Arial) ≈ 0.5 × font_size_pt
+    # Average English word length including trailing space ≈ 5.5 chars
+    avg_char_width_pt = font_size_pt * 0.5
+    chars_per_line    = usable_w_pt / avg_char_width_pt
+    words_per_line    = chars_per_line / 5.5
 
-    if chars_per_page <= 0:
-        return 0.0
+    lines_per_page = usable_h_pt / leading_pt
+    words_per_page = max(words_per_line * lines_per_page, 1.0)
 
-    return round(char_count_no_spaces / chars_per_page, 1)
+    text_pages = word_count / words_per_page
+
+    # Each chapter page break wastes on average ~0.4 of a page
+    if settings.get("pageBreakAfterChapter", True) and chapter_count > 1:
+        text_pages += (chapter_count - 1) * 0.4
+
+    return round(text_pages, 1)

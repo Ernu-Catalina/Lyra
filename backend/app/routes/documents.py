@@ -326,7 +326,7 @@ async def get_document_stats(
         longest_scene  = {"title": sorted_sc[-1][0], "word_count": sorted_sc[-1][1], "chapter_title": sorted_sc[-1][2]}
 
     settings = document.get("settings") or DEFAULT_DOC_SETTINGS
-    pages = estimate_pages(settings, total_chars_without)
+    pages = estimate_pages(settings, word_count, len(chapters))
 
     return {
         "document_id": str(document["_id"]),
