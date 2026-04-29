@@ -6,18 +6,19 @@ interface DocumentListItemProps {
   document: any;
   onNavigate: () => void;
   onContextMenu?: (e: MouseEvent, item: any) => void;
+  isMobileView?: boolean;
+  onShowDetails?: (document: any) => void;   // Keep this
 }
 
 export default function DocumentListItem({
   document,
   onNavigate,
   onContextMenu,
+  isMobileView = false,
+  onShowDetails,
 }: DocumentListItemProps) {
   const safeNavigate = () => {
-    if (typeof onNavigate !== 'function') {
-      console.error("onNavigate is not a function!", onNavigate);
-      return;
-    }
+    if (typeof onNavigate !== 'function') return;
     try {
       onNavigate();
     } catch (err) {
@@ -35,19 +36,19 @@ export default function DocumentListItem({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onContextMenu?.(e, {
-          _id: document._id,
-          title: document.title,
-          type: document.type,
-        });
+        onContextMenu?.(e, document);
       }}
-      className="
-        grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-3 px-6 py-4 
+      className={`
+        grid ${isMobileView 
+          ? "grid-cols-[3fr_1fr]" 
+          : "grid-cols-[3fr_1fr_1fr_1fr_1fr]"
+        } 
+        gap-6 px-6 py-4 
         hover:bg-[var(--accent)]/5 transition cursor-pointer 
         group items-center border-b border-[var(--border)]/30 last:border-b-0
-      "
+      `}
     >
-      {/* Title + icon – takes most space (3fr) */}
+      {/* Title */}
       <div className="flex items-center gap-4">
         <FileText size={20} className="text-[var(--accent)] flex-shrink-0" />
         <span className="font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)] line-clamp-1 flex-1">
@@ -55,25 +56,24 @@ export default function DocumentListItem({
         </span>
       </div>
 
-      {/* Created Date - NEW COLUMN */}
-      <div className="text-right text-[var(--text-secondary)] text-sm">
-        {new Date(document.created_at).toLocaleDateString()}
-      </div>
-
       {/* Last Modified */}
       <div className="text-right text-[var(--text-secondary)] text-sm">
         {new Date(document.updated_at).toLocaleDateString()}
       </div>
 
-      {/* Chapters */}
-      <div className="text-right text-[var(--text-secondary)] text-sm">
-        {document.chapter_count ?? "—"}
-      </div>
-
-      {/* Words */}
-      <div className="text-right text-[var(--text-secondary)] text-sm">
-        {document.word_count ?? "—"}
-      </div>
+      {!isMobileView && (
+        <>
+          <div className="text-right text-[var(--text-secondary)] text-sm">
+            {new Date(document.created_at).toLocaleDateString()}
+          </div>
+          <div className="text-right text-[var(--text-secondary)] text-sm">
+            {document.chapter_count ?? "—"}
+          </div>
+          <div className="text-right text-[var(--text-secondary)] text-sm">
+            {document.word_count ?? "—"}
+          </div>
+        </>
+      )}
     </div>
   );
 }

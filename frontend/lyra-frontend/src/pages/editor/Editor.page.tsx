@@ -22,6 +22,7 @@ import { EditorFooter } from "./components/EditorFooter";
 import "./styles/editor.css";
 import { ExportModal } from "./components/ExportModal";
 
+
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
   const navigate = useNavigate();
@@ -409,7 +410,7 @@ useEffect(() => {
 
   return (
     <DocumentSettingsProvider projectId={projectId} documentId={documentId}>
-      <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
+      <div className="editor-page flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
         {!isFullscreen && (
           <NavigationBar
             title={projectName}

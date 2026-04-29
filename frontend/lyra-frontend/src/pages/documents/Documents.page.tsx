@@ -14,6 +14,7 @@ import { ChevronLeft, Menu, FileText } from "lucide-react";
 import CreateButton from "../../common_components/CreateButton";
 import { Project, Item } from "../../types/document";
 import Breadcrumb from "./components/Breadcrumb";
+import DocumentDetailsModal from "./components/DocumentDetailsModal";
 
 // ────────────────────────────────────────────────
 // TYPES & INTERFACES (already defined elsewhere, just referenced)
@@ -71,6 +72,18 @@ export default function Documents() {
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Item | null>(null);
+
+  // Add near other useState declarations
+const [isMobileView, setIsMobileView] = useState(window.innerWidth < 500);
+
+useEffect(() => {
+  const handleResize = () => setIsMobileView(window.innerWidth < 500);
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
   const [moveConflict, setMoveConflict] = useState<{
     active: Item;
@@ -542,6 +555,7 @@ const fetchData = useCallback(async () => {
                 sidebarOpen={sidebarOpen}
                 currentFolderId={currentFolderId}
                 onContextMenu={openContextMenu}
+                isMobileView={isMobileView}
               />
         </main>
       </div>
@@ -554,6 +568,19 @@ const fetchData = useCallback(async () => {
         >
           {contextMenu.type === "item" && contextMenu.item && (
             <>
+            {/* Document Details */}
+              <button
+                type="button"
+                className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
+                onClick={() => {
+                  setSelectedDocument(contextMenu.item!);
+                  setDetailsModalOpen(true);
+                  setContextMenu(null);
+                }}
+              >
+                Document Details
+              </button>
+
               <button
                 className="block w-full text-left px-4 py-2 hover:bg-[var(--bg-primary)]"
                 onClick={() => { handleCopy(contextMenu.item!); setContextMenu(null); }}
@@ -675,6 +702,15 @@ const fetchData = useCallback(async () => {
           setItemToDelete(null);
         }}
         onConfirm={handleDeleteItem}
+      />
+
+      <DocumentDetailsModal
+        isOpen={detailsModalOpen}
+        onClose={() => {
+          setDetailsModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        document={selectedDocument}
       />
 
       {pasteConflict && (

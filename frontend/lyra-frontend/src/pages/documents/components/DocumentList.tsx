@@ -17,6 +17,7 @@ interface DocumentListProps {
   sidebarOpen: boolean;
   currentFolderId: string | null;   // ← add this
   onContextMenu?: (e: MouseEvent, item?: Item) => void;
+  isMobileView?: boolean;   // ← add this
 }
 
 export default function DocumentList({
@@ -27,6 +28,7 @@ export default function DocumentList({
   onDelete,
   currentFolderId,
   onContextMenu,
+  isMobileView
 }: DocumentListProps) {
   const folders = items.filter((i) => i.type === "folder");
   const documents = items.filter((i) => i.type === "document");
@@ -68,7 +70,7 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
       {/* Documents List */}
       {documents.length > 0 && (
         <div className="mt-8">
-          <DocumentHeader />
+          <DocumentHeader isMobileView={isMobileView} />
           <div className="divide-y divide-[var(--border)]/30">
             {documents.map((doc) => (
               <SortableItem key={doc._id} id={doc._id}>
@@ -78,6 +80,7 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
                   onEdit={() => onEdit(doc)}
                   onDelete={() => onDelete(doc._id)}
                   onContextMenu={onContextMenu}
+                  isMobileView={isMobileView}   // ← pass this down
                 />
               </SortableItem>
             ))}

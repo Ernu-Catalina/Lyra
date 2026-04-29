@@ -1,27 +1,44 @@
-// src/components/documents/DocumentHeader.tsx
-export default function DocumentHeader() {
+// src/pages/documents/components/DocumentHeader.tsx
+
+interface DocumentHeaderProps {
+  isMobileView?: boolean;
+}
+
+export default function DocumentHeader({ isMobileView = false }: DocumentHeaderProps) {
   return (
-    <div
-      className="
-        grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-3 px-6 py-3 
-        text-sm font-semibold text-[var(--text-primary)] 
-        sticky top-0 z-10 backdrop-blur-sm border-b border-[var(--border)]/30
-      "
-    >
-      {/* Title – same width as document items */}
-      <div className="text-left">Title</div> {/* pl-5 matches icon + gap in DocumentListItem */}
+    <div className={`
+      grid border-b border-[var(--border)] bg-[var(--bg-secondary)] py-3 px-6 
+      text-sm font-medium text-[var(--text-secondary)]
+      ${isMobileView 
+        ? "grid-cols-[3fr_1fr]" 
+        : "grid-cols-[3fr_1fr_1fr_1fr_1fr]"
+      } 
+      gap-6 items-center
+    `}>
+      {/* Title */}
+      <div className="font-semibold text-[var(--text-primary)]">
+        Title
+      </div>
 
-      {/* Created Date – right-aligned */}
-      <div className="text-right">Created</div>
+      {/* Last Modified - always visible */}
+      <div className="text-right font-semibold text-[var(--text-primary)]">
+        Modified
+      </div>
 
-      {/* Last Modified – right-aligned */}
-      <div className="text-right">Modified</div>
-
-      {/* Chapters – right-aligned, centered label */}
-      <div className="text-right">Chapters</div>
-
-      {/* Words – right-aligned, centered label */}
-      <div className="text-right">Wordcount</div>
+      {/* Other columns - hidden on mobile */}
+      {!isMobileView && (
+        <>
+          <div className="text-right font-semibold text-[var(--text-primary)]">
+            Created
+          </div>
+          <div className="text-right font-semibold text-[var(--text-primary)]">
+            Chapters
+          </div>
+          <div className="text-right font-semibold text-[var(--text-primary)]">
+            Words
+          </div>
+        </>
+      )}
     </div>
   );
 }
