@@ -242,7 +242,7 @@ export default function DocumentDetailsModal({
                   value={stats.character_count_without_spaces.toLocaleString()}
                 />
                 <StatCard
-                  label="Approx. Pages"
+                  label="Approx. Page Count"
                   value={stats.estimated_pages != null && stats.estimated_pages > 0
                     ? `~${stats.estimated_pages}`
                     : "—"}
