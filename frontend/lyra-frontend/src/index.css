@@ -7,11 +7,12 @@
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --border: #e2e8f0;
-  --accent: #715fb3;
-  --accent-dim: #a78bfa;
+  --accent: hsl(253, 36%, 54%);
+  --accent-dim: #a689fa;
   --glow: rgba(113, 95, 179, 0.1);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: 'Georgia', serif;
+  --logo-color: #0f172a;
 }
 
 .dark-minimal{
@@ -25,6 +26,7 @@
   --glow:         rgba(166, 174, 201, 0.12);
   --font-sans:    'Inter', system-ui, sans-serif;
   --font-serif:   'Georgia', serif;
+  --logo-color: #f1f5f9;
 }
 
 /* ── Theme: sepia-classic ── */
@@ -39,6 +41,7 @@
   --glow: rgba(141, 85, 36, 0.1);
   --font-sans: 'Georgia', serif;
   --font-serif: 'Georgia', serif;
+  --logo-color: #5d4037;
 }
 
 @media (max-width: 640px) {
@@ -51,6 +54,17 @@
 :root {
   @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
   font-family: var(--font-sans);
+  --logo-color: #0f172a;
+}
+
+/* Make SVGs respect current theme color */
+img[src$=".svg"] {
+  color: var(--text-primary);
+}
+
+/* Dark mode support */
+.dark img[src$=".svg"] {
+  color: var(--text-primary);
 }
 
 /* Card / component examples */
