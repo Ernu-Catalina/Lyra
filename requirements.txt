@@ -27,6 +27,7 @@ sympy==1.12
 # Document Export (Core)
 python-docx==1.1.0
 beautifulsoup4==4.12.2
+ebooklib==0.20
 
 # Document Export (PDF) - Pure Python, no system dependencies
 reportlab==4.4.10
