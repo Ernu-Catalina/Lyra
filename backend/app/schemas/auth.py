@@ -70,6 +70,14 @@ class AuthRequest(BaseModel):
     email: EmailStr
     password: str
 
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+    remember_me: bool = False
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6, description="6-digit reset code")

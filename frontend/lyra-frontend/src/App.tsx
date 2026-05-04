@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "./pages/auth/Login.page";
 import RegisterPage from "./pages/auth/Register.page";
+import VerifyEmailPage from "./pages/auth/VerifyEmail.page";
 import ForgotPasswordForm from "./pages/auth/components/ForgotPasswordForm";
 import ResetPasswordForm from "./pages/auth/components/ResetPasswordForm";
 import ProjectsPage from "./pages/projects/Projects.page";
@@ -18,6 +19,7 @@ function AppContent() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordForm />} />
       <Route path="/reset-password" element={<ResetPasswordForm />} />
 

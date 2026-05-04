@@ -15,6 +15,8 @@ projects_collection = db["projects"]
 documents_collection = db["documents"]
 chapters_collection = db["chapters"]
 reset_codes_collection = db["reset_codes"]
+refresh_tokens_collection = db["refresh_tokens"]
+email_verifications_collection = db["email_verifications"]
 
 async def create_indexes():
     """Create necessary indexes on startup"""
@@ -23,8 +25,17 @@ async def create_indexes():
         await users_collection.create_index(
             [("email", 1)],
             unique=True,
-            collation={"locale": "en", "strength": 2}  # case-insensitive
+            collation={"locale": "en", "strength": 2}
         )
-        logger.info("Unique index on users.email created successfully")
+        # Refresh tokens: fast lookup by hash; no TTL — valid until explicit logout
+        await refresh_tokens_collection.create_index("token_hash", unique=True)
+        # Email verification tokens: fast lookup by hash + TTL auto-expiry
+        await email_verifications_collection.create_index(
+            "token_hash", unique=True
+        )
+        await email_verifications_collection.create_index(
+            "expires_at", expireAfterSeconds=0
+        )
+        logger.info("Database indexes created successfully")
     except Exception as e:
-        logger.warning(f"Could not create index on users.email: {e}")
+        logger.warning(f"Could not create indexes: {e}")
