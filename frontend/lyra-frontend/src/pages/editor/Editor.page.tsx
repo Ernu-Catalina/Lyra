@@ -202,21 +202,29 @@ useEffect(() => {
       wordCountParts.push(`Document: ${formatWordCount(documentWC, userSettings.documentFormat)}`);
   }
 
-  const handleExport = async (format: "pdf" | "docx") => {
-  if (!projectId || !documentId) throw new Error("Missing document context");
-  const response = await api.get(
-    `/projects/${projectId}/documents/${documentId}/export/${format}`,
-    { responseType: "blob" }
-  );
-  const url = URL.createObjectURL(response.data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${outline?.title || "document"}.${format}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+  const handleExport = async (format: "pdf" | "docx" | "epub") => {
+    if (!projectId || !documentId) throw new Error("Missing document context");
+
+    const response = await api.request({
+      url: `/projects/${projectId}/documents/${documentId}/export/${
+        format === "epub" ? "epub" : format
+      }`,
+      method: format === "epub" ? "post" : "get",
+      responseType: "blob",
+    });
+
+    const extension = format === "epub" ? "epub" : format;
+    const url = URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${outline?.title || "document"}.${extension}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`Exported ${extension.toUpperCase()} successfully.`);
+  };
 
   // ── Project name ──────────────────────────────────────────────────
   useEffect(() => {

@@ -1,24 +1,26 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, FileText, File } from "lucide-react";
+import { X, FileText, File, BookOpen } from "lucide-react";
 
 interface ExportModalProps {
   onClose: () => void;
-  onExport: (format: "pdf" | "docx") => Promise<void>;
+  onExport: (format: "pdf" | "docx" | "epub") => Promise<void>;
 }
 
 export function ExportModal({ onClose, onExport }: ExportModalProps) {
-  const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "docx" | "epub" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleExport = async (format: "pdf" | "docx") => {
+  const handleExport = async (format: "pdf" | "docx" | "epub") => {
     setExporting(format);
     setError(null);
     try {
       await onExport(format);
       onClose();
     } catch (err: any) {
-      setError(err?.message || "Export failed. Please try again.");
+      setError(
+        err?.response?.data?.detail || err?.message || "Export failed. Please try again."
+      );
     } finally {
       setExporting(null);
     }
@@ -61,6 +63,25 @@ export function ExportModal({ onClose, onExport }: ExportModalProps) {
               </div>
             </div>
             {exporting === "docx" && (
+              <span className="ml-auto text-xs text-[var(--text-secondary)]">
+                Exporting…
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => handleExport("epub")}
+            disabled={!!exporting}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-secondary)] transition-colors text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <BookOpen size={20} className="text-purple-500" />
+            <div className="text-left">
+              <div className="font-medium text-sm">EPUB Book (.epub)</div>
+              <div className="text-xs text-[var(--text-secondary)]">
+                Reflowable ebook respecting your document settings
+              </div>
+            </div>
+            {exporting === "epub" && (
               <span className="ml-auto text-xs text-[var(--text-secondary)]">
                 Exporting…
               </span>

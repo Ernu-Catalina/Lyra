@@ -1,5 +1,6 @@
 import io
 import re
+import uuid
 from typing import Literal
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -59,6 +60,73 @@ def _parse_cm(value_str: str) -> float:
         return 0.0
     except (ValueError, AttributeError):
         return 0.0
+
+# ── EPUB HTML sanitiser ────────────────────────────────────────────────────────
+
+def _sanitize_html_to_xhtml(raw_html: str) -> str:
+    """
+    Re-serialise lenient editor HTML (TipTap/HTML5) as XHTML-safe markup.
+
+    Uses BeautifulSoup's tolerant html.parser to fix unclosed tags, bare text,
+    etc., then emits self-closed void elements and properly escaped text so the
+    result can be embedded inside a strict XHTML document without lxml choking.
+
+    Always returns at least one element — lxml raises "Document is empty" when
+    the body is truly empty, so we substitute a non-breaking space paragraph.
+    """
+    import html as _h
+
+    VOID = frozenset({
+        "area", "base", "br", "col", "embed", "hr", "img",
+        "input", "link", "meta", "param", "source", "track", "wbr",
+    })
+
+    if not raw_html or not raw_html.strip():
+        return "<p>&#160;</p>"
+
+    # Strip page-break spacer divs inserted by the editor
+    raw_html = re.sub(
+        r'<div[^>]*data-type="page-break-spacer"[^>]*>.*?</div>',
+        "", raw_html, flags=re.DOTALL,
+    ).strip()
+
+    if not raw_html:
+        return "<p>&#160;</p>"
+
+    soup = BeautifulSoup(raw_html, "html.parser")
+
+    def _emit(node) -> str:
+        if isinstance(node, NavigableString):
+            return _h.escape(str(node))
+        if not isinstance(node, Tag):
+            return ""
+        tag = node.name
+        if not tag:
+            return ""
+        attrs = ""
+        for k, v in (node.attrs or {}).items():
+            if isinstance(v, list):
+                v = " ".join(v)
+            attrs += f' {k}="{_h.escape(str(v))}"'
+        if tag in VOID:
+            return f"<{tag}{attrs}/>"
+        inner = "".join(_emit(c) for c in node.children)
+        return f"<{tag}{attrs}>{inner}</{tag}>"
+
+    parts = []
+    for child in soup.children:
+        if isinstance(child, NavigableString):
+            text = str(child).strip()
+            if text:
+                parts.append(f"<p>{_h.escape(text)}</p>")
+        elif isinstance(child, Tag):
+            xhtml = _emit(child)
+            if xhtml.strip():
+                parts.append(xhtml)
+
+    result = "\n".join(parts)
+    return result if result.strip() else "<p>&#160;</p>"
+
 
 # ── Chapter title helpers ──────────────────────────────────────────────────────
 
@@ -589,4 +657,186 @@ def build_pdf(document_title: str, chapters: list, settings: dict) -> bytes:
             story.append(PageBreak())
 
     doc.build(story)
+    return buf.getvalue()
+
+
+def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
+    import logging
+    import html as _html
+
+    log = logging.getLogger(__name__)
+
+    try:
+        from ebooklib import epub
+    except ImportError as exc:
+        raise RuntimeError(
+            "EPUB export requires ebooklib. Install with `pip install ebooklib`."
+        ) from exc
+
+    book = epub.EpubBook()
+    book.set_identifier(str(uuid.uuid4()))
+    book.set_title(document_title)
+    language = settings.get("language") or "en"
+    book.set_language(language)
+
+    author = settings.get("author") or settings.get("creator")
+    if author:
+        book.add_author(str(author))
+
+    default_font = settings.get("defaultFont", "Arial, sans-serif").split(",")[0].strip().strip("'\"")
+    default_font_size = float(settings.get("defaultFontSize", 12))
+    default_line_height = float(settings.get("defaultLineHeight", 1.15))
+    default_indent_cm = _parse_cm(
+        f"{settings.get('defaultFirstLineIndent', 0)}{settings.get('defaultFirstLineIndentUnit', 'cm')}"
+    )
+
+    margin_unit = settings.get("marginUnit", "cm")
+    margin_top = _to_cm(settings.get("marginTop", 2.5), margin_unit)
+    margin_bottom = _to_cm(settings.get("marginBottom", 2.5), margin_unit)
+    margin_left = _to_cm(settings.get("marginLeft", 2.5), margin_unit)
+    margin_right = _to_cm(settings.get("marginRight", 2.5), margin_unit)
+
+    chapter_title_size = float(settings.get("chapterTitleSize", 16))
+    chapter_title_alignment = settings.get("chapterTitleAlignment", "center")
+    chapter_title_style = settings.get("chapterTitleStyle", "bold")
+    chapter_title_weight = "bold" if "bold" in str(chapter_title_style) else "normal"
+    chapter_title_italic = "italic" if "italic" in str(chapter_title_style) else "normal"
+    chapter_blank_lines = int(settings.get("blankLinesAfterChapter", 2))
+    blank_margin = max(1, chapter_blank_lines) * 0.8
+
+    css = f"""
+    body {{
+      font-family: '{default_font}', serif;
+      font-size: {default_font_size}pt;
+      line-height: {default_line_height};
+      margin: 0;
+      padding: {margin_top}cm {margin_right}cm {margin_bottom}cm {margin_left}cm;
+    }}
+    p {{
+      text-indent: {default_indent_cm}cm;
+      margin: 0 0 1em 0;
+    }}
+    .chapter-title {{
+      font-size: {chapter_title_size}pt;
+      font-weight: {chapter_title_weight};
+      font-style: {chapter_title_italic};
+      text-align: {chapter_title_alignment};
+      margin: 0 0 {blank_margin}em 0;
+    }}
+    .scene {{
+      margin-bottom: 1.25em;
+    }}
+    h1, h2, h3, h4, h5, h6 {{
+      margin: 0.8em 0 0.4em 0;
+    }}
+    """
+
+    style_item = epub.EpubItem(
+        uid="style",
+        file_name="styles/epub_styles.css",
+        media_type="text/css",
+        content=css.encode("utf-8"),
+    )
+    book.add_item(style_item)
+
+    def _make_xhtml(chapter_label: str, body_html: str) -> bytes:
+        """
+        Wrap body content in a complete, well-formed XHTML document and return
+        UTF-8 bytes. lxml requires bytes (not str) when an XML encoding
+        declaration is present; passing a str causes "Document is empty".
+        The stylesheet link is embedded here because ebooklib skips its template
+        when page.content is pre-set.
+        """
+        doc = (
+            "<?xml version='1.0' encoding='utf-8'?>"
+            "<html xmlns='http://www.w3.org/1999/xhtml'>"
+            "<head>"
+            "<meta charset='utf-8'/>"
+            f"<title>{_html.escape(chapter_label)}</title>"
+            "<link rel='stylesheet' type='text/css' href='../styles/epub_styles.css'/>"
+            "</head>"
+            f"<body>{body_html}</body>"
+            "</html>"
+        )
+        return doc.encode("utf-8")
+
+    spine = ["nav"]
+    toc = []
+    pages_created = 0
+
+    for ch_idx, chapter in enumerate(chapters):
+        chapter_title = chapter.get("title", "") or f"Chapter {ch_idx + 1}"
+        formatted_title = _format_chapter_title(ch_idx + 1, chapter_title, settings)
+        chapter_label = formatted_title or chapter_title
+
+        chapter_body = []
+        if formatted_title:
+            chapter_body.append(
+                f"<h1 class='chapter-title'>{_html.escape(formatted_title)}</h1>"
+            )
+
+        has_scene_content = False
+        for scene in chapter.get("scenes", []):
+            raw_content = scene.get("content", "") or ""
+            clean = _sanitize_html_to_xhtml(raw_content)
+
+            # _sanitize_html_to_xhtml returns the &#160; placeholder only when
+            # the raw content was truly empty — skip those scenes.
+            if not raw_content.strip():
+                log.debug(
+                    "EPUB: chapter %d '%s' — skipping empty scene '%s'",
+                    ch_idx + 1, chapter_title, scene.get("title", ""),
+                )
+                continue
+
+            chapter_body.append(f"<div class='scene'>{clean}</div>")
+            has_scene_content = True
+
+        if not has_scene_content and not formatted_title:
+            log.warning(
+                "EPUB: chapter %d '%s' has no content and no title — skipping",
+                ch_idx + 1, chapter_title,
+            )
+            continue
+
+        body_html = "\n".join(chapter_body)
+        if not body_html.strip():
+            body_html = "<p>&#160;</p>"
+
+        page = epub.EpubHtml(
+            title=chapter_label,
+            file_name=f"chapter_{ch_idx + 1}.xhtml",
+            lang=language,
+        )
+        page.content = _make_xhtml(chapter_label, body_html)
+
+        book.add_item(page)
+        toc.append(epub.Link(page.file_name, chapter_label, page.file_name))
+        spine.append(page)
+        pages_created += 1
+
+    if pages_created == 0:
+        log.warning(
+            "EPUB: document '%s' has no exportable content — inserting placeholder",
+            document_title,
+        )
+        placeholder = epub.EpubHtml(
+            title="Empty Document",
+            file_name="chapter_1.xhtml",
+            lang=language,
+        )
+        placeholder.content = _make_xhtml(
+            "Empty Document", "<p>This document has no content.</p>"
+        )
+        book.add_item(placeholder)
+        toc.append(epub.Link(placeholder.file_name, "Empty Document", placeholder.file_name))
+        spine.append(placeholder)
+
+    book.toc = toc
+    book.spine = spine
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    buf = io.BytesIO()
+    epub.write_epub(buf, book)
     return buf.getvalue()

@@ -1026,7 +1026,32 @@ async def move_chapter(
 # EXPORT DOCUMENT
 # ────────────────────────────────────────────────
 from fastapi.responses import Response as FastAPIResponse
-from app.services.export_service import build_docx, build_pdf
+from app.services.export_service import build_docx, build_pdf, build_epub
+
+@router.post("/{document_id}/export/epub")
+async def export_document_epub(
+    project_id: str,
+    document_id: str,
+    user_id=Depends(get_current_user)
+):
+    document = await get_owned_document(user_id, project_id, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+
+    settings = document.get("settings") or {}
+    chapters = sorted(document.get("chapters", []), key=lambda c: c.get("order", 0))
+    for ch in chapters:
+        ch["scenes"] = sorted(ch.get("scenes", []), key=lambda s: s.get("order", 0))
+
+    doc_title = document.get("title", "document")
+    data = build_epub(doc_title, chapters, settings)
+
+    return FastAPIResponse(
+        content=data,
+        media_type="application/epub+zip",
+        headers={"Content-Disposition": f'attachment; filename="{doc_title}.epub"'}
+    )
+
 
 @router.get("/{document_id}/export/{fmt}")
 async def export_document(

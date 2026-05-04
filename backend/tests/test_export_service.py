@@ -5,10 +5,14 @@ Verifies DOCX and PDF generation with various configurations.
 Ensures refactoring from WeasyPrint to ReportLab is functional.
 """
 
+import io
+import zipfile
+
 import pytest
 from app.services.export_service import (
     build_pdf,
     build_docx,
+    build_epub,
     format_chapter_title,
     get_alignment,
 )
@@ -371,6 +375,33 @@ class TestExportService:
         ]
         docx_bytes = build_docx(chapters, default_settings)
         assert docx_bytes.startswith(b"PK")
+
+    def test_build_epub_basic(self, sample_chapters, default_settings):
+        """Test basic EPUB generation."""
+        epub_bytes = build_epub(sample_chapters, default_settings)
+        assert epub_bytes.startswith(b"PK"), "EPUB should be a ZIP container"
+
+        archive = zipfile.ZipFile(io.BytesIO(epub_bytes))
+        assert "mimetype" in archive.namelist()
+        assert "META-INF/container.xml" in archive.namelist()
+
+    def test_build_epub_with_chapter_titles(self, default_settings):
+        """Test EPUB includes chapter title formatting and multiple scenes."""
+        chapters = [
+            {
+                "order": 0,
+                "title": "Intro",
+                "scenes": [
+                    {"content": "<p>First scene</p>"},
+                    {"content": "<p>Second scene</p>"},
+                ],
+            }
+        ]
+        epub_bytes = build_epub(chapters, default_settings)
+        archive = zipfile.ZipFile(io.BytesIO(epub_bytes))
+        container_xml = archive.read("META-INF/container.xml").decode("utf-8")
+        assert "rootfile" in container_xml
+        assert archive.read("mimetype").strip() == b"application/epub+zip"
 
     def test_build_pdf_missing_reportlab_error(
         self, sample_chapters, default_settings, monkeypatch
