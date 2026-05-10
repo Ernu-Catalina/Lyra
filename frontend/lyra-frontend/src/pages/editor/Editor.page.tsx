@@ -422,6 +422,7 @@ useEffect(() => {
         {!isFullscreen && (
           <NavigationBar
             title={projectName}
+            projectId={projectId}
             onLogout={() => { logout(); navigate("/login"); }}
             onSettings={() => navigate("/settings")}
             isEditorView={true}

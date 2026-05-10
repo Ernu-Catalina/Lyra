@@ -1,9 +1,11 @@
 // src/common_components/NavigationBar.tsx
+import { useNavigate } from "react-router-dom";
 import { Search, Download } from "lucide-react";
 import ProfileDropdown from "./ProfileDropdown";
 
 interface NavigationBarProps {
   title: string;
+  projectId?: string;
   searchQuery?: string;              // optional – only needed outside editor
   onSearchChange?: (value: string) => void; // optional
   onLogout: () => void;
@@ -16,6 +18,7 @@ interface NavigationBarProps {
 
 export default function NavigationBar({
   title,
+  projectId,
   searchQuery = "",
   onSearchChange,
   onLogout,
@@ -25,20 +28,37 @@ export default function NavigationBar({
   saveStatus = 'idle',
   saveMessage = null,
 }: NavigationBarProps) {
+  const navigate = useNavigate();
+
+  const handleLogoClick = () => {
+    navigate("/projects");
+  };
+
+  const handleProjectTitleClick = () => {
+    if (isEditorView && projectId) {
+      navigate(`/projects/${projectId}`);
+    }
+  };
+
   return (
     <nav className="bg-[var(--bg-secondary)] border-b border-[var(--border)] px-4 sm:px-6 py-2.5 flex items-center justify-between">
-      {/* Left: Logo + Title (unchanged) */}
+      {/* Left: Logo + Title */}
       <div className="flex items-center gap-3">
-        {/* Inline SVG Logo – fully theme responsive */}
-        <svg 
-          width="36" 
-          height="36" 
-          viewBox="530 33 1500 1500" 
-          fill="currentColor" 
-          xmlns="http://www.w3.org/2000/svg"
-          className="text-[var(--accent)] transition-colors"
-          aria-label="Lyra Logo"
+        <button
+          type="button"
+          onClick={handleLogoClick}
+          className="rounded-lg p-1 text-[var(--accent)] hover:bg-[var(--accent)]/10 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          aria-label="Go to projects"
         >
+          <svg 
+            width="36" 
+            height="36" 
+            viewBox="530 33 1500 1500" 
+            fill="currentColor" 
+            xmlns="http://www.w3.org/2000/svg"
+            className="text-[var(--accent)] transition-colors"
+            aria-hidden="true"
+          >
           <path 
             fillRule="evenodd" 
             clipRule="evenodd"
@@ -60,11 +80,22 @@ export default function NavigationBar({
             c 0,0 -477.01233,82.27074 -621.364,243.83955 -47.99635,53.72098 -67.77117,137.34428 -49.26608,205.30931 17.53195,64.39103 140.34365,149.50996 140.34365,149.50996
             z"  
           />
-        </svg>
+          </svg>
+        </button>
 
-        <span className="text-xl font-semibold text-[var(--text-primary)] tracking-tight">
-          {title}
-        </span>
+        {isEditorView && projectId ? (
+          <button
+            type="button"
+            onClick={handleProjectTitleClick}
+            className="text-xl font-semibold text-[var(--text-primary)] tracking-tight transition hover:text-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded"
+          >
+            {title}
+          </button>
+        ) : (
+          <span className="text-xl font-semibold text-[var(--text-primary)] tracking-tight">
+            {title}
+          </span>
+        )}
       </div>
 
       {/* Center/Right: Conditional Search OR Export + Profile */}
