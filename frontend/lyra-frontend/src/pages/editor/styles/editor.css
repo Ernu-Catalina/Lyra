@@ -1,10 +1,22 @@
+  .page-container,
+  .page-content {
+    --page-line-height: 1.15;
+    line-height: var(--page-line-height);
+  }
+
   .ProseMirror {
     font-size: inherit;
     font-family: inherit;
-    line-height: 1.15;
+    line-height: var(--page-line-height);
     color: inherit;
   }
-  
+
+  .page-content p,
+  .page-container p,
+  .ProseMirror p {
+    margin: 0 0 var(--page-paragraph-spacing, 1em) 0;
+    line-height: inherit;
+  }
 
 /* TipTap Editor Content Styling */
 .ProseMirror {
@@ -61,7 +73,7 @@
 
 /* Paragraph Styles */
   .ProseMirror p {
-    margin: 0 0 1em 0;
+    margin: 0 0 var(--page-paragraph-spacing, 1em) 0;
     margin-left: 0 !important;
     line-height: inherit;
     color: inherit;
@@ -106,7 +118,7 @@
 .ProseMirror ul li,
 .ProseMirror ol li {
   margin: 0.25em 0;
-  line-height: 1.5;
+  line-height: inherit;
 }
 
 /* Image Styles */

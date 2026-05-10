@@ -76,8 +76,10 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               paddingLeft: marginLeftPx,
               paddingRight: marginRightPx,
               fontFamily: settings.defaultFont,
-              fontSize: `${settings.defaultFontSize}pt !important`,   // ← force override
-              lineHeight: settings.defaultLineHeight,
+              fontSize: `${settings.defaultFontSize}pt`,
+              lineHeight: `${settings.defaultLineHeight}`,
+              "--page-line-height": `${settings.defaultLineHeight}`,
+              "--page-paragraph-spacing": "1em",
               textAlign: settings.defaultAlignment as any,
               "--default-first-line-indent": settings.defaultFirstLineIndent > 0
                 ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`

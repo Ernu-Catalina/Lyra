@@ -55,13 +55,13 @@ import { Extension } from "@tiptap/core";
             },
 
             lineHeight: {
-              default: "1.15",
+              default: null,
               parseHTML: (element) => {
                 const lh = element.style.lineHeight;
-                return lh || "1.15";
+                return lh || null;
               },
               renderHTML: (attributes) => {
-                if (!attributes.lineHeight || attributes.lineHeight === "1.15") {
+                if (!attributes.lineHeight) {
                   return {};
                 }
                 return { style: `line-height: ${attributes.lineHeight};` };

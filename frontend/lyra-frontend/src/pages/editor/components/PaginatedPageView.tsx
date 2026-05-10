@@ -82,6 +82,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
           {pages.map((pageHtml, i) => (
             <div
               key={i}
+              className="page-content"
               style={{
                 position: "absolute",
                 top: i * (pageHeightPx + GAP_PX),
@@ -99,7 +100,9 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
                 paddingRight: marginRightPx,
                 fontFamily: settings.defaultFont,
                 fontSize: `${settings.defaultFontSize}pt`,
-                lineHeight: settings.defaultLineHeight,
+                lineHeight: `${settings.defaultLineHeight}`,
+                "--page-line-height": `${settings.defaultLineHeight}`,
+                "--page-paragraph-spacing": "1em",
                 color: "var(--text-primary)",
                 "--default-first-line-indent": settings.defaultFirstLineIndent > 0
                   ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`

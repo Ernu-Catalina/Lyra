@@ -25,21 +25,24 @@ export interface DocumentSettings {
   defaultFirstLineIndentUnit: "cm" | "in" | "mm";
 }
 
-// Apply styles to the page container
+// Apply styles to the page container and all rendered page wrappers
 export function applyPageStyles(settings: DocumentSettings) {
-  const el = document.querySelector<HTMLElement>(".page-container");
-  if (!el) return;
+  const pageElements = Array.from(document.querySelectorAll<HTMLElement>(".page-container, .page-content"));
+  if (pageElements.length === 0) return;
 
   const VISUAL_CORRECTION = 1;
   const correctedFontSize = settings.defaultFontSize * VISUAL_CORRECTION;
 
-  el.style.setProperty("--page-font-family", settings.defaultFont);
-  el.style.setProperty("--page-font-size", `${correctedFontSize}pt`);
-  el.style.setProperty("--editor-base-font-size", `${correctedFontSize}pt`);
-  el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
-  el.style.fontFamily = settings.defaultFont;
-  el.style.fontSize = `${correctedFontSize}pt`;
-  el.style.lineHeight = `${settings.defaultLineHeight}`;
+  pageElements.forEach((el) => {
+    el.style.setProperty("--page-font-family", settings.defaultFont);
+    el.style.setProperty("--page-font-size", `${correctedFontSize}pt`);
+    el.style.setProperty("--editor-base-font-size", `${correctedFontSize}pt`);
+    el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
+    el.style.setProperty("--page-paragraph-spacing", "1em");
+    el.style.fontFamily = settings.defaultFont;
+    el.style.fontSize = `${correctedFontSize}pt`;
+    el.style.lineHeight = `${settings.defaultLineHeight}`;
+  });
 }
 
 // NEW: Reset all manual toolbar formatting so Document Settings win
