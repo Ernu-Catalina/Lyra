@@ -280,8 +280,8 @@ useEffect(() => {
     });
   };
 
-  // ── Autosave ──────────────────────────────────────────────────────
-  useAutosaveScene({
+  // ── Autosave + manual save shortcut support ──────────────────────────
+  const { saveScene } = useAutosaveScene({
     projectId,
     documentId,
     activeChapterId: activeChapterId ?? undefined,
@@ -296,6 +296,23 @@ useEffect(() => {
       setSaveMessage(message);
     },
   });
+
+  useEffect(() => {
+    const handleSaveShortcut = async (event: KeyboardEvent) => {
+      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+      if (!isSaveShortcut) return;
+
+      const targetNode = event.target as Node | null;
+      const isInsideEditor = editorLayoutRef.current?.contains(targetNode ?? document.body);
+      if (!isInsideEditor) return;
+
+      event.preventDefault();
+      await saveScene();
+    };
+
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [saveScene]);
 
   // Keep "Saved" visible for 60s after last edit
   useEffect(() => {
