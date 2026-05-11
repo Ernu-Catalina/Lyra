@@ -48,6 +48,7 @@ def test_build_epub_basic():
         "defaultFont": "Arial, sans-serif",
         "defaultFontSize": 12,
         "defaultLineHeight": 1.15,
+        "defaultParagraphSpacing": 8,
         "defaultFirstLineIndent": 0,
         "defaultFirstLineIndentUnit": "cm",
         "marginTop": 2.5,
@@ -122,6 +123,7 @@ def test_build_epub_with_formatting():
         "defaultFont": "Georgia, serif",
         "defaultFontSize": 14,
         "defaultLineHeight": 1.5,
+        "defaultParagraphSpacing": 8,
         "chapterTitleFormat": "title-only",
         "language": "en",
     }

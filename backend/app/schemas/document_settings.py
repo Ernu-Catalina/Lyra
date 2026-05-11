@@ -20,6 +20,7 @@ class DocumentSettings(BaseModel):
     customHeight: confloat(ge=0, le=1000) = Field(..., description="Custom page height in mm; required when paperFormat is Custom")
     defaultAlignment: DefaultAlignment
     defaultLineHeight: confloat(ge=0.5, le=5.0) = Field(..., description="Default line height multiplier")
+    defaultParagraphSpacing: conint(ge=0, le=32) = Field(..., description="Default paragraph spacing in points (pt)")
     defaultFont: str = Field(..., min_length=1, description="Default font family must be a non-empty string")
     defaultFontSize: conint(ge=1, le=200) = Field(..., description="Default font size in pixels must be between 1 and 200")
     defaultFirstLineIndent: confloat(ge=0) = Field(..., description="Default first line indent must be zero or positive")

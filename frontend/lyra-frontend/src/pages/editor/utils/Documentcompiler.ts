@@ -92,6 +92,7 @@ export function compileDocument(
     fontFamily: settings.defaultFont,
     fontSize: `${settings.defaultFontSize}pt`,
     lineHeight: settings.defaultLineHeight,
+    paragraphSpacing: settings.defaultParagraphSpacing,
     textAlign: settings.defaultAlignment,
     firstLineIndent: settings.defaultFirstLineIndent > 0
   ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`

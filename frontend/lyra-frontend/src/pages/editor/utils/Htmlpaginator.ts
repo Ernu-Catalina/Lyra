@@ -27,6 +27,7 @@ export interface PaginatorSettings {
   fontFamily: string;
   fontSize: string;       // e.g. "12pt"
   lineHeight: number;     // e.g. 1.5
+  paragraphSpacing: number; // e.g. 1
   textAlign: string;      // e.g. "left"
   firstLineIndent: string;
 }
@@ -51,6 +52,7 @@ export function paginateHtml(
     fontFamily,
     fontSize,
     lineHeight,
+    paragraphSpacing,
     textAlign,
   } = settings;
 
@@ -66,21 +68,24 @@ export function paginateHtml(
     width: ${contentWidthPx}px;
     font-family: ${fontFamily};
     font-size: ${fontSize};
-    line-height: ${lineHeight};
+    line-height: ${lineHeight} !important;
     text-align: ${textAlign};
     text-indent: ${settings.firstLineIndent};
     visibility: hidden;
     pointer-events: none;
     box-sizing: border-box;
     --default-first-line-indent: ${settings.firstLineIndent};
+    --page-paragraph-spacing: ${paragraphSpacing}pt;
   `;
-  container.innerHTML = html;
+  container.style.setProperty("--page-paragraph-spacing", `${paragraphSpacing}pt`);
+  container.innerHTML = `<style>p{margin:0 0 ${paragraphSpacing}pt 0 !important;line-height:${lineHeight} !important;}</style>${html}`;
   document.body.appendChild(container);
 
   // Force layout
   void container.offsetHeight;
 
-  const blocks = Array.from(container.children) as HTMLElement[];
+  const blocks = Array.from(container.children)
+    .filter((child): child is HTMLElement => child.tagName !== "STYLE");
 
   // ── 2. Walk blocks and assign to pages ───────────────────────────
   // Use block.offsetTop (layout-accurate) rather than accumulated offsetHeight so

@@ -191,12 +191,18 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
         f"{settings.get('defaultFirstLineIndent', 0)}{settings.get('defaultFirstLineIndentUnit', 'cm')}"
     )
 
-    def _set_paragraph_spacing(para, line_height: float):
-        """Set line spacing on a paragraph via XML."""
+    def _set_paragraph_spacing(para, line_height: float, paragraph_spacing_pt: float = None):
+        """Set line spacing and paragraph spacing (space after) on a paragraph via XML."""
         pPr = para._p.get_or_add_pPr()
         spacing = OxmlElement("w:spacing")
         spacing.set(qn("w:line"), str(int(line_height * 240)))
         spacing.set(qn("w:lineRule"), "auto")
+        
+        # Set space after (paragraph spacing) in twips (1/20th of a point)
+        if paragraph_spacing_pt is not None:
+            space_after_twips = int(paragraph_spacing_pt * 20)
+            spacing.set(qn("w:after"), str(space_after_twips))
+        
         pPr.append(spacing)
 
     def _apply_run_formatting(run, styles: dict, is_heading: bool = False, heading_pt: float = None):
@@ -276,13 +282,20 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
         elif default_indent_cm and not first_block:
             para.paragraph_format.first_line_indent = Cm(default_indent_cm)
 
-        # Line height
+        # Line height and paragraph spacing
         lh_str = block_styles.get("line-height", "")
+        mb_str = block_styles.get("margin-bottom", "")
         try:
             lh = float(lh_str) if lh_str else float(settings.get("defaultLineHeight", 1.15))
-            _set_paragraph_spacing(para, lh)
-        except ValueError:
-            _set_paragraph_spacing(para, 1.15)
+            # Extract paragraph spacing from margin-bottom in pt
+            ps_pt = None
+            if mb_str and "pt" in mb_str:
+                ps_pt = float(mb_str.replace("pt", "").strip())
+            else:
+                ps_pt = float(settings.get("defaultParagraphSpacing", 8))
+            _set_paragraph_spacing(para, lh, ps_pt)
+        except (ValueError, AttributeError):
+            _set_paragraph_spacing(para, 1.15, 8)
 
         # Process inline content
         for child in soup_el.children:
@@ -442,6 +455,7 @@ def build_pdf(document_title: str, chapters: list, settings: dict) -> bytes:
         rl_font_bi   = "Helvetica-BoldOblique"
 
     # ── Base paragraph style ───────────────────────────────────────
+    default_para_spacing_pt = float(settings.get("defaultParagraphSpacing", 8))
     base_style = ParagraphStyle(
         "base",
         fontName=rl_font,
@@ -449,7 +463,7 @@ def build_pdf(document_title: str, chapters: list, settings: dict) -> bytes:
         leading=default_font_pt * default_lh * 1.2,
         alignment=default_align,
         firstLineIndent=default_indent,
-        spaceAfter=0,
+        spaceAfter=default_para_spacing_pt,
         spaceBefore=0,
     )
 

@@ -340,6 +340,40 @@ const handleConfirmSave = async () => {
                   max="72"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                  Line Height
+                </label>
+                <select
+                  value={tempSettings.defaultLineHeight}
+                  onChange={(e) => setTempSettings({ ...tempSettings, defaultLineHeight: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                >
+                  <option value={1}>1</option>
+                  <option value={1.15}>1.15</option>
+                  <option value={1.5}>1.5</option>
+                  <option value={2}>2</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                  Paragraph Spacing (pt)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={tempSettings.defaultParagraphSpacing}
+                    onChange={(e) =>
+                      setTempSettings({ ...tempSettings, defaultParagraphSpacing: Math.max(0, Math.min(32, Number(e.target.value))) })
+                    }
+                    className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                    min="0"
+                    max="32"
+                    step="1"
+                  />
+                  <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">pt</span>
+                </div>
+              </div>
             </div>
 
             {/* Default Alignment */}

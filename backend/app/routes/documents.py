@@ -284,7 +284,7 @@ async def get_document(
 DEFAULT_DOC_SETTINGS = {
     "marginTop": 2.5, "marginBottom": 2.5, "marginLeft": 2.5, "marginRight": 2.5,
     "marginUnit": "cm", "paperFormat": "A4", "customWidth": 0, "customHeight": 0,
-    "defaultFontSize": 12, "defaultLineHeight": 1.5,
+    "defaultFontSize": 12, "defaultLineHeight": 1.5, "defaultParagraphSpacing": 8,
 }
 
 @router.get("/{document_id}/stats", response_model=DocumentStatsResponse)
@@ -624,6 +624,7 @@ async def get_document_settings(
     "defaultFont": "Arial, sans-serif",
     "defaultFontSize": 12,
     "defaultLineHeight": 1.5,
+    "defaultParagraphSpacing": 8,
     "defaultFirstLineIndent": 0,
     "defaultFirstLineIndentUnit": "cm",
     "chapterTitleFormat": "chapter-number-title",
@@ -673,6 +674,16 @@ async def apply_document_settings_to_content(
                 content = re.sub(
                     r'text-align:[^;"]*;?',
                     f'text-align:{settings.get("defaultAlignment", "left")};',
+                    content
+                )
+                content = re.sub(
+                    r'line-height:[^;"]*;?',
+                    f'line-height:{settings.get("defaultLineHeight", 1.5)};',
+                    content
+                )
+                content = re.sub(
+                    r'margin-bottom:[^;"]*;?',
+                    f'margin-bottom:{settings.get("defaultParagraphSpacing", 8)}pt;',
                     content
                 )
                 content = re.sub(

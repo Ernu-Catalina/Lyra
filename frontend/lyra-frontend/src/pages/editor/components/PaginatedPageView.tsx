@@ -102,7 +102,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
                 fontSize: `${settings.defaultFontSize}pt`,
                 lineHeight: `${settings.defaultLineHeight}`,
                 "--page-line-height": `${settings.defaultLineHeight}`,
-                "--page-paragraph-spacing": "1em",
+                "--page-paragraph-spacing": `${settings.defaultParagraphSpacing}pt`,
                 color: "var(--text-primary)",
                 "--default-first-line-indent": settings.defaultFirstLineIndent > 0
                   ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`

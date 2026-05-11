@@ -15,6 +15,7 @@ export interface DocumentSettings {
   defaultFont: string;
   defaultFontSize: number;
   defaultLineHeight: number;
+  defaultParagraphSpacing: number;
   chapterTitleFormat: "none" | "chapter-number" | "chapter-number-title" | "number-title" | "title-only";
   chapterTitleSize: number;
   chapterTitleAlignment: "left" | "center" | "right";
@@ -26,6 +27,7 @@ export interface DocumentSettings {
 }
 
 // Apply styles to the page container and all rendered page wrappers
+// Force document settings to override all inline and per-paragraph formatting
 export function applyPageStyles(settings: DocumentSettings) {
   const pageElements = Array.from(document.querySelectorAll<HTMLElement>(".page-container, .page-content"));
   if (pageElements.length === 0) return;
@@ -34,14 +36,24 @@ export function applyPageStyles(settings: DocumentSettings) {
   const correctedFontSize = settings.defaultFontSize * VISUAL_CORRECTION;
 
   pageElements.forEach((el) => {
+    // Set CSS variables for descendant usage
     el.style.setProperty("--page-font-family", settings.defaultFont);
     el.style.setProperty("--page-font-size", `${correctedFontSize}pt`);
     el.style.setProperty("--editor-base-font-size", `${correctedFontSize}pt`);
     el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
-    el.style.setProperty("--page-paragraph-spacing", "1em");
+    el.style.setProperty("--page-paragraph-spacing", `${settings.defaultParagraphSpacing}pt`);
+    
+    // Force direct styles on container to ensure override
     el.style.fontFamily = settings.defaultFont;
     el.style.fontSize = `${correctedFontSize}pt`;
     el.style.lineHeight = `${settings.defaultLineHeight}`;
+    
+    // Force line-height on all paragraphs inside
+    const paragraphs = el.querySelectorAll<HTMLElement>("p");
+    paragraphs.forEach((p) => {
+      p.style.setProperty("line-height", `${settings.defaultLineHeight}`, "important");
+      p.style.setProperty("margin-bottom", `${settings.defaultParagraphSpacing}pt`, "important");
+    });
   });
 }
 
@@ -69,6 +81,7 @@ const DEFAULT_SETTINGS: DocumentSettings = {
   defaultFont: "Arial, sans-serif",
   defaultFontSize: 12,
   defaultLineHeight: 1.5,
+  defaultParagraphSpacing: 8,
   chapterTitleFormat: "chapter-number-title",
   chapterTitleSize: 16,
   chapterTitleAlignment: "center",
