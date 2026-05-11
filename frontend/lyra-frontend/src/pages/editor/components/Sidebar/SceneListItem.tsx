@@ -10,7 +10,7 @@ interface SceneListItemProps {
 export default function SceneListItem({ scene, isActive, onClick, onContextMenu }: SceneListItemProps) {
   return (
     <li
-      className={`py-1.5 px-3 rounded-md cursor-pointer transition-colors ${
+      className={`py-0.5 px-3 rounded-md cursor-pointer transition-colors ${
         isActive ? "font-bold text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       }`}
       onClick={onClick}   

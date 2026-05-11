@@ -18,7 +18,7 @@ export function ChapterHeader({
   onAddScene,
 }: ChapterHeaderProps) {
   return (
-    <div className="flex items-center justify-between py-1 px-3 hover:bg-[var(--bg-secondary)]/50 rounded-md">
+    <div className="flex items-center justify-between px-3 hover:bg-[var(--bg-secondary)]/50 rounded-md">
       {/* Chevron – only toggles open/close */}
       <div
         className="flex items-center gap-1.5 cursor-pointer flex-1"
