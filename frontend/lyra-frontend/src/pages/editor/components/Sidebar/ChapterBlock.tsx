@@ -1,5 +1,6 @@
 import {ChapterHeader} from "./ChapterHeader";
 import SceneListItem from "./SceneListItem";
+import { Plus } from "lucide-react";
 import type { Chapter } from "../../../../types/document";
 
 interface ChapterBlockProps {
@@ -57,6 +58,16 @@ export default function ChapterBlock({
               }}
             />
           ))}
+          
+          {/* Add Scene Button */}
+          <li
+            className="px-3 rounded-md cursor-pointer transition-colors text-[var(--border)] hover:text-[var(--accent)] flex items-center gap-2"
+            onClick={onAddScene}
+          >
+            <Plus size={16} />
+            <span>Add scene</span>
+            
+          </li>
         </ul>
       )}
     </div>
