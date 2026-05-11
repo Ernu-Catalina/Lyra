@@ -61,10 +61,10 @@ export default function ChapterBlock({
           
           {/* Add Scene Button */}
           <li
-            className="px-3 rounded-md cursor-pointer transition-colors text-[var(--border)] hover:text-[var(--accent)] flex items-center gap-2"
+            className="px-3 rounded-md cursor-pointer transition-colors text-[var(--border)] text-[0.9rem] hover:text-[var(--accent)] flex items-center gap-0.5"
             onClick={onAddScene}
           >
-            <Plus size={16} />
+            <Plus size={14} />
             <span>Add scene</span>
             
           </li>
