@@ -39,6 +39,52 @@ const FONT_FAMILIES = [
   { value: "Impact, sans-serif", label: "Impact" },
 ];
 
+// Helper function to clamp numeric values
+function clampValue(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+// Factory for creating number input handlers that allow free typing but clamp on blur
+type NumberField = keyof DocumentSettings;
+
+function createNumericInputHandler(
+  field: NumberField,
+  min: number,
+  max: number,
+  isFloat: boolean = false,
+  setCallback: (fn: (prev: DocumentSettings) => DocumentSettings) => void
+) {
+  return {
+    // Allow free typing - don't clamp on change
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      // Allow empty string, minus sign, and decimal point for intermediate states
+      if (inputValue === "" || inputValue === "-" || inputValue === ".") {
+        setCallback((prev) => ({ ...prev, [field]: inputValue as any }));
+        return;
+      }
+      const numValue = parseFloat(inputValue);
+      if (!isNaN(numValue)) {
+        setCallback((prev) => ({ ...prev, [field]: numValue }));
+      }
+    },
+    // Clamp on blur
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      const numValue = parseFloat(e.target.value);
+      const finalValue = isNaN(numValue) ? min : clampValue(numValue, min, max);
+      setCallback((prev) => ({ ...prev, [field]: finalValue }));
+    },
+    // Clamp on Enter key
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        const numValue = parseFloat(e.currentTarget.value);
+        const finalValue = isNaN(numValue) ? min : clampValue(numValue, min, max);
+        setCallback((prev) => ({ ...prev, [field]: finalValue }));
+      }
+    },
+  };
+}
+
 export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: DocumentSettingsModalProps) {
   const { settings, updateSettings } = useDocumentSettings();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -191,9 +237,7 @@ const handleConfirmSave = async () => {
                     <input
                       type="number"
                       value={tempSettings.customWidth}
-                      onChange={(e) =>
-                        setTempSettings({ ...tempSettings, customWidth: Math.max(50, Number(e.target.value)) })
-                      }
+                      {...createNumericInputHandler("customWidth", 50, 1000, true, setTempSettings)}
                       className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                       min="50"
                     />
@@ -205,9 +249,7 @@ const handleConfirmSave = async () => {
                     <input
                       type="number"
                       value={tempSettings.customHeight}
-                      onChange={(e) =>
-                        setTempSettings({ ...tempSettings, customHeight: Math.max(50, Number(e.target.value)) })
-                      }
+                      {...createNumericInputHandler("customHeight", 50, 1000, true, setTempSettings)}
                       className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                       min="50"
                     />
@@ -252,9 +294,7 @@ const handleConfirmSave = async () => {
                   type="number"
                   step="0.1"
                   value={tempSettings.marginTop}
-                  onChange={(e) =>
-                    setTempSettings({ ...tempSettings, marginTop: Math.max(0, Number(e.target.value)) })
-                  }
+                  {...createNumericInputHandler("marginTop", 0, 100, true, setTempSettings)}
                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                   min="0"
                 />
@@ -267,9 +307,7 @@ const handleConfirmSave = async () => {
                   type="number"
                   step="0.1"
                   value={tempSettings.marginBottom}
-                  onChange={(e) =>
-                    setTempSettings({ ...tempSettings, marginBottom: Math.max(0, Number(e.target.value)) })
-                  }
+                  {...createNumericInputHandler("marginBottom", 0, 100, true, setTempSettings)}
                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                   min="0"
                 />
@@ -282,9 +320,7 @@ const handleConfirmSave = async () => {
                   type="number"
                   step="0.1"
                   value={tempSettings.marginLeft}
-                  onChange={(e) =>
-                    setTempSettings({ ...tempSettings, marginLeft: Math.max(0, Number(e.target.value)) })
-                  }
+                  {...createNumericInputHandler("marginLeft", 0, 100, true, setTempSettings)}
                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                   min="0"
                 />
@@ -297,9 +333,7 @@ const handleConfirmSave = async () => {
                   type="number"
                   step="0.1"
                   value={tempSettings.marginRight}
-                  onChange={(e) =>
-                    setTempSettings({ ...tempSettings, marginRight: Math.max(0, Number(e.target.value)) })
-                  }
+                  {...createNumericInputHandler("marginRight", 0, 100, true, setTempSettings)}
                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                   min="0"
                 />
@@ -332,9 +366,7 @@ const handleConfirmSave = async () => {
                 <input
                   type="number"
                   value={tempSettings.defaultFontSize}
-                  onChange={(e) =>
-                    setTempSettings({ ...tempSettings, defaultFontSize: Math.max(8, Math.min(72, Number(e.target.value))) })
-                  }
+                  {...createNumericInputHandler("defaultFontSize", 8, 72, false, setTempSettings)}
                   className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                   min="8"
                   max="72"
@@ -363,9 +395,7 @@ const handleConfirmSave = async () => {
                   <input
                     type="number"
                     value={tempSettings.defaultParagraphSpacing}
-                    onChange={(e) =>
-                      setTempSettings({ ...tempSettings, defaultParagraphSpacing: Math.max(0, Math.min(32, Number(e.target.value))) })
-                    }
+                    {...createNumericInputHandler("defaultParagraphSpacing", 0, 32, false, setTempSettings)}
                     className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                     min="0"
                     max="32"
@@ -438,9 +468,7 @@ const handleConfirmSave = async () => {
                   <input
                     type="number"
                     value={tempSettings.chapterTitleSize}
-                    onChange={(e) =>
-                      setTempSettings({ ...tempSettings, chapterTitleSize: Math.max(8, Math.min(72, Number(e.target.value))) })
-                    }
+                    {...createNumericInputHandler("chapterTitleSize", 8, 72, false, setTempSettings)}
                     className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                     min="8"
                     max="72"
@@ -525,12 +553,7 @@ const handleConfirmSave = async () => {
                  <input
                    type="number"
                    value={tempSettings.blankLinesAfterChapter}
-                   onChange={(e) =>
-                     setTempSettings({
-                       ...tempSettings,
-                       blankLinesAfterChapter: Math.max(0, Number(e.target.value)),
-                     })
-                   }
+                   {...createNumericInputHandler("blankLinesAfterChapter", 0, 10, false, setTempSettings)}
                    className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                    min="0"
                  />
@@ -570,12 +593,7 @@ const handleConfirmSave = async () => {
                      min="0"
                      max="10"
                      value={tempSettings.defaultFirstLineIndent}
-                     onChange={(e) =>
-                       setTempSettings({
-                         ...tempSettings,
-                         defaultFirstLineIndent: Math.max(0, Number(e.target.value)),
-                       })
-                     }
+                     {...createNumericInputHandler("defaultFirstLineIndent", 0, 10, true, setTempSettings)}
                      className="w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
                    />
                    <select
