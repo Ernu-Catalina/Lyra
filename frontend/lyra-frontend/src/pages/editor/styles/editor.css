@@ -3,11 +3,13 @@
     --page-line-height: 1.5;
     --page-paragraph-spacing: 8pt;
     line-height: var(--page-line-height) !important;
+    font-size: inherit !important;
+    font-family: inherit !important;
   }
 
   .ProseMirror {
-    font-size: inherit;
-    font-family: inherit;
+    font-size: inherit !important;
+    font-family: inherit !important;
     line-height: var(--page-line-height) !important;
     color: inherit;
   }
@@ -17,6 +19,7 @@
   .ProseMirror p {
     margin: 0 0 var(--page-paragraph-spacing, 8pt) 0 !important;
     line-height: var(--page-line-height, 1.5) !important;
+    font-size: inherit !important;
   }
 
 /* TipTap Editor Content Styling */

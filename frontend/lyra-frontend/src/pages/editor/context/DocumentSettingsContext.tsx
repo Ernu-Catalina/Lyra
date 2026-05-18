@@ -43,28 +43,33 @@ export function applyPageStyles(settings: DocumentSettings) {
     el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
     el.style.setProperty("--page-paragraph-spacing", `${settings.defaultParagraphSpacing}pt`);
     
-    // Force direct styles on container to ensure override
-    el.style.fontFamily = settings.defaultFont;
-    el.style.fontSize = `${correctedFontSize}pt`;
-    el.style.lineHeight = `${settings.defaultLineHeight}`;
+    // Force direct styles with !important to override inline marks
+    el.style.setProperty("font-family", settings.defaultFont, "important");
+    el.style.setProperty("font-size", `${correctedFontSize}pt`, "important");
+    el.style.setProperty("line-height", `${settings.defaultLineHeight}`, "important");
     
-    // Force line-height on all paragraphs inside
+    // Force line-height and margins on all paragraphs inside
     const paragraphs = el.querySelectorAll<HTMLElement>("p");
     paragraphs.forEach((p) => {
       p.style.setProperty("line-height", `${settings.defaultLineHeight}`, "important");
       p.style.setProperty("margin-bottom", `${settings.defaultParagraphSpacing}pt`, "important");
+      // Also force font-size on paragraphs to override inline styles
+      p.style.setProperty("font-size", `${correctedFontSize}pt`, "important");
     });
   });
 }
 
-// NEW: Reset all manual toolbar formatting so Document Settings win
+// Reset all manual toolbar formatting so Document Settings win
+// This removes ALL inline font-size and fontFamily marks from the entire document
 export function resetAllTextFormatting(editor: Editor | null) {
   if (!editor) return;
 
+  // Select all content first
   editor.chain()
     .focus()
-    .unsetMark("textStyle", { attributes: { fontSize: true } })
-    .unsetMark("textStyle", { attributes: { fontFamily: true } })
+    .selectAll()
+    // Unset fontSize and fontFamily marks to allow document settings to take effect
+    .unsetMark("textStyle")
     .run();
 }
 

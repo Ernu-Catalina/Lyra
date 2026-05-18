@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { useDocumentSettings, type DocumentSettings } from "../../context/DocumentSettingsContext";
 
 interface SceneEditorPageViewProps {
@@ -24,6 +24,7 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
 
 export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageViewProps) {
   const { settings } = useDocumentSettings();
+  const pageContainerRef = useRef<HTMLDivElement>(null);
 
   const paperSize =
     settings.paperFormat === "Custom"
@@ -35,6 +36,15 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
   const marginBotPx   = mmToPx(convertToMm(settings.marginBottom, settings.marginUnit));
   const marginLeftPx  = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
+
+  // Apply !important styles to page container after render to ensure document settings override inline marks
+  useEffect(() => {
+    if (pageContainerRef.current) {
+      pageContainerRef.current.style.setProperty("font-family", settings.defaultFont, "important");
+      pageContainerRef.current.style.setProperty("font-size", `${settings.defaultFontSize}pt`, "important");
+      pageContainerRef.current.style.setProperty("line-height", `${settings.defaultLineHeight}`, "important");
+    }
+  }, [settings.defaultFont, settings.defaultFontSize, settings.defaultLineHeight]);
 
   return (
     <div
@@ -64,6 +74,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
         >
           {/* Paper surface — grows exactly with content + margins only */}
           <div
+            ref={pageContainerRef}
             className="page-container"
             style={{
               width: pageWidthPx,
