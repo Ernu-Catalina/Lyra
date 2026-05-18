@@ -7,6 +7,7 @@ import FontFamily from "@tiptap/extension-font-family";
 import { FontSize } from "../../extensions/FontSize";
 import { Indentation } from "../../extensions/Indentation";
 import { HeadingWithSize } from "../../extensions/HeadingWithSize";
+import { SearchAndReplace } from "../../extensions/SearchAndReplace";
 
 interface SceneEditorProps {
   content: string;
@@ -57,6 +58,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         FontFamily,
         FontSize,
         Indentation,
+        SearchAndReplace,
       ],
       content,
       editable,

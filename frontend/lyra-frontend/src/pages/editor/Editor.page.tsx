@@ -11,6 +11,7 @@ import { SceneEditorPageView } from "./components/SceneEditor/SceneEditorPageVie
 import SceneEditor from "./components/SceneEditor/SceneEditor";
 import { ChapterEditorView } from "./components/ChapterEditorView";
 import { DocumentEditorView } from "./components/DocumentEditorView";
+import { FindReplaceModal } from "./components/FindReplaceModal";
 import { useDocumentOutline } from "./hooks/useDocumentOutline";
 import { useActiveScene } from "./hooks/useActiveScene";
 import { useAutosaveScene } from "./hooks/useAutosaveScene";
@@ -54,6 +55,7 @@ export default function EditorPage() {
   const [showDocumentWarning, setShowDocumentWarning] = useState(false);
   const editorLayoutRef = useRef<HTMLDivElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
   // Add these new states
   const [sidebarWidth, setSidebarWidth] = useState(300);        // Default width in px
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -76,6 +78,24 @@ export default function EditorPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Open Find & Replace on Ctrl/Cmd+F within the editor area
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.key || e.key.toLowerCase() !== "f") return;
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+
+      const target = e.target as HTMLElement | null;
+      const isEditorArea = target?.closest?.(".ProseMirror") || target?.closest?.(".page-container");
+      if (!isEditorArea) return;
+
+      e.preventDefault();
+      setIsFindReplaceOpen(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Force landscape orientation on mobile
 useEffect(() => {
@@ -509,6 +529,12 @@ useEffect(() => {
           onExport={handleExport}
         />
       )}
+      <FindReplaceModal
+        editor={editorInstance}
+        isOpen={isFindReplaceOpen}
+        onClose={() => setIsFindReplaceOpen(false)}
+        viewType={editorMode}
+      />
     </DocumentSettingsProvider>
   );
 }
