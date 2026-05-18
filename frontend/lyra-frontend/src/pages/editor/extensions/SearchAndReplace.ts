@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import type { DocumentOutline, Chapter, Scene } from '../../../types/document';
 
 export interface SearchAndReplaceOptions {
   className: string;
@@ -10,6 +11,13 @@ export interface SearchMatch {
   from: number;
   to: number;
   text: string;
+}
+
+export interface OutlineSearchMatch extends SearchMatch {
+  chapterId: string;
+  sceneId: string;
+  chapterIndex: number;
+  sceneIndex: number;
 }
 
 /**
@@ -145,6 +153,79 @@ export const searchAndReplaceUtils = {
     return results;
   },
 
+  findMatchesInChapter(
+    chapter: Chapter,
+    chapterIndex: number,
+    searchTerm: string,
+    caseSensitive = false,
+    wholeWords = false
+  ): OutlineSearchMatch[] {
+    if (!searchTerm) return [];
+
+    const results: OutlineSearchMatch[] = [];
+
+    chapter.scenes.forEach((scene, sceneIndex) => {
+      const content = scene.content || "";
+      const localMatches = searchAndReplaceUtils.findMatches(
+        content,
+        searchTerm,
+        caseSensitive,
+        wholeWords
+      );
+
+      localMatches.forEach((m) => {
+        results.push({
+          chapterId: chapter.id,
+          sceneId: scene.id,
+          chapterIndex,
+          sceneIndex,
+          from: m.start,
+          to: m.end,
+          text: m.text,
+        });
+      });
+    });
+
+    return results;
+  },
+
+  findMatchesInOutline(
+    outline: DocumentOutline,
+    searchTerm: string,
+    caseSensitive = false,
+    wholeWords = false
+  ): OutlineSearchMatch[] {
+    if (!searchTerm) return [];
+
+    const results: OutlineSearchMatch[] = [];
+
+    outline.chapters.forEach((chapter, chapterIndex) => {
+      chapter.scenes.forEach((scene, sceneIndex) => {
+        const content = scene.content || "";
+        const localMatches = searchAndReplaceUtils.findMatches(
+          content,
+          searchTerm,
+          caseSensitive,
+          wholeWords
+        );
+
+        localMatches.forEach((m) => {
+          results.push({
+            chapterId: chapter.id,
+            sceneId: scene.id,
+            chapterIndex,
+            sceneIndex,
+            from: m.start,
+            to: m.end,
+            text: m.text,
+          });
+        });
+      });
+    });
+
+    return results;
+  },
+
   /**
    * Highlight all matches in DOM (for read-only views)
    */
@@ -225,7 +306,6 @@ export const searchAndReplaceUtils = {
         const highlightSpan = document.createElement('span');
         highlightSpan.className = 'search-highlight-dom';
         highlightSpan.style.cssText = `
-          background-color: #ffd700;
           padding: 2px 0;
         `;
         highlightSpan.textContent = text.substring(start, end);
@@ -244,6 +324,29 @@ export const searchAndReplaceUtils = {
     });
 
     return matchCount;
+  },
+
+  /**
+   * Scroll to a highlighted DOM match by index
+   */
+  scrollToMatch(container: HTMLElement | null, index: number) {
+    if (!container || index < 0) return null;
+
+    const nodes = Array.from(container.querySelectorAll<HTMLSpanElement>('.search-highlight-dom'));
+    if (index >= nodes.length) return null;
+
+    nodes.forEach((node, nodeIndex) => {
+      node.classList.toggle('search-highlight-current', nodeIndex === index);
+    });
+
+    const node = nodes[index];
+    node?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    return node;
+  },
+
+  getHighlightElements(container: HTMLElement | null) {
+    if (!container) return [];
+    return Array.from(container.querySelectorAll<HTMLSpanElement>('.search-highlight-dom'));
   },
 
   /**

@@ -1,20 +1,37 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { Editor } from "@tiptap/react";
-import { searchAndReplaceUtils } from "../extensions/SearchAndReplace";
+import { searchAndReplaceUtils, type OutlineSearchMatch } from "../extensions/SearchAndReplace";
+import type { DocumentOutline, Chapter } from "../../../types/document";
 
 interface FindReplaceModalProps {
   editor: Editor | null;
+  outline?: DocumentOutline | null;
+  chapter?: Chapter | null;
+  activeChapterId?: string | null;
+  activeSceneId?: string | null;
   isOpen: boolean;
   onClose: () => void;
   viewType: "scene" | "chapter" | "document";
+  onNavigateScene?: (target: {
+    chapterId: string;
+    sceneId: string;
+    from: number;
+    to: number;
+    matchIndex: number;
+  }) => void;
 }
 
 export function FindReplaceModal({
   editor,
+  outline,
+  chapter,
+  activeChapterId,
+  activeSceneId,
   isOpen,
   onClose,
   viewType,
+  onNavigateScene,
 }: FindReplaceModalProps) {
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
@@ -22,14 +39,22 @@ export function FindReplaceModal({
   const [wholeWords, setWholeWords] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatch, setCurrentMatch] = useState(0);
+  const [matchLocations, setMatchLocations] = useState<OutlineSearchMatch[]>([]);
+  const [dragPosition, setDragPosition] = useState({ left: 0, top: 80 });
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-focus find input when modal opens
   useEffect(() => {
-    if (isOpen && findInputRef.current) {
-      findInputRef.current.focus();
-      findInputRef.current.select();
+    if (isOpen) {
+      const centerX = Math.max(16, window.innerWidth / 2 - 280);
+      setDragPosition({ left: centerX, top: 80 });
+      setTimeout(() => {
+        findInputRef.current?.focus();
+        findInputRef.current?.select();
+      }, 0);
     }
   }, [isOpen]);
 
@@ -38,6 +63,8 @@ export function FindReplaceModal({
     if (!isOpen || !findText) {
       setMatchCount(0);
       setCurrentMatch(0);
+      setMatchLocations([]);
+
       if (editor && viewType === "scene") {
         try {
           if ((editor as any).storage?.searchAndReplace) {
@@ -45,7 +72,7 @@ export function FindReplaceModal({
             (editor as any).storage.searchAndReplace.matches = [];
             editor.view.dispatch(editor.state.tr);
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
         editor.chain().focus().run();
@@ -53,37 +80,56 @@ export function FindReplaceModal({
         const container = document.querySelector(".page-container");
         searchAndReplaceUtils.clearHighlights(container as HTMLElement);
       }
+
       return;
     }
 
+    const chapterIndex = outline?.chapters.findIndex((c) => c.id === chapter?.id) ?? 0;
+    const chapterMatches = chapter
+      ? searchAndReplaceUtils.findMatchesInChapter(chapter, chapterIndex, findText, caseSensitive, wholeWords)
+      : [];
+    const documentMatches = outline
+      ? searchAndReplaceUtils.findMatchesInOutline(outline, findText, caseSensitive, wholeWords)
+      : [];
+
     if (viewType === "scene" && editor) {
-      // For scene editor, compute matches inside the ProseMirror doc and set extension storage so
-      // the SearchAndReplace plugin can decorate them.
-      const matches = searchAndReplaceUtils.findMatchesInDoc(
+      const sceneMatches = searchAndReplaceUtils.findMatchesInDoc(
         editor.state.doc,
         findText,
         caseSensitive,
         wholeWords
       );
 
-      setMatchCount(matches.length);
-      setCurrentMatch(matches.length > 0 ? 1 : 0);
+      setMatchLocations(
+        documentMatches.length > 0 ? documentMatches : sceneMatches.map((match) => ({
+          chapterId: activeChapterId ?? "",
+          sceneId: activeSceneId ?? "",
+          chapterIndex: 0,
+          sceneIndex: 0,
+          from: match.start,
+          to: match.end,
+          text: match.text,
+        }))
+      );
+      setMatchCount(documentMatches.length > 0 ? documentMatches.length : sceneMatches.length);
+      setCurrentMatch(documentMatches.length > 0 || sceneMatches.length > 0 ? 1 : 0);
 
-      // Update extension storage (if available) so plugin decorations update
       try {
-        if ((editor as any).storage && (editor as any).storage.searchAndReplace) {
+        if ((editor as any).storage?.searchAndReplace) {
           (editor as any).storage.searchAndReplace.searchTerm = findText;
           (editor as any).storage.searchAndReplace.caseSensitive = caseSensitive;
           (editor as any).storage.searchAndReplace.wholeWords = wholeWords;
-          (editor as any).storage.searchAndReplace.matches = matches.map((m: any) => ({ from: m.start, to: m.end, text: m.text }));
-          // Trigger a no-op transaction to make plugin re-evaluate decorations
+          (editor as any).storage.searchAndReplace.matches = sceneMatches.map((m: any) => ({
+            from: m.start,
+            to: m.end,
+            text: m.text,
+          }));
           editor.view.dispatch(editor.state.tr);
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
-    } else {
-      // For chapter/document views, highlight in DOM
+    } else if (viewType === "chapter") {
       const container = document.querySelector(".page-container");
       const count = searchAndReplaceUtils.highlightMatches(
         container as HTMLElement,
@@ -91,39 +137,74 @@ export function FindReplaceModal({
         caseSensitive,
         wholeWords
       );
+      setMatchLocations(chapterMatches);
       setMatchCount(count);
       setCurrentMatch(count > 0 ? 1 : 0);
-    }
-  }, [findText, caseSensitive, wholeWords, isOpen, editor, viewType]);
-
-  const handleFindNext = () => {
-    if (!findText || matchCount === 0) return;
-
-    if (viewType === "scene" && editor) {
-      // Move to next match in TipTap editor
-      const currentContent = editor.state.doc.textContent;
-      const matches = searchAndReplaceUtils.findMatches(
-        currentContent,
+      if (count > 0) {
+        searchAndReplaceUtils.scrollToMatch(container as HTMLElement, 0);
+      }
+    } else if (viewType === "document") {
+      const container = document.querySelector(".page-container");
+      const count = searchAndReplaceUtils.highlightMatches(
+        container as HTMLElement,
         findText,
         caseSensitive,
         wholeWords
       );
-
-      if (matches.length === 0) return;
-
-      // Find the next match after current selection
-      const { from } = editor.state.selection;
-      const nextMatch = matches.find((m) => m.start >= from);
-      const matchToSelect = nextMatch || matches[0];
-
-      editor
-        .chain()
-        .focus()
-        .setTextSelection({ from: matchToSelect.start, to: matchToSelect.end })
-        .run();
-
-      setCurrentMatch((matches.indexOf(matchToSelect) + 1) % matches.length);
+      setMatchLocations(documentMatches);
+      setMatchCount(count);
+      setCurrentMatch(count > 0 ? 1 : 0);
+      if (count > 0) {
+        searchAndReplaceUtils.scrollToMatch(container as HTMLElement, 0);
+      }
     }
+  }, [findText, caseSensitive, wholeWords, isOpen, editor, viewType, chapter, outline, activeChapterId, activeSceneId]);
+
+  const scrollToCurrentMatch = (index: number) => {
+    const container = document.querySelector(".page-container");
+    if (!container || matchLocations.length === 0) return;
+    searchAndReplaceUtils.scrollToMatch(container as HTMLElement, index);
+  };
+
+  const goToMatchIndex = (targetIndex: number) => {
+    if (matchLocations.length === 0) return;
+    const normalized = (targetIndex + matchLocations.length) % matchLocations.length;
+    const targetMatch = matchLocations[normalized];
+    setCurrentMatch(normalized + 1);
+
+    if (viewType === "scene" && editor) {
+      const isCurrentScene =
+        targetMatch.chapterId === activeChapterId &&
+        targetMatch.sceneId === activeSceneId;
+
+      if (isCurrentScene) {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: targetMatch.from, to: targetMatch.to })
+          .run();
+      } else {
+        onNavigateScene?.({
+          chapterId: targetMatch.chapterId,
+          sceneId: targetMatch.sceneId,
+          from: targetMatch.from,
+          to: targetMatch.to,
+          matchIndex: normalized + 1,
+        });
+      }
+    } else {
+      scrollToCurrentMatch(normalized);
+    }
+  };
+
+  const handleFindNext = () => {
+    if (!findText || matchCount === 0) return;
+    goToMatchIndex(currentMatch);
+  };
+
+  const handleFindPrev = () => {
+    if (!findText || matchCount === 0) return;
+    goToMatchIndex(currentMatch - 2);
   };
 
   const handleReplace = () => {
@@ -198,9 +279,8 @@ export function FindReplaceModal({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && e.shiftKey) {
-      // Shift+Enter to find previous (using arrow up)
       e.preventDefault();
-      handleFindNext(); // For now, same as find next
+      handleFindPrev();
     } else if (e.key === "Enter") {
       e.preventDefault();
       handleFindNext();
@@ -216,13 +296,39 @@ export function FindReplaceModal({
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/20 z-30 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/20 z-30"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-2xl w-full max-w-2xl">
-        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+      <div
+        ref={modalRef}
+        className="fixed z-40 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-2xl w-[min(95vw,520px)]"
+        style={{
+          left: dragPosition.left,
+          top: dragPosition.top,
+          transform: "none",
+        }}
+      >
+        <div
+          className="flex items-center justify-between p-4 border-b border-[var(--border)] cursor-grab select-none"
+          onPointerDown={(e) => {
+            setDragOffset({
+              x: e.clientX - dragPosition.left,
+              y: e.clientY - dragPosition.top,
+            });
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            if (!dragOffset) return;
+            setDragPosition({
+              left: Math.max(12, Math.min(e.clientX - dragOffset.x, window.innerWidth - 540)),
+              top: Math.max(12, Math.min(e.clientY - dragOffset.y, window.innerHeight - 120)),
+            });
+          }}
+          onPointerUp={() => setDragOffset(null)}
+          onPointerCancel={() => setDragOffset(null)}
+        >
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
             Find & Replace
           </h3>
@@ -260,14 +366,24 @@ export function FindReplaceModal({
                 <span className="text-red-500">No matches</span>
               )}
             </div>
+            <div className="flex gap-1 items-center">
+            <button
+              onClick={handleFindPrev}
+              disabled={matchCount === 0}
+              className="p-2 hover:bg-[var(--bg-secondary)] rounded transition-colors text-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Find Previous"
+            >
+              <ChevronUp size={18} />
+            </button>
             <button
               onClick={handleFindNext}
               disabled={matchCount === 0}
               className="p-2 hover:bg-[var(--bg-secondary)] rounded transition-colors text-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Find Next (Enter)"
+              title="Find Next"
             >
               <ChevronDown size={18} />
             </button>
+          </div>
           </div>
 
           {/* Replace Input (Scene Editor only) */}
@@ -355,13 +471,15 @@ export function FindReplaceModal({
 
       {/* CSS for highlighting */}
       <style>{`
-        .search-highlight {
-          background-color: #ffd700;
-          padding: 2px 0;
-        }
+        .search-highlight,
         .search-highlight-dom {
-          background-color: #ffd700;
-          padding: 2px 0;
+          background-color: var(--search-highlight);
+          color: inherit;
+        }
+
+        .search-highlight-current {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
         }
       `}</style>
     </>

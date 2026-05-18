@@ -102,11 +102,11 @@ useEffect(() => {
   // Add viewport meta for better mobile control
   const viewportMeta = document.querySelector('meta[name="viewport"]');
   if (viewportMeta) {
-    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape');
+    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
   } else {
     const meta = document.createElement('meta');
     meta.name = 'viewport';
-    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape';
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
     document.head.appendChild(meta);
   }
 
@@ -203,6 +203,27 @@ useEffect(() => {
     const savedChapterWC = outline.chapters.find((c) => c.id === activeChapterId)?.wordcount || 0;
     return total - savedChapterWC + chapterWC;
   })();
+
+  const navigateSelectionTimeout = useRef<number | null>(null);
+
+  const handleNavigateScene = (target: {
+    chapterId: string;
+    sceneId: string;
+    from: number;
+    to: number;
+    matchIndex: number;
+  }) => {
+    if (navigateSelectionTimeout.current !== null) {
+      window.clearTimeout(navigateSelectionTimeout.current);
+    }
+
+    selectScene(target.chapterId, target.sceneId);
+    setEditorMode("scene");
+    navigateSelectionTimeout.current = window.setTimeout(() => {
+      editorInstance?.chain().focus().setTextSelection({ from: target.from, to: target.to }).run();
+      navigateSelectionTimeout.current = null;
+    }, 50);
+  };
 
   const wordCountParts: string[] = [];
   if (editorMode === "scene") {
@@ -531,9 +552,14 @@ useEffect(() => {
       )}
       <FindReplaceModal
         editor={editorInstance}
+        outline={outline}
+        chapter={activeChapter}
+        activeChapterId={activeChapterId}
+        activeSceneId={activeSceneId}
         isOpen={isFindReplaceOpen}
         onClose={() => setIsFindReplaceOpen(false)}
         viewType={editorMode}
+        onNavigateScene={handleNavigateScene}
       />
     </DocumentSettingsProvider>
   );

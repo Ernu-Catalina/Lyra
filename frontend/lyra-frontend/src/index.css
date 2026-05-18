@@ -9,6 +9,7 @@
   --border: #bbc1c9;
   --accent: hsl(253, 36%, 54%);
   --accent-dim: #a689fa;
+  --search-highlight: rgba(99, 102, 241, 0.18);
   --glow: rgba(113, 95, 179, 0.1);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: 'Georgia', serif;
@@ -23,6 +24,7 @@
   --border:       rgb(65, 65, 117);
   --accent:       #7171a8;
   --accent-dim:   #37375e;
+  --search-highlight: rgba(113, 95, 179, 0.24);
   --glow:         rgba(166, 174, 201, 0.12);
   --font-sans:    'Inter', system-ui, sans-serif;
   --font-serif:   'Georgia', serif;
@@ -38,6 +40,7 @@
   --border: #cebfba;
   --accent: #b48f6f;
   --accent-dim: #b5651d;
+  --search-highlight: rgba(180, 143, 111, 0.22);
   --glow: rgba(141, 85, 36, 0.1);
   --font-sans: 'Georgia', serif;
   --font-serif: 'Georgia', serif;
@@ -75,4 +78,15 @@ img[src$=".svg"] {
 /* Accent buttons, links, etc. */
 .btn-primary {
   @apply bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90;
+}
+
+.search-highlight,
+.search-highlight-dom {
+  background-color: var(--search-highlight);
+  color: inherit;
+  border-radius: 0.15rem;
+}
+
+.search-highlight-current {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }

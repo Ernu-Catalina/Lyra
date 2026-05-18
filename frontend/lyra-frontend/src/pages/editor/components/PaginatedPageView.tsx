@@ -50,6 +50,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
 
   return (
     <div
+      className="page-container"
       style={{
         display: "flex",
         flexDirection: "column",

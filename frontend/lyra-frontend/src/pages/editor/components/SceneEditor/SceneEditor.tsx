@@ -14,6 +14,8 @@ interface SceneEditorProps {
   onChange: (html: string) => void;
   editable?: boolean;
   onEditorReady?: (editor: Editor | null) => void;
+  selectionRange?: { from: number; to: number } | null;
+  onSelectionApplied?: () => void;
 }
 
 function sanitizeContent(html: string): string {
@@ -42,9 +44,10 @@ function sanitizeContent(html: string): string {
 }
 
 const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
-  ({ content, onChange, editable = true, onEditorReady }, ref) => {
+  ({ content, onChange, editable = true, onEditorReady, selectionRange, onSelectionApplied }, ref) => {
     const editorRef = useRef<Editor | null>(null);
     const lastSetContentRef = useRef<string>("");
+    const selectionKeyRef = useRef<string>("");
 
     const editor = useEditor({
       extensions: [
@@ -91,6 +94,28 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         currentEditor.commands.setContent(cleanContent, false); // false = don't trigger onUpdate
       }
     }, [content]);
+
+    useEffect(() => {
+      const currentEditor = editorRef.current;
+      if (!currentEditor || !selectionRange) return;
+
+      const selectionKey = `${selectionRange.from}-${selectionRange.to}`;
+      if (selectionKeyRef.current === selectionKey) return;
+
+      if (
+        selectionRange.from >= 0 &&
+        selectionRange.to >= selectionRange.from &&
+        selectionRange.to <= currentEditor.state.doc.content.size
+      ) {
+        currentEditor
+          .chain()
+          .focus()
+          .setTextSelection({ from: selectionRange.from, to: selectionRange.to })
+          .run();
+        selectionKeyRef.current = selectionKey;
+        onSelectionApplied?.();
+      }
+    }, [selectionRange, onSelectionApplied]);
 
     useImperativeHandle(ref, () => editor, [editor]);
 
