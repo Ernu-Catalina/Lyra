@@ -233,7 +233,8 @@ export const searchAndReplaceUtils = {
     container: HTMLElement | null,
     searchTerm: string,
     caseSensitive: boolean = false,
-    wholeWords: boolean = false
+    wholeWords: boolean = false,
+    startIndex: number = 0
   ): number {
     if (!container || !searchTerm) {
       // Clear existing highlights
@@ -291,6 +292,7 @@ export const searchAndReplaceUtils = {
     }
 
     // Replace text nodes with spans
+    let highlightedCount = 0;
     nodesToReplace.forEach(({ node, matches }) => {
       const text = node.textContent || '';
       const fragment = document.createDocumentFragment();
@@ -305,6 +307,7 @@ export const searchAndReplaceUtils = {
 
         const highlightSpan = document.createElement('span');
         highlightSpan.className = 'search-highlight-dom';
+        highlightSpan.dataset.searchIndex = String(startIndex + highlightedCount);
         highlightSpan.style.cssText = `
           padding: 2px 0;
           scroll-margin-top: 140px;
@@ -313,6 +316,7 @@ export const searchAndReplaceUtils = {
         highlightSpan.textContent = text.substring(start, end);
         fragment.appendChild(highlightSpan);
 
+        highlightedCount += 1;
         lastEnd = end;
       });
 
@@ -335,13 +339,14 @@ export const searchAndReplaceUtils = {
     if (!container || index < 0) return null;
 
     const nodes = Array.from(container.querySelectorAll<HTMLSpanElement>('.search-highlight-dom'));
-    if (index >= nodes.length) return null;
+    if (nodes.length === 0) return null;
 
-    nodes.forEach((node, nodeIndex) => {
+    nodes.forEach((node) => {
+      const nodeIndex = Number(node.dataset.searchIndex ?? -1);
       node.classList.toggle('search-highlight-current', nodeIndex === index);
     });
 
-    const node = nodes[index];
+    const node = container.querySelector<HTMLSpanElement>(`.search-highlight-dom[data-search-index="${index}"]`);
     node?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     return node;
   },

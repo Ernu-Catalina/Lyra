@@ -83,10 +83,6 @@ export function FindReplaceModal({
       return;
     }
 
-    const chapterIndex = outline?.chapters.findIndex((c) => c.id === chapter?.id) ?? 0;
-    const chapterMatches = chapter
-      ? searchAndReplaceUtils.findMatchesInChapter(chapter, chapterIndex, findText, caseSensitive, wholeWords)
-      : [];
     const outlineMatches = outline
       ? searchAndReplaceUtils.findMatchesInOutline(outline, findText, caseSensitive, wholeWords)
       : [];
@@ -147,17 +143,23 @@ export function FindReplaceModal({
       }
     } else if (viewType === "chapter") {
       const container = document.querySelector(".page-container");
+      const chapterStartIndex = outlineMatches.findIndex(
+        (match) => match.chapterId === activeChapterId
+      );
+      const visibleStartIndex = chapterStartIndex >= 0 ? chapterStartIndex : 0;
+
       const count = searchAndReplaceUtils.highlightMatches(
         container as HTMLElement,
         findText,
         caseSensitive,
-        wholeWords
+        wholeWords,
+        visibleStartIndex
       );
-      setMatchLocations(chapterMatches);
-      setMatchCount(count);
-      setCurrentMatch(count > 0 ? 1 : 0);
+      setMatchLocations(outlineMatches);
+      setMatchCount(outlineMatches.length);
+      setCurrentMatch(count > 0 ? visibleStartIndex + 1 : outlineMatches.length > 0 ? 1 : 0);
       if (count > 0) {
-        searchAndReplaceUtils.scrollToMatch(container as HTMLElement, 0);
+        searchAndReplaceUtils.scrollToMatch(container as HTMLElement, visibleStartIndex);
       }
     } else if (viewType === "document") {
       const container = document.querySelector(".page-container");
@@ -165,11 +167,12 @@ export function FindReplaceModal({
         container as HTMLElement,
         findText,
         caseSensitive,
-        wholeWords
+        wholeWords,
+        0
       );
       setMatchLocations(outlineMatches);
-      setMatchCount(count);
-      setCurrentMatch(count > 0 ? 1 : 0);
+      setMatchCount(outlineMatches.length);
+      setCurrentMatch(outlineMatches.length > 0 ? 1 : 0);
       if (count > 0) {
         searchAndReplaceUtils.scrollToMatch(container as HTMLElement, 0);
       }
@@ -200,6 +203,29 @@ export function FindReplaceModal({
           .setTextSelection({ from: targetMatch.from, to: targetMatch.to })
           .run();
       } else {
+        onNavigateScene?.({
+          chapterId: targetMatch.chapterId,
+          sceneId: targetMatch.sceneId,
+          from: targetMatch.from,
+          to: targetMatch.to,
+          matchIndex: normalized + 1,
+        });
+      }
+    } else if (viewType === "chapter") {
+      if (targetMatch.chapterId !== activeChapterId) {
+        onNavigateScene?.({
+          chapterId: targetMatch.chapterId,
+          sceneId: targetMatch.sceneId,
+          from: targetMatch.from,
+          to: targetMatch.to,
+          matchIndex: normalized + 1,
+        });
+        return;
+      }
+
+      const container = document.querySelector(".page-container");
+      const node = searchAndReplaceUtils.scrollToMatch(container as HTMLElement, normalized);
+      if (!node) {
         onNavigateScene?.({
           chapterId: targetMatch.chapterId,
           sceneId: targetMatch.sceneId,
