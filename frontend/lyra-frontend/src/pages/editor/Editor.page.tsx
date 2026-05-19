@@ -48,6 +48,7 @@ export default function EditorPage() {
   const [sceneWordcount, setSceneWordcount] = useState(0);
   const [openChapterIds, setOpenChapterIds] = useState<Set<string>>(new Set());
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+  const [pendingSelectionRange, setPendingSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const [projectName, setProjectName] = useState<string>("Loading...");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -204,8 +205,6 @@ useEffect(() => {
     return total - savedChapterWC + chapterWC;
   })();
 
-  const navigateSelectionTimeout = useRef<number | null>(null);
-
   const handleNavigateScene = (target: {
     chapterId: string;
     sceneId: string;
@@ -213,16 +212,8 @@ useEffect(() => {
     to: number;
     matchIndex: number;
   }) => {
-    if (navigateSelectionTimeout.current !== null) {
-      window.clearTimeout(navigateSelectionTimeout.current);
-    }
-
+    setPendingSelectionRange({ from: target.from, to: target.to });
     selectScene(target.chapterId, target.sceneId);
-    setEditorMode("scene");
-    navigateSelectionTimeout.current = window.setTimeout(() => {
-      editorInstance?.chain().focus().setTextSelection({ from: target.from, to: target.to }).run();
-      navigateSelectionTimeout.current = null;
-    }, 50);
   };
 
   const wordCountParts: string[] = [];
@@ -454,6 +445,8 @@ useEffect(() => {
               if (activeSceneId) updateSceneInOutline(activeSceneId, html);
             }}
             onEditorReady={setEditorInstance}
+            selectionRange={pendingSelectionRange}
+            onSelectionApplied={() => setPendingSelectionRange(null)}
           />
         </SceneEditorPageView>
       );

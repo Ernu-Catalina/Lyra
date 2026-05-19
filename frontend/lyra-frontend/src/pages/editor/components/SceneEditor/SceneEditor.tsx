@@ -115,7 +115,7 @@ const SceneEditor = forwardRef<Editor | null, SceneEditorProps>(
         selectionKeyRef.current = selectionKey;
         onSelectionApplied?.();
       }
-    }, [selectionRange, onSelectionApplied]);
+    }, [selectionRange, content, onSelectionApplied]);
 
     useImperativeHandle(ref, () => editor, [editor]);
 

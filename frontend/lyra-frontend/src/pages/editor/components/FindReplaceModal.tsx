@@ -65,7 +65,7 @@ export function FindReplaceModal({
       setCurrentMatch(0);
       setMatchLocations([]);
 
-      if (editor && viewType === "scene") {
+      if (viewType === "scene" && editor) {
         try {
           if ((editor as any).storage?.searchAndReplace) {
             (editor as any).storage.searchAndReplace.searchTerm = "";
@@ -75,7 +75,6 @@ export function FindReplaceModal({
         } catch {
           // ignore
         }
-        editor.chain().focus().run();
       } else if (viewType === "chapter" || viewType === "document") {
         const container = document.querySelector(".page-container");
         searchAndReplaceUtils.clearHighlights(container as HTMLElement);
@@ -88,7 +87,7 @@ export function FindReplaceModal({
     const chapterMatches = chapter
       ? searchAndReplaceUtils.findMatchesInChapter(chapter, chapterIndex, findText, caseSensitive, wholeWords)
       : [];
-    const documentMatches = outline
+    const outlineMatches = outline
       ? searchAndReplaceUtils.findMatchesInOutline(outline, findText, caseSensitive, wholeWords)
       : [];
 
@@ -100,19 +99,36 @@ export function FindReplaceModal({
         wholeWords
       );
 
-      setMatchLocations(
-        documentMatches.length > 0 ? documentMatches : sceneMatches.map((match) => ({
-          chapterId: activeChapterId ?? "",
-          sceneId: activeSceneId ?? "",
-          chapterIndex: 0,
-          sceneIndex: 0,
-          from: match.start,
-          to: match.end,
-          text: match.text,
-        }))
+      const currentChapterIndex = outline?.chapters.findIndex((c) => c.id === activeChapterId) ?? 0;
+      const currentSceneIndex = outline?.chapters[currentChapterIndex]?.scenes.findIndex(
+        (s) => s.id === activeSceneId
+      ) ?? 0;
+
+      const liveSceneMatches = sceneMatches.map((match) => ({
+        chapterId: activeChapterId ?? "",
+        sceneId: activeSceneId ?? "",
+        chapterIndex: currentChapterIndex,
+        sceneIndex: currentSceneIndex,
+        from: match.start,
+        to: match.end,
+        text: match.text,
+      }));
+
+      const otherMatches = outlineMatches.filter(
+        (match) => !(match.chapterId === activeChapterId && match.sceneId === activeSceneId)
       );
-      setMatchCount(documentMatches.length > 0 ? documentMatches.length : sceneMatches.length);
-      setCurrentMatch(documentMatches.length > 0 || sceneMatches.length > 0 ? 1 : 0);
+
+      const allMatches = [...otherMatches, ...liveSceneMatches].sort((a, b) => {
+        const chapterDiff = a.chapterIndex - b.chapterIndex;
+        if (chapterDiff !== 0) return chapterDiff;
+        const sceneDiff = a.sceneIndex - b.sceneIndex;
+        if (sceneDiff !== 0) return sceneDiff;
+        return a.from - b.from;
+      });
+
+      setMatchLocations(allMatches);
+      setMatchCount(allMatches.length);
+      setCurrentMatch(allMatches.length > 0 ? 1 : 0);
 
       try {
         if ((editor as any).storage?.searchAndReplace) {
@@ -151,7 +167,7 @@ export function FindReplaceModal({
         caseSensitive,
         wholeWords
       );
-      setMatchLocations(documentMatches);
+      setMatchLocations(outlineMatches);
       setMatchCount(count);
       setCurrentMatch(count > 0 ? 1 : 0);
       if (count > 0) {
@@ -294,12 +310,6 @@ export function FindReplaceModal({
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/20 z-30"
-        onClick={onClose}
-      />
-
       {/* Modal */}
       <div
         ref={modalRef}
@@ -333,7 +343,12 @@ export function FindReplaceModal({
             Find & Replace
           </h3>
           <button
-            onClick={onClose}
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             className="p-1 hover:bg-[var(--bg-primary)] rounded transition-colors text-[var(--text-secondary)]"
             title="Close (Esc)"
           >
@@ -428,13 +443,7 @@ export function FindReplaceModal({
 
           {/* Buttons */}
           <div className="flex gap-2 justify-end pt-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
-            >
-              Close
-            </button>
-            {viewType === "scene" && (
+              {viewType === "scene" && (
               <>
                 <button
                   onClick={handleReplace}

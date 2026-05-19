@@ -307,6 +307,8 @@ export const searchAndReplaceUtils = {
         highlightSpan.className = 'search-highlight-dom';
         highlightSpan.style.cssText = `
           padding: 2px 0;
+          scroll-margin-top: 140px;
+          scroll-margin-bottom: 140px;
         `;
         highlightSpan.textContent = text.substring(start, end);
         fragment.appendChild(highlightSpan);
