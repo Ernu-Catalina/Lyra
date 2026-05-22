@@ -5,6 +5,8 @@
     line-height: var(--page-line-height) !important;
     font-size: inherit !important;
     font-family: inherit !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .ProseMirror {
@@ -20,6 +22,20 @@
     margin: 0 0 var(--page-paragraph-spacing, 8pt) 0 !important;
     line-height: var(--page-line-height, 1.5) !important;
     font-size: inherit !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure links and inline code wrap in paginated views */
+  .page-content a,
+  .page-content code,
+  .page-content span {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .page-content code {
+    word-break: break-all;
   }
 
 /* TipTap Editor Content Styling */
@@ -88,6 +104,8 @@
   color: #0066cc;
   text-decoration: underline;
   cursor: pointer;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .ProseMirror a:hover {
@@ -101,6 +119,9 @@
   border-radius: 3px;
   font-family: 'Courier New', monospace;
   font-size: 0.9em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 /* Blockquote Styles */
