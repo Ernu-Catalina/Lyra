@@ -1,11 +1,12 @@
 import axios from "axios";
 
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  "https://lyra-backend-production-98b7.up.railway.app";
+// When VITE_BACKEND_URL is empty (local dev), use the Vite proxy path "/api"
+// so requests are same-origin and never hit CORS restrictions.
+// In production VITE_BACKEND_URL is set to the full Railway URL.
+const _envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
 
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: _envUrl ? `${_envUrl}/api` : "/api",
   withCredentials: true, // Required for httpOnly refresh-token cookies
 });
 

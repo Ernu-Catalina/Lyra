@@ -13,13 +13,31 @@ interface FindReplaceModalProps {
   isOpen: boolean;
   onClose: () => void;
   viewType: "scene" | "chapter" | "document";
+  /**
+   * Incremented by Editor.page.tsx each time a scene's content is freshly
+   * loaded from the API. Including this in the useEffect deps lets us detect
+   * when editor.state.doc has been updated with the new scene's content so we
+   * can apply the correct ProseMirror selection after a cross-scene jump.
+   */
+  sceneContentKey?: number;
   onNavigateScene?: (target: {
     chapterId: string;
     sceneId: string;
-    from: number;
-    to: number;
+    matchIndexInScene: number;
     matchIndex: number;
   }) => void;
+}
+
+/** Stored while a cross-scene navigation is in flight */
+interface PendingMatch {
+  /** 0-based index into the global matchLocations array */
+  normalizedIndex: number;
+  /** 0-based occurrence of this match within the target scene */
+  matchIndexInScene: number;
+  /** sceneId we are navigating to */
+  targetSceneId: string;
+  /** value of sceneContentKey at the moment navigation was triggered */
+  sceneContentKeyAtNav: number;
 }
 
 export function FindReplaceModal({
@@ -31,6 +49,7 @@ export function FindReplaceModal({
   isOpen,
   onClose,
   viewType,
+  sceneContentKey,
   onNavigateScene,
 }: FindReplaceModalProps) {
   const [findText, setFindText] = useState("");
@@ -45,6 +64,12 @@ export function FindReplaceModal({
   const findInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Non-null while a cross-scene navigation is in flight. Cleared once the
+   * target scene's content has loaded and the match has been selected.
+   */
+  const pendingMatchRef = useRef<PendingMatch | null>(null);
 
   // Auto-focus find input when modal opens
   useEffect(() => {
@@ -64,6 +89,7 @@ export function FindReplaceModal({
       setMatchCount(0);
       setCurrentMatch(0);
       setMatchLocations([]);
+      pendingMatchRef.current = null;
 
       if (viewType === "scene" && editor) {
         try {
@@ -88,6 +114,24 @@ export function FindReplaceModal({
       : [];
 
     if (viewType === "scene" && editor) {
+      const pending = pendingMatchRef.current;
+
+      // If a cross-scene navigation is in flight and the API content hasn't
+      // arrived yet, editor.state.doc still has the old scene's text. Updating
+      // matchLocations with that stale data would corrupt Next/Prev navigation.
+      // Skip everything except preserving the counter and wait for the next
+      // effect run (triggered by sceneContentKey incrementing).
+      const isContentStale =
+        pending !== null &&
+        activeSceneId === pending.targetSceneId &&
+        (sceneContentKey ?? 0) <= pending.sceneContentKeyAtNav;
+
+      if (isContentStale) {
+        setCurrentMatch(pending.normalizedIndex + 1);
+        return;
+      }
+
+      // --- Build live matches from the actual editor document ---
       const sceneMatches = searchAndReplaceUtils.findMatchesInDoc(
         editor.state.doc,
         findText,
@@ -96,11 +140,10 @@ export function FindReplaceModal({
       );
 
       const currentChapterIndex = outline?.chapters.findIndex((c) => c.id === activeChapterId) ?? 0;
-      const currentSceneIndex = outline?.chapters[currentChapterIndex]?.scenes.findIndex(
-        (s) => s.id === activeSceneId
-      ) ?? 0;
+      const currentSceneIndex =
+        outline?.chapters[currentChapterIndex]?.scenes.findIndex((s) => s.id === activeSceneId) ?? 0;
 
-      const liveSceneMatches = sceneMatches.map((match) => ({
+      const liveSceneMatches: OutlineSearchMatch[] = sceneMatches.map((match, matchIndexInScene) => ({
         chapterId: activeChapterId ?? "",
         sceneId: activeSceneId ?? "",
         chapterIndex: currentChapterIndex,
@@ -108,6 +151,7 @@ export function FindReplaceModal({
         from: match.start,
         to: match.end,
         text: match.text,
+        matchIndexInScene,
       }));
 
       const otherMatches = outlineMatches.filter(
@@ -124,8 +168,8 @@ export function FindReplaceModal({
 
       setMatchLocations(allMatches);
       setMatchCount(allMatches.length);
-      setCurrentMatch(allMatches.length > 0 ? 1 : 0);
 
+      // Update TipTap decoration storage
       try {
         if ((editor as any).storage?.searchAndReplace) {
           (editor as any).storage.searchAndReplace.searchTerm = findText;
@@ -140,6 +184,23 @@ export function FindReplaceModal({
         }
       } catch {
         // ignore
+      }
+
+      // ── Determine currentMatch, applying cross-scene navigation intent ─
+      if (pending !== null) {
+        // Content is now fresh (isContentStale was false) — select the target match
+        const targetLiveMatch = liveSceneMatches[pending.matchIndexInScene];
+        if (targetLiveMatch) {
+          editor
+            .chain()
+            .focus()
+            .setTextSelection({ from: targetLiveMatch.from, to: targetLiveMatch.to })
+            .run();
+        }
+        setCurrentMatch(pending.normalizedIndex + 1);
+        pendingMatchRef.current = null;
+      } else {
+        setCurrentMatch(allMatches.length > 0 ? 1 : 0);
       }
     } else if (viewType === "chapter") {
       const container = document.querySelector(".page-container");
@@ -177,7 +238,19 @@ export function FindReplaceModal({
         searchAndReplaceUtils.scrollToMatch(container as HTMLElement, 0);
       }
     }
-  }, [findText, caseSensitive, wholeWords, isOpen, editor, viewType, chapter, outline, activeChapterId, activeSceneId]);
+  }, [
+    findText,
+    caseSensitive,
+    wholeWords,
+    isOpen,
+    editor,
+    viewType,
+    chapter,
+    outline,
+    activeChapterId,
+    activeSceneId,
+    sceneContentKey,
+  ]);
 
   const scrollToCurrentMatch = (index: number) => {
     const container = document.querySelector(".page-container");
@@ -203,11 +276,18 @@ export function FindReplaceModal({
           .setTextSelection({ from: targetMatch.from, to: targetMatch.to })
           .run();
       } else {
+        // Store navigation intent so the useEffect can restore the counter
+        // and select the correct match once the new scene's content loads.
+        pendingMatchRef.current = {
+          normalizedIndex: normalized,
+          matchIndexInScene: targetMatch.matchIndexInScene,
+          targetSceneId: targetMatch.sceneId,
+          sceneContentKeyAtNav: sceneContentKey ?? 0,
+        };
         onNavigateScene?.({
           chapterId: targetMatch.chapterId,
           sceneId: targetMatch.sceneId,
-          from: targetMatch.from,
-          to: targetMatch.to,
+          matchIndexInScene: targetMatch.matchIndexInScene,
           matchIndex: normalized + 1,
         });
       }
@@ -216,8 +296,7 @@ export function FindReplaceModal({
         onNavigateScene?.({
           chapterId: targetMatch.chapterId,
           sceneId: targetMatch.sceneId,
-          from: targetMatch.from,
-          to: targetMatch.to,
+          matchIndexInScene: targetMatch.matchIndexInScene,
           matchIndex: normalized + 1,
         });
         return;
@@ -229,8 +308,7 @@ export function FindReplaceModal({
         onNavigateScene?.({
           chapterId: targetMatch.chapterId,
           sceneId: targetMatch.sceneId,
-          from: targetMatch.from,
-          to: targetMatch.to,
+          matchIndexInScene: targetMatch.matchIndexInScene,
           matchIndex: normalized + 1,
         });
       }
@@ -255,7 +333,6 @@ export function FindReplaceModal({
     const { from, to } = editor.state.selection;
     const selectedText = editor.state.doc.textContent.substring(from, to);
 
-    // Check if selected text matches find text
     const matches = caseSensitive
       ? selectedText === findText
       : selectedText.toLowerCase() === findText.toLowerCase();
@@ -268,7 +345,6 @@ export function FindReplaceModal({
         .insertContent(replaceText)
         .run();
 
-      // Move to next match
       handleFindNext();
     }
   };
@@ -277,7 +353,6 @@ export function FindReplaceModal({
     if (!findText) return;
 
     if (viewType === "scene" && editor) {
-      // Replace all in TipTap editor
       const content = editor.state.doc.textContent;
       const matches = searchAndReplaceUtils.findMatches(
         content,
@@ -288,7 +363,6 @@ export function FindReplaceModal({
 
       if (matches.length === 0) return;
 
-      // Build replacement content
       let newContent = content;
       let offset = 0;
 
@@ -312,7 +386,6 @@ export function FindReplaceModal({
       setCurrentMatch(0);
       setMatchCount(0);
     } else {
-      // For read-only views, show message
       alert(
         `Replace All works only in Scene Editor. You're viewing ${viewType === "chapter" ? "a chapter" : "the entire document"} in read-only mode.`
       );
@@ -409,6 +482,7 @@ export function FindReplaceModal({
             </div>
             <div className="flex gap-1 items-center">
             <button
+              type="button"
               onClick={handleFindPrev}
               disabled={matchCount === 0}
               className="p-2 hover:bg-[var(--bg-secondary)] rounded transition-colors text-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -417,6 +491,7 @@ export function FindReplaceModal({
               <ChevronUp size={18} />
             </button>
             <button
+              type="button"
               onClick={handleFindNext}
               disabled={matchCount === 0}
               className="p-2 hover:bg-[var(--bg-secondary)] rounded transition-colors text-[var(--text-secondary)] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -472,6 +547,7 @@ export function FindReplaceModal({
               {viewType === "scene" && (
               <>
                 <button
+                  type="button"
                   onClick={handleReplace}
                   disabled={matchCount === 0}
                   className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -479,6 +555,7 @@ export function FindReplaceModal({
                   Replace
                 </button>
                 <button
+                  type="button"
                   onClick={handleReplaceAll}
                   disabled={matchCount === 0}
                   className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

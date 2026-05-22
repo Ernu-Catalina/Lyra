@@ -57,6 +57,10 @@ export default function EditorPage() {
   const editorLayoutRef = useRef<HTMLDivElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
+  // Incremented each time a scene's content is freshly loaded from the API so
+  // FindReplaceModal can detect when editor.state.doc has been updated and
+  // apply the correct ProseMirror selection after a cross-scene navigation.
+  const [sceneContentKey, setSceneContentKey] = useState(0);
   // Add these new states
   const [sidebarWidth, setSidebarWidth] = useState(300);        // Default width in px
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -208,11 +212,11 @@ useEffect(() => {
   const handleNavigateScene = (target: {
     chapterId: string;
     sceneId: string;
-    from: number;
-    to: number;
+    matchIndexInScene: number;
     matchIndex: number;
   }) => {
-    setPendingSelectionRange({ from: target.from, to: target.to });
+    // Selection is handled by FindReplaceModal once the new scene's content
+    // loads (gated on sceneContentKey). Don't use HTML-offset positions here.
     selectScene(target.chapterId, target.sceneId);
   };
 
@@ -386,15 +390,28 @@ useEffect(() => {
   useEffect(() => {
     if (!projectId || !documentId || !activeChapterId || !activeSceneId) return;
 
+    // Guard against stale responses: if the scene changes again before this
+    // request resolves, the cleanup sets cancelled=true and the response is
+    // ignored. Without this, a slow response for scene A can overwrite the
+    // already-loaded content of scene B, causing navigation to cycle backwards.
+    let cancelled = false;
+
     api
       .get(`/projects/${projectId}/documents/${documentId}/chapters/${activeChapterId}/scenes/${activeSceneId}`)
       .then((res) => {
+        if (cancelled) return;
         const raw = res.data.content ?? "";
         setSceneContent(raw);
         setLastSavedContent(raw);
         setSceneWordcount(countWordsFromHtml(raw));
+        setSceneContentKey((k) => k + 1);
       })
-      .catch(() => showToast("Failed to load scene content"));
+      .catch((err) => {
+        if (cancelled) return;
+        showToast("Failed to load scene content");
+      });
+
+    return () => { cancelled = true; };
   }, [projectId, documentId, activeChapterId, activeSceneId]);
 
   const toggleChapter = (chapterId: string) => {
@@ -552,6 +569,7 @@ useEffect(() => {
         isOpen={isFindReplaceOpen}
         onClose={() => setIsFindReplaceOpen(false)}
         viewType={editorMode}
+        sceneContentKey={sceneContentKey}
         onNavigateScene={handleNavigateScene}
       />
     </DocumentSettingsProvider>

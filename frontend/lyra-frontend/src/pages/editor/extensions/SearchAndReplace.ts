@@ -18,6 +18,8 @@ export interface OutlineSearchMatch extends SearchMatch {
   sceneId: string;
   chapterIndex: number;
   sceneIndex: number;
+  /** 0-based index of this match within its scene's matches (used for cross-scene cursor placement) */
+  matchIndexInScene: number;
 }
 
 /**
@@ -173,7 +175,7 @@ export const searchAndReplaceUtils = {
         wholeWords
       );
 
-      localMatches.forEach((m) => {
+      localMatches.forEach((m, matchIndexInScene) => {
         results.push({
           chapterId: chapter.id,
           sceneId: scene.id,
@@ -182,6 +184,7 @@ export const searchAndReplaceUtils = {
           from: m.start,
           to: m.end,
           text: m.text,
+          matchIndexInScene,
         });
       });
     });
@@ -209,7 +212,7 @@ export const searchAndReplaceUtils = {
           wholeWords
         );
 
-        localMatches.forEach((m) => {
+        localMatches.forEach((m, matchIndexInScene) => {
           results.push({
             chapterId: chapter.id,
             sceneId: scene.id,
@@ -218,6 +221,7 @@ export const searchAndReplaceUtils = {
             from: m.start,
             to: m.end,
             text: m.text,
+            matchIndexInScene,
           });
         });
       });
