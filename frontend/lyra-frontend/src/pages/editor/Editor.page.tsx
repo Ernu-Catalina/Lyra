@@ -30,7 +30,7 @@ export default function EditorPage() {
   const { logout } = useAuth();
 
   const { outline: serverOutline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
-  const [outline, setOutline] = useState<DocumentOutline | undefined>(serverOutline);
+  const [outline, setOutline] = useState<DocumentOutline | undefined>(serverOutline ?? undefined);
 
   useEffect(() => {
     if (serverOutline) setOutline(serverOutline);
@@ -65,7 +65,7 @@ export default function EditorPage() {
   const [sidebarWidth, setSidebarWidth] = useState(300);        // Default width in px
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const toggleFullscreen = useFullscreen(editorLayoutRef, isFullscreen, setIsFullscreen);
+  const toggleFullscreen = useFullscreen(editorLayoutRef as React.RefObject<HTMLElement>, isFullscreen, setIsFullscreen);
 
   const [userSettings, setUserSettings] = useState<{
     wordcountDisplay: string[];
@@ -316,6 +316,75 @@ useEffect(() => {
     });
   };
 
+  /**
+   * Update multiple scenes at once (used by Find & Replace for document-wide operations).
+   * Updates the outline and triggers autosave for each affected scene.
+   */
+  const handleUpdateScenes = async (sceneUpdates: Record<string, string>) => {
+    if (!outline || !projectId || !documentId) return;
+
+    const updatedChapters = outline.chapters.map((chapter) => ({
+      ...chapter,
+      scenes: chapter.scenes.map((scene) => {
+        const updatedContent = sceneUpdates[scene.id];
+        if (!updatedContent) return scene;
+
+        const updatedWordcount = countWordsFromHtml(updatedContent);
+        return {
+          ...scene,
+          content: updatedContent,
+          wordcount: updatedWordcount,
+        };
+      }),
+    }));
+
+    const updatedChaptersWithWC = updatedChapters.map((chapter) => ({
+      ...chapter,
+      wordcount: chapter.scenes.reduce((sum, scene) => sum + (scene.wordcount || 0), 0),
+    }));
+
+    setOutline((prevOutline) =>
+      prevOutline
+        ? {
+            ...prevOutline,
+            chapters: updatedChaptersWithWC,
+            total_wordcount: updatedChaptersWithWC.reduce((sum, chapter) => sum + chapter.wordcount, 0),
+          }
+        : outline
+    );
+
+    const activeUpdate = sceneUpdates[activeSceneId ?? ""];
+    if (activeUpdate) {
+      setSceneContent(activeUpdate);
+      setSceneWordcount(countWordsFromHtml(activeUpdate));
+      setLastEditTimestamp(Date.now());
+      void saveScene();
+    }
+
+    const savePromises = Object.entries(sceneUpdates).map(([sceneId, content]) => {
+      if (sceneId === activeSceneId) return Promise.resolve();
+
+      const chapter = outline.chapters.find((c) => c.scenes.some((scene) => scene.id === sceneId));
+      const chapterId = chapter?.id;
+      if (!chapterId) return Promise.resolve();
+
+      return api.put(
+        `/projects/${projectId}/documents/${documentId}/chapters/${chapterId}/scenes/${sceneId}`,
+        { content }
+      );
+    });
+
+    const results = await Promise.allSettled(savePromises);
+    const failed = results.filter((result) => result.status === "rejected");
+
+    if (failed.length > 0) {
+      showToast(`Saved ${Object.keys(sceneUpdates).length - failed.length}/${Object.keys(sceneUpdates).length} scenes.`);
+      console.error("Failed to save some updated scenes:", failed);
+    } else {
+      showToast(`Saved ${Object.keys(sceneUpdates).length} scene${Object.keys(sceneUpdates).length === 1 ? "" : "s"}.`);
+    }
+  };
+
   // ── Autosave + manual save shortcut support ──────────────────────────
   const { saveScene } = useAutosaveScene({
     projectId,
@@ -329,7 +398,7 @@ useEffect(() => {
     },
     onStatusChange: (status, message) => {
       setSaveStatus(status);
-      setSaveMessage(message);
+      setSaveMessage(message ?? null);
     },
   });
 
@@ -571,6 +640,7 @@ useEffect(() => {
         viewType={editorMode}
         sceneContentKey={sceneContentKey}
         onNavigateScene={handleNavigateScene}
+        onUpdateScenes={handleUpdateScenes}
       />
     </DocumentSettingsProvider>
   );

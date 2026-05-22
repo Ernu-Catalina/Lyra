@@ -444,11 +444,10 @@ export const searchAndReplaceUtils = {
         .focus();
 
       sortedMatches.forEach(({ start, end }) => {
-        editor.view.dispatch(
-          editor.state.tr
-            .setSelection(editor.state.tr.selection.constructor.between(start, end))
-            .replaceWith(start, end, editor.state.schema.text(replaceText))
-        );
+        // Use insertText to preserve surrounding marks when possible
+        const selTr = editor.state.tr.setSelection(editor.state.tr.selection.constructor.between(start, end));
+        selTr.insertText(replaceText, start, end);
+        editor.view.dispatch(selTr);
       });
 
       return true;
@@ -488,7 +487,7 @@ export const searchAndReplaceUtils = {
       // Build a single transaction with all replacements
       let tr = editor.state.tr;
       sortedMatches.forEach(({ start, end }) => {
-        tr = tr.replaceWith(start, end, editor.state.schema.text(replaceText));
+        tr = tr.insertText(replaceText, start, end);
       });
 
       editor.view.dispatch(tr);

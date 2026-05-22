@@ -26,6 +26,11 @@ interface FindReplaceModalProps {
     matchIndexInScene: number;
     matchIndex: number;
   }) => void;
+  /**
+   * Callback to update multiple scenes at once (for Replace All across chapters/documents).
+   * Maps sceneId to new content. Parent should update outline and trigger autosave.
+   */
+  onUpdateScenes?: (sceneUpdates: Record<string, string>) => void;
 }
 
 /** Stored while a cross-scene navigation is in flight */
@@ -51,6 +56,7 @@ export function FindReplaceModal({
   viewType,
   sceneContentKey,
   onNavigateScene,
+  onUpdateScenes,
 }: FindReplaceModalProps) {
   const [findText, setFindText] = useState("");
   const [replaceText, setReplaceText] = useState("");
@@ -328,32 +334,50 @@ export function FindReplaceModal({
   };
 
   const handleReplace = () => {
-    if (!findText || !editor || viewType !== "scene") return;
-    if (matchLocations.length === 0 || currentMatch <= 0) return;
+    if (!findText || matchLocations.length === 0 || currentMatch <= 0) return;
 
-    // Get the current match position from our search results
     const currentMatchObj = matchLocations[currentMatch - 1];
     if (!currentMatchObj) return;
 
-    // Use the known match position for safe replacement
-    const success = searchAndReplaceUtils.replaceSingleMatch(
-      editor,
-      currentMatchObj.from,
-      currentMatchObj.to,
-      replaceText
-    );
+    if (viewType === "scene" && editor) {
+      // Scene view: use TipTap editor for safe replacement with formatting preservation
+      const success = searchAndReplaceUtils.replaceSingleMatch(
+        editor,
+        currentMatchObj.from,
+        currentMatchObj.to,
+        replaceText
+      );
 
-    if (success) {
-      // Move to next match (or wrap around)
-      handleFindNext();
+      if (success) {
+        // Stay on current match — user controls navigation with Previous/Next buttons
+        // This prevents unintended scene switches during editing
+      }
+    } else if (viewType === "chapter" || viewType === "document") {
+      // Chapter/Document view: update scene content in outline
+      if (!outline) return;
+
+      const chapter = outline.chapters.find((c) => c.id === currentMatchObj.chapterId);
+      const scene = chapter?.scenes.find((s) => s.id === currentMatchObj.sceneId);
+      if (!scene) return;
+
+      // Replace in the scene's content string (fall back to empty string)
+      const orig = scene.content || "";
+      const newContent = orig.substring(0, currentMatchObj.from) + replaceText + orig.substring(currentMatchObj.to);
+
+      // Notify parent to update outline and trigger autosave
+      onUpdateScenes?.({
+        [currentMatchObj.sceneId]: newContent,
+      });
+
+      // Stay on current match — user controls navigation
     }
   };
 
   const handleReplaceAll = () => {
-    if (!findText) return;
+    if (!findText || matchLocations.length === 0) return;
 
     if (viewType === "scene" && editor) {
-      // Use the optimized replace-all function that preserves formatting
+      // Scene view: use TipTap's transaction API to preserve formatting
       const success = searchAndReplaceUtils.replaceAllMatchesOptimized(
         editor,
         findText,
@@ -369,10 +393,57 @@ export function FindReplaceModal({
         setCurrentMatch(0);
         setMatchCount(0);
       }
-    } else {
-      alert(
-        `Replace All works only in Scene Editor. You're viewing ${viewType === "chapter" ? "a chapter" : "the entire document"} in read-only mode.`
-      );
+    } else if (viewType === "chapter" || viewType === "document") {
+      // Chapter/Document view: update all matching scenes in outline
+      if (!outline) return;
+
+      // Determine scope: current chapter or all chapters
+      const scopedMatches =
+        viewType === "chapter"
+          ? matchLocations.filter((m) => m.chapterId === activeChapterId)
+          : matchLocations;
+
+      if (scopedMatches.length === 0) return;
+
+      // Group matches by scene and replace in each scene's content.
+      // Process matches per scene in reverse order (descending `from`) to avoid offset shifts.
+      const matchesByScene: Record<string, OutlineSearchMatch[]> = {};
+      scopedMatches.forEach((m) => {
+        matchesByScene[m.sceneId] = matchesByScene[m.sceneId] || [];
+        matchesByScene[m.sceneId].push(m);
+      });
+
+      const sceneUpdates: Record<string, string> = {};
+      Object.entries(matchesByScene).forEach(([sceneId, matches]) => {
+        const chapter = outline.chapters.find((c) => c.scenes.some((s) => s.id === sceneId));
+        const scene = chapter?.scenes.find((s) => s.id === sceneId);
+        if (!scene) return;
+
+        // Start from original scene content (ensure string)
+        const original = scene.content || "";
+        let updated = original;
+
+        // Sort matches in reverse order and apply replacements
+        matches
+          .slice()
+          .sort((a, b) => b.from - a.from)
+          .forEach((match) => {
+            updated = updated.substring(0, match.from) + replaceText + updated.substring(match.to);
+          });
+
+        sceneUpdates[sceneId] = updated;
+      });
+
+      // Update all affected scenes via callback
+      onUpdateScenes?.(sceneUpdates);
+
+      // Clear highlights and reset state after replacement
+      const container = document.querySelector(".page-container");
+      searchAndReplaceUtils.clearHighlights(container as HTMLElement);
+      setFindText("");
+      setReplaceText("");
+      setCurrentMatch(0);
+      setMatchCount(0);
     }
   };
 
@@ -486,23 +557,21 @@ export function FindReplaceModal({
           </div>
           </div>
 
-          {/* Replace Input (Scene Editor only) */}
-          {viewType === "scene" && (
-            <div className="flex gap-2 items-center">
-              <label className="text-sm text-[var(--text-secondary)] whitespace-nowrap">
-                Replace
-              </label>
-              <input
-                ref={replaceInputRef}
-                type="text"
-                value={replaceText}
-                onChange={(e) => setReplaceText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Replace with..."
-                className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
-              />
-            </div>
-          )}
+          {/* Replace Input (available for scene/chapter/document views) */}
+          <div className="flex gap-2 items-center">
+            <label className="text-sm text-[var(--text-secondary)] whitespace-nowrap">
+              Replace
+            </label>
+            <input
+              ref={replaceInputRef}
+              type="text"
+              value={replaceText}
+              onChange={(e) => setReplaceText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Replace with..."
+              className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+            />
+          </div>
 
           {/* Options */}
           <div className="flex gap-4 text-sm">
@@ -528,26 +597,22 @@ export function FindReplaceModal({
 
           {/* Buttons */}
           <div className="flex gap-2 justify-end pt-2">
-              {viewType === "scene" && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleReplace}
-                  disabled={matchCount === 0}
-                  className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Replace
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReplaceAll}
-                  disabled={matchCount === 0}
-                  className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Replace All
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={handleReplace}
+              disabled={matchCount === 0}
+              className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Replace
+            </button>
+            <button
+              type="button"
+              onClick={handleReplaceAll}
+              disabled={matchCount === 0}
+              className="px-4 py-2 rounded bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Replace All
+            </button>
           </div>
 
           {/* View Type Indicator */}
@@ -556,10 +621,10 @@ export function FindReplaceModal({
               <span>Editing scene • Replace available</span>
             )}
             {viewType === "chapter" && (
-              <span>Viewing chapter (read-only) • Find only</span>
+              <span>Viewing chapter • Replace available (all scenes in chapter)</span>
             )}
             {viewType === "document" && (
-              <span>Viewing entire document (read-only) • Find only</span>
+              <span>Viewing entire document • Replace available (all scenes)</span>
             )}
           </div>
         </div>
