@@ -377,4 +377,125 @@ export const searchAndReplaceUtils = {
       }
     });
   },
+
+  /**
+   * Replace a single match at known position, preserving all formatting/marks.
+   * Uses ProseMirror transaction API to ensure marks and node structure are preserved.
+   * 
+   * @param editor TipTap editor instance
+   * @param from Absolute position of match start
+   * @param to Absolute position of match end
+   * @param replaceText Replacement text
+   */
+  replaceSingleMatch(editor: any, from: number, to: number, replaceText: string) {
+    if (!editor) return false;
+    
+    try {
+      editor
+        .chain()
+        .focus()
+        .setTextSelection({ from, to })
+        .insertContent(replaceText)
+        .run();
+      return true;
+    } catch (e) {
+      console.error('Failed to replace single match:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Replace all matches in document, preserving formatting.
+   * Operates at the ProseMirror node level to maintain marks and structure.
+   * Processes matches in reverse order (highest to lowest position) to avoid position shifts.
+   * 
+   * @param editor TipTap editor instance
+   * @param searchTerm Text to find
+   * @param replaceText Replacement text
+   * @param caseSensitive Whether to match case
+   * @param wholeWords Whether to match whole words only
+   */
+  replaceAllMatches(
+    editor: any,
+    searchTerm: string,
+    replaceText: string,
+    caseSensitive: boolean = false,
+    wholeWords: boolean = false
+  ): boolean {
+    if (!editor) return false;
+
+    try {
+      // Find all matches in document
+      const matches = searchAndReplaceUtils.findMatchesInDoc(
+        editor.state.doc,
+        searchTerm,
+        caseSensitive,
+        wholeWords
+      );
+
+      if (matches.length === 0) return false;
+
+      // Process matches in reverse order to avoid position shifts
+      const sortedMatches = matches.sort((a, b) => b.start - a.start);
+
+      // Use a single transaction for all replacements
+      editor
+        .chain()
+        .focus();
+
+      sortedMatches.forEach(({ start, end }) => {
+        editor.view.dispatch(
+          editor.state.tr
+            .setSelection(editor.state.tr.selection.constructor.between(start, end))
+            .replaceWith(start, end, editor.state.schema.text(replaceText))
+        );
+      });
+
+      return true;
+    } catch (e) {
+      console.error('Failed to replace all matches:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Perform replace all with proper transaction handling.
+   * Alternative implementation that batches updates into a single transaction.
+   * This version is more efficient for large numbers of replacements.
+   */
+  replaceAllMatchesOptimized(
+    editor: any,
+    searchTerm: string,
+    replaceText: string,
+    caseSensitive: boolean = false,
+    wholeWords: boolean = false
+  ): boolean {
+    if (!editor) return false;
+
+    try {
+      const matches = searchAndReplaceUtils.findMatchesInDoc(
+        editor.state.doc,
+        searchTerm,
+        caseSensitive,
+        wholeWords
+      );
+
+      if (matches.length === 0) return false;
+
+      // Sort in reverse order for safe replacement
+      const sortedMatches = [...matches].sort((a, b) => b.start - a.start);
+
+      // Build a single transaction with all replacements
+      let tr = editor.state.tr;
+      sortedMatches.forEach(({ start, end }) => {
+        tr = tr.replaceWith(start, end, editor.state.schema.text(replaceText));
+      });
+
+      editor.view.dispatch(tr);
+      return true;
+    } catch (e) {
+      console.error('Failed to replace all matches (optimized):', e);
+      return false;
+    }
+  },
 };

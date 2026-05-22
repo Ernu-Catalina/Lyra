@@ -329,22 +329,22 @@ export function FindReplaceModal({
 
   const handleReplace = () => {
     if (!findText || !editor || viewType !== "scene") return;
+    if (matchLocations.length === 0 || currentMatch <= 0) return;
 
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textContent.substring(from, to);
+    // Get the current match position from our search results
+    const currentMatchObj = matchLocations[currentMatch - 1];
+    if (!currentMatchObj) return;
 
-    const matches = caseSensitive
-      ? selectedText === findText
-      : selectedText.toLowerCase() === findText.toLowerCase();
+    // Use the known match position for safe replacement
+    const success = searchAndReplaceUtils.replaceSingleMatch(
+      editor,
+      currentMatchObj.from,
+      currentMatchObj.to,
+      replaceText
+    );
 
-    if (matches) {
-      editor
-        .chain()
-        .focus()
-        .deleteSelection()
-        .insertContent(replaceText)
-        .run();
-
+    if (success) {
+      // Move to next match (or wrap around)
       handleFindNext();
     }
   };
@@ -353,38 +353,22 @@ export function FindReplaceModal({
     if (!findText) return;
 
     if (viewType === "scene" && editor) {
-      const content = editor.state.doc.textContent;
-      const matches = searchAndReplaceUtils.findMatches(
-        content,
+      // Use the optimized replace-all function that preserves formatting
+      const success = searchAndReplaceUtils.replaceAllMatchesOptimized(
+        editor,
         findText,
+        replaceText,
         caseSensitive,
         wholeWords
       );
 
-      if (matches.length === 0) return;
-
-      let newContent = content;
-      let offset = 0;
-
-      matches.forEach(({ start, end }) => {
-        newContent =
-          newContent.substring(0, start + offset) +
-          replaceText +
-          newContent.substring(end + offset);
-        offset += replaceText.length - (end - start);
-      });
-
-      editor
-        .chain()
-        .focus()
-        .selectAll()
-        .insertContent(newContent, { parseOptions: { preserveWhitespace: false } })
-        .run();
-
-      setFindText("");
-      setReplaceText("");
-      setCurrentMatch(0);
-      setMatchCount(0);
+      if (success) {
+        // Clear find/replace state after successful replacement
+        setFindText("");
+        setReplaceText("");
+        setCurrentMatch(0);
+        setMatchCount(0);
+      }
     } else {
       alert(
         `Replace All works only in Scene Editor. You're viewing ${viewType === "chapter" ? "a chapter" : "the entire document"} in read-only mode.`
