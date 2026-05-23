@@ -2,11 +2,19 @@
   .page-content {
     --page-line-height: 1.5;
     --page-paragraph-spacing: 8pt;
+    --page-font-family: inherit;
+    --page-font-size: inherit;
     line-height: var(--page-line-height) !important;
-    font-size: inherit !important;
-    font-family: inherit !important;
+    font-size: var(--page-font-size) !important;
+    font-family: var(--page-font-family) !important;
     word-wrap: break-word;
     overflow-wrap: break-word;
+  }
+
+  .page-content :not(code):not(pre) {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
   }
 
   .ProseMirror {

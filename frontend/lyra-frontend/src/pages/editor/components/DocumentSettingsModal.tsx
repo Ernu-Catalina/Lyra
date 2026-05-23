@@ -110,7 +110,7 @@ const TAB_LABELS: Record<TabId, string> = {
   general: "General",
   "page-layout": "Page Layout",
   typography: "Typography",
-  "chapter-formatting": "Chapter Formatting",
+  "chapter-formatting": "Chapter Titles",
   advanced: "Advanced",
 };
 
@@ -237,7 +237,18 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
   };
 
   const renderGeneralTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-sm text-[var(--text-secondary)] max-w-3xl">General settings define the default paragraph alignment and first-line indent for new content.</p>
+        <button
+          type="button"
+          onClick={() => handleApplyTab("general")}
+          disabled={!isTabDirty("general")}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+        >
+          Apply General
+        </button>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Alignment</label>
@@ -284,22 +295,22 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           <p className="text-xs text-[var(--text-secondary)] mt-2">Applies to paragraphs with no manual indent.</p>
         </div>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">General settings define the default paragraph alignment and first-line indent for new content.</p>
-        <button
-          type="button"
-          onClick={() => handleApplyTab("general")}
-          disabled={!isTabDirty("general")}
-          className="inline-flex items-center justify-center rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
-        >
-          Apply General
-        </button>
-      </div>
     </div>
   );
 
   const renderPageLayoutTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-sm text-[var(--text-secondary)] max-w-3xl">Page setup affects paper size and printable margins for the document view.</p>
+        <button
+          type="button"
+          onClick={() => handleApplyTab("page-layout")}
+          disabled={!isTabDirty("page-layout")}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+        >
+          Apply Page Layout
+        </button>
+      </div>
       <div>
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Paper Format</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -396,23 +407,22 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           ))}
         </div>
       </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">Page setup affects paper size and printable margins for the document view.</p>
-        <button
-          type="button"
-          onClick={() => handleApplyTab("page-layout")}
-          disabled={!isTabDirty("page-layout")}
-          className="inline-flex items-center justify-center rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
-        >
-          Apply Page Layout
-        </button>
-      </div>
     </div>
   );
 
   const renderTypographyTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-sm text-[var(--text-secondary)] max-w-3xl">Typography controls the look of the text block used throughout the document.</p>
+        <button
+          type="button"
+          onClick={() => handleApplyTab("typography")}
+          disabled={!isTabDirty("typography")}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+        >
+          Apply Typography
+        </button>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="defaultFont" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Font</label>
@@ -473,23 +483,22 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           </div>
         </div>
       </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">Typography controls the look of the text block used throughout the document.</p>
-        <button
-          type="button"
-          onClick={() => handleApplyTab("typography")}
-          disabled={!isTabDirty("typography")}
-          className="inline-flex items-center justify-center rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
-        >
-          Apply Typography
-        </button>
-      </div>
     </div>
   );
 
   const renderChapterFormattingTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-sm text-[var(--text-secondary)] max-w-3xl">Chapter formatting settings are applied for chapter headings and section breaks.</p>
+        <button
+          type="button"
+          onClick={() => handleApplyTab("chapter-formatting")}
+          disabled={!isTabDirty("chapter-formatting")}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+        >
+          Apply Chapter Titles
+        </button>
+      </div>
       <div>
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Format</label>
         <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3">
@@ -606,23 +615,11 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           </div>
         </div>
       )}
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">Chapter formatting settings are applied for chapter headings and section breaks.</p>
-        <button
-          type="button"
-          onClick={() => handleApplyTab("chapter-formatting")}
-          disabled={!isTabDirty("chapter-formatting")}
-          className="inline-flex items-center justify-center rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
-        >
-          Apply Chapter Formatting
-        </button>
-      </div>
     </div>
   );
 
   const renderAdvancedTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="rounded border border-dashed border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-center">
         <p className="text-sm text-[var(--text-primary)] font-semibold">Advanced template settings</p>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -634,7 +631,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
         <button
           type="button"
           disabled
-          className="inline-flex items-center justify-center rounded bg-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] cursor-not-allowed"
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] cursor-not-allowed"
         >
           Apply Advanced
         </button>
@@ -680,7 +677,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
               <X size={20} />
             </button>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Document settings tabs">
+          <div className="mt-5 flex flex-wrap gap-2 overflow-x-auto" role="tablist" aria-label="Document settings tabs">
             {(Object.keys(TAB_LABELS) as TabId[]).map((tab) => {
               const selected: "true" | "false" = activeTab === tab ? "true" : "false";
               return (
@@ -690,10 +687,10 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
                   onClick={() => setActiveTab(tab)}
                   role="tab"
                   aria-selected={selected}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-lg border px-4 py-2 h-10 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] ${
                     activeTab === tab
                       ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      : "border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
                   }`}
                 >
                   {TAB_LABELS[tab]}
@@ -703,8 +700,8 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           </div>
         </div>
 
-        <div className="max-h-[calc(90vh-164px)] overflow-y-auto px-6 py-6">
-          <div className="space-y-6">{renderActiveTab()}</div>
+        <div className="max-h-[calc(90vh-164px)] overflow-y-auto px-6 py-5 pb-24">
+          <div className="space-y-5">{renderActiveTab()}</div>
 
           {error && (
             <div className="rounded-xl border border-red-400 bg-red-50 p-4 mt-4 text-sm text-red-700">
@@ -718,7 +715,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
             <button
               type="button"
               onClick={handleRestoreDefaults}
-              className="rounded border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
+              className="h-10 rounded-lg border border-[var(--border)] px-4 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
             >
               Restore to Defaults
             </button>
@@ -726,7 +723,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
               <button
                 type="button"
                 onClick={handleCancel}
-                className="rounded border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
+                className="h-10 rounded-lg border border-[var(--border)] px-4 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors"
               >
                 Cancel
               </button>
@@ -734,7 +731,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
                 type="button"
                 onClick={handleApplyAll}
                 disabled={JSON.stringify(tempSettings) === JSON.stringify(settings)}
-                className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+                className="h-10 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
               >
                 Apply All
               </button>

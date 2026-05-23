@@ -89,6 +89,8 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
               fontFamily: settings.defaultFont,
               fontSize: `${settings.defaultFontSize}pt`,
               lineHeight: `${settings.defaultLineHeight}`,
+              "--page-font-family": settings.defaultFont,
+              "--page-font-size": `${settings.defaultFontSize}pt`,
               "--page-line-height": `${settings.defaultLineHeight}`,
               "--page-paragraph-spacing": `${settings.defaultParagraphSpacing}pt`,
               textAlign: settings.defaultAlignment as any,
