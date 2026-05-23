@@ -5,6 +5,7 @@ class CreateDocumentRequest(BaseModel):
     title: str
     type: Optional[str] = "document"  # "document" or "folder"
     parent_id: Optional[str] = None
+    chapters: Optional[List[dict]] = None
 
 class CreateChapterRequest(BaseModel):
     title: str

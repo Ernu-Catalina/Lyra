@@ -40,6 +40,24 @@ def ensure_objectid(val):
     return val if isinstance(val, ObjectId) else ObjectId(val)
 
 
+def create_default_document_structure():
+    scene = {
+        "id": str(uuid.uuid4()),
+        "title": "New Scene",
+        "order": 0,
+        "wordcount": 0,
+        "content": ""
+    }
+    chapter = {
+        "id": str(uuid.uuid4()),
+        "title": "New Chapter",
+        "order": 0,
+        "wordcount": 0,
+        "scenes": [scene]
+    }
+    return [chapter]
+
+
 async def get_owned_document(
     user_id: str,
     project_id: str,
@@ -101,15 +119,19 @@ async def create_document(
     if conflict:
         raise HTTPException(status_code=409, detail="An item with that name already exists in this folder")
 
+    doc_type = data.type if getattr(data, "type", None) in ["document", "folder"] else "document"
+    default_chapters = create_default_document_structure()
+    chapters = getattr(data, "chapters", None) or default_chapters
+
     document = {
         "project_id": ObjectId(project_id),
         "title": title,
-        "type": data.type if hasattr(data, "type") and data.type in ["document", "folder"] else "document",
+        "type": doc_type,
         "parent_id": parent,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "total_wordcount": 0,
-        "chapters": [] if data.type != "folder" else None,
+        "chapters": None if doc_type == "folder" else chapters,
         "settings": {},  # FIX: Initialize empty settings object for new documents
     }
 

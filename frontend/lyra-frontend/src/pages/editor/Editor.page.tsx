@@ -61,6 +61,7 @@ export default function EditorPage() {
   // FindReplaceModal can detect when editor.state.doc has been updated and
   // apply the correct ProseMirror selection after a cross-scene navigation.
   const [sceneContentKey, setSceneContentKey] = useState(0);
+  const hasInitializedEmptyDocument = useRef(false);
   // Add these new states
   const [sidebarWidth, setSidebarWidth] = useState(300);        // Default width in px
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -434,17 +435,26 @@ useEffect(() => {
 
   // ── Auto-initialize empty document ───────────────────────────────
   useEffect(() => {
-    if (loading || error || !outline || outline.chapters.length > 0) return;
+    if (
+      loading ||
+      error ||
+      !outline ||
+      outline.chapters.length > 0 ||
+      hasInitializedEmptyDocument.current
+    ) {
+      return;
+    }
 
     const init = async () => {
+      hasInitializedEmptyDocument.current = true;
       try {
         const chapterRes = await api.post(
           `/projects/${projectId}/documents/${documentId}/chapters`,
-          { title: "Chapter 1" }
+          { title: "New Chapter" }
         );
         await api.post(
           `/projects/${projectId}/documents/${documentId}/chapters/${chapterRes.data.id}/scenes`,
-          { title: "Scene 1" }
+          { title: "New Scene" }
         );
         reloadOutline();
       } catch (err) {
