@@ -24,6 +24,8 @@ export interface DocumentSettings {
   pageBreakAfterChapter: boolean;
   defaultFirstLineIndent: number;
   defaultFirstLineIndentUnit: "cm" | "in" | "mm";
+  templateId?: string;
+  templateName?: string;
 }
 
 // Apply styles to the page container and all rendered page wrappers
@@ -73,7 +75,7 @@ export function resetAllTextFormatting(editor: Editor | null) {
     .run();
 }
 
-const DEFAULT_SETTINGS: DocumentSettings = {
+export const DEFAULT_SETTINGS: DocumentSettings = {
   marginTop: 2.5,
   marginBottom: 2.5,
   marginLeft: 2.5,
