@@ -83,7 +83,7 @@ export function compileChapter(
     ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
     : "";
 
-  const bodyHtml = composeChapter(chapter.scenes);
+  const bodyHtml = composeChapter(chapter.scenes, settings, isSpecial);
   const fullHtml = titleHtml + bodyHtml;
 
   const paginatorSettings: PaginatorSettings = {

@@ -17,7 +17,7 @@ export function formatChapterTitle(
   let displayText = "";
 
   if (isSpecial) {
-    displayText = titleText;                    // No number ever
+    displayText = titleText;
   } else {
     switch (settings.chapterTitleFormat) {
       case "chapter-number":
@@ -37,13 +37,43 @@ export function formatChapterTitle(
     }
   }
 
+  const blankLines = isSpecial
+    ? settings.blankLinesAfterSpecialChapter
+    : settings.blankLinesAfterChapter;
+
   const style: CSSProperties = {
     fontFamily: settings.defaultFont,
     fontSize: `${settings.chapterTitleSize}pt`,
+    lineHeight: 1.3,
     fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
     fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
     textAlign: settings.chapterTitleAlignment as any,
-    marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
+    marginBottom: `${blankLines}em`,
+    display: "block",
+  };
+
+  return { html: displayText, style };
+}
+
+export function formatSceneTitle(
+  sceneTitle: string,
+  settings: DocumentSettings
+): { html: string; style: CSSProperties } {
+  if (!settings.showSceneTitles) {
+    return { html: "", style: {} };
+  }
+
+  const displayText = sceneTitle.trim();
+  if (!displayText) return { html: "", style: {} };
+
+  const style: CSSProperties = {
+    fontFamily: settings.defaultFont,
+    fontSize: `${settings.sceneTitleSize}pt`,
+    lineHeight: 1.3,
+    fontWeight: settings.sceneTitleStyle.includes("bold") ? "bold" : "normal",
+    fontStyle: settings.sceneTitleStyle.includes("italic") ? "italic" : "normal",
+    textAlign: settings.sceneTitleAlignment as any,
+    marginBottom: `${settings.blankLinesAfterSceneTitle}em`,
     display: "block",
   };
 

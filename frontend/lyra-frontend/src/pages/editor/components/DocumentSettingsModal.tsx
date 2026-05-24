@@ -31,6 +31,7 @@ const CHAPTER_TITLE_FORMATS = {
   "title-only": { label: "Title only", preview: "My Chapter Title" },
 };
 
+
 const FONT_FAMILIES = [
   { value: "Arial, sans-serif", label: "Arial" },
   { value: "'Times New Roman', serif", label: "Times New Roman" },
@@ -102,9 +103,16 @@ const TAB_FIELDS: Record<TabId, Array<keyof DocumentSettings>> = {
     "chapterTitleStyle",
     "blankLinesAfterChapter",
     "pageBreakAfterChapter",
+    "showSceneTitles",
+    "sceneTitleSize",
+    "sceneTitleAlignment",
+    "sceneTitleStyle",
+    "blankLinesAfterSceneTitle",
+    "pageBreakAfterSceneTitle",
     "includePrologue",
     "includeEpilogue",
     "includeAcknowledgements",
+    "blankLinesAfterSpecialChapter",
   ],
   advanced: [],
 };
@@ -502,8 +510,10 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           Apply Formatting
         </button>
       </div>
+
+      {/* ── Chapter Title Format ───────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Format</label>
+        <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Chapter Title Format</label>
         <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3">
           {(Object.entries(CHAPTER_TITLE_FORMATS) as Array<[keyof typeof CHAPTER_TITLE_FORMATS, typeof CHAPTER_TITLE_FORMATS.none]>).map(([key, format]) => (
             <label key={key} className="flex items-start gap-3 cursor-pointer rounded p-2 hover:bg-[var(--bg-primary)]">
@@ -523,88 +533,83 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
       </div>
 
       {tempSettings.chapterTitleFormat !== "none" && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Size (pt)</label>
-            <input
-              type="number"
-              value={tempSettings.chapterTitleSize}
-              {...createNumericInputHandler("chapterTitleSize", 8, 72, false, setTempSettings)}
-              className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
-              min="8"
-              max="72"
-            />
-          </div>
-          <div>
-            <label htmlFor="chapterTitleAlignment" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Alignment</label>
-            <select
-              id="chapterTitleAlignment"
-              value={tempSettings.chapterTitleAlignment}
-              onChange={(e) => setTempSettings({ ...tempSettings, chapterTitleAlignment: e.target.value as any })}
-              className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Style</label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[
-                { value: "normal", label: "Normal" },
-                { value: "bold", label: "Bold" },
-                { value: "italic", label: "Italic" },
-                { value: "bold-italic", label: "Bold Italic" },
-              ].map((style) => (
-                <label key={style.value} className="flex items-center gap-2 cursor-pointer rounded border border-transparent p-2 hover:border-[var(--border)]">
-                  <input
-                    type="radio"
-                    checked={tempSettings.chapterTitleStyle === style.value}
-                    onChange={() => setTempSettings({ ...tempSettings, chapterTitleStyle: style.value as any })}
-                    className="w-4 h-4 text-[var(--accent)]"
-                  />
-                  <span className="text-sm text-[var(--text-primary)]">{style.label}</span>
-                </label>
-              ))}
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Size (pt)</label>
+              <input
+                type="number"
+                value={tempSettings.chapterTitleSize}
+                {...createNumericInputHandler("chapterTitleSize", 8, 72, false, setTempSettings)}
+                className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                min="8"
+                max="72"
+              />
+            </div>
+            <div>
+              <label htmlFor="chapterTitleAlignment" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Alignment</label>
+              <select
+                id="chapterTitleAlignment"
+                value={tempSettings.chapterTitleAlignment}
+                onChange={(e) => setTempSettings({ ...tempSettings, chapterTitleAlignment: e.target.value as any })}
+                className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+              >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Style</label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {(["normal", "bold", "italic", "bold-italic"] as const).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer rounded border border-transparent p-2 hover:border-[var(--border)]">
+                    <input
+                      type="radio"
+                      checked={tempSettings.chapterTitleStyle === s}
+                      onChange={() => setTempSettings({ ...tempSettings, chapterTitleStyle: s as any })}
+                      className="w-4 h-4 text-[var(--accent)]"
+                    />
+                    <span className="text-sm text-[var(--text-primary)] capitalize">{s.replace("-", " ")}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {tempSettings.chapterTitleFormat !== "none" && (
-        <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-          <div className="flex items-center gap-2">
-            <Eye size={16} className="text-[var(--text-secondary)]" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
+          <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Eye size={16} className="text-[var(--text-secondary)]" />
+              <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
+            </div>
+            <div
+              className="rounded bg-white p-2"
+              style={{
+                fontFamily: tempSettings.defaultFont,
+                fontSize: `${tempSettings.chapterTitleSize}px`,
+                fontWeight: tempSettings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
+                fontStyle: tempSettings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
+                textAlign: tempSettings.chapterTitleAlignment as React.CSSProperties["textAlign"],
+                color: "black",
+              }}
+            >
+              {getChapterTitlePreview(tempSettings.chapterTitleFormat)}
+            </div>
           </div>
-          {/* eslint-disable-next-line */}
-          <div
-            className="rounded bg-white p-2 text-[var(--text-primary)]"
-            style={{
-              fontFamily: tempSettings.defaultFont,
-              fontSize: `${tempSettings.chapterTitleSize}px`,
-              fontWeight: tempSettings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
-              fontStyle: tempSettings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
-              textAlign: tempSettings.chapterTitleAlignment as React.CSSProperties["textAlign"],
-            }}
-          >
-            {getChapterTitlePreview(tempSettings.chapterTitleFormat)}
-          </div>
-        </div>
+        </>
       )}
 
-      <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Blank Lines After Chapter Title</label>
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <div className="flex: 1 items-center rounded">
+      <div className="flex items-center gap-6 flex-wrap">
+        <div>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Blank lines after chapter title</label>
           <input
             type="number"
             value={tempSettings.blankLinesAfterChapter}
             {...createNumericInputHandler("blankLinesAfterChapter", 0, 10, false, setTempSettings)}
-            className="w-15 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+            className="w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
             min="0"
           />
         </div>
-        <div className="flex items-center gap-3 rounded px-2 py-2">
+        <div className="flex items-center gap-3 pt-6">
           <input
             type="checkbox"
             id="pageBreakAfterChapter"
@@ -618,27 +623,153 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
         </div>
       </div>
 
-      <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Extra Chapters</label>
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { id: "includePrologue", label: "Include Prologue" },
-          { id: "includeEpilogue", label: "Include Epilogue" },
-          { id: "includeAcknowledgements", label: "Include Acknowledgements" },
-        ].map(({ id, label }) => {
-          const field = id as keyof DocumentSettings;
-          return (
-            <label key={id} className="flex items-center gap-3 rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
+      {/* ── Scene Titles ─────────────────────────────────────────────── */}
+      <div className="border-t border-[var(--border)] pt-5">
+        <div>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Scene Title Format</label>
+          <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3">
+            <label className="flex items-start gap-3 cursor-pointer rounded p-2 hover:bg-[var(--bg-primary)]">
               <input
-                type="checkbox"
-                id={id}
-                checked={tempSettings[field] as boolean}
-                onChange={(e) => setTempSettings((prev) => ({ ...prev, [field]: e.target.checked } as DocumentSettings))}
-                className="w-4 h-4 text-[var(--accent)] rounded"
+                type="radio"
+                checked={!tempSettings.showSceneTitles}
+                onChange={() => setTempSettings((prev) => ({ ...prev, showSceneTitles: false }))}
+                className="w-4 h-4 mt-1 text-[var(--accent)]"
               />
-              <span className="text-sm text-[var(--text-primary)]">{label}</span>
+              <div>
+                <div className="text-sm text-[var(--text-primary)]">Don&apos;t show scene titles</div>
+                <div className="text-xs text-[var(--text-secondary)] mt-1 font-mono">No scene titles, but a divider between them.</div>
+              </div>
             </label>
-          );
-        })}
+            <label className="flex items-start gap-3 cursor-pointer rounded p-2 hover:bg-[var(--bg-primary)]">
+              <input
+                type="radio"
+                checked={tempSettings.showSceneTitles}
+                onChange={() => setTempSettings((prev) => ({ ...prev, showSceneTitles: true }))}
+                className="w-4 h-4 mt-1 text-[var(--accent)]"
+              />
+              <div>
+                <div className="text-sm text-[var(--text-primary)]">Show scene titles</div>
+                <div className="text-xs text-[var(--text-secondary)] mt-1 font-mono">Scene title appears at the start of each scene.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {tempSettings.showSceneTitles && (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Size (pt)</label>
+                <input
+                  type="number"
+                  value={tempSettings.sceneTitleSize}
+                  {...createNumericInputHandler("sceneTitleSize", 6, 72, false, setTempSettings)}
+                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                  min="6"
+                  max="72"
+                />
+              </div>
+              <div>
+                <label htmlFor="sceneTitleAlignment" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Alignment</label>
+                <select
+                  id="sceneTitleAlignment"
+                  value={tempSettings.sceneTitleAlignment}
+                  onChange={(e) => setTempSettings({ ...tempSettings, sceneTitleAlignment: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Style</label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(["normal", "bold", "italic", "bold-italic"] as const).map((s) => (
+                    <label key={s} className="flex items-center gap-2 cursor-pointer rounded border border-transparent p-2 hover:border-[var(--border)]">
+                      <input
+                        type="radio"
+                        checked={tempSettings.sceneTitleStyle === s}
+                        onChange={() => setTempSettings({ ...tempSettings, sceneTitleStyle: s })}
+                        className="w-4 h-4 text-[var(--accent)]"
+                      />
+                      <span className="text-sm text-[var(--text-primary)] capitalize">{s.replace("-", " ")}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye size={16} className="text-[var(--text-secondary)]" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
+              </div>
+              <div
+                className="rounded bg-white p-2"
+                style={{
+                  fontFamily: tempSettings.defaultFont,
+                  fontSize: `${tempSettings.sceneTitleSize}px`,
+                  fontWeight: tempSettings.sceneTitleStyle.includes("bold") ? "bold" : "normal",
+                  fontStyle: tempSettings.sceneTitleStyle.includes("italic") ? "italic" : "normal",
+                  textAlign: tempSettings.sceneTitleAlignment as React.CSSProperties["textAlign"],
+                  color: "black",
+                }}
+              >
+                My Scene Title
+              </div>
+            </div>
+            <div className="flex items-center gap-6 flex-wrap mt-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Blank lines after scene title</label>
+                <input
+                  type="number"
+                  value={tempSettings.blankLinesAfterSceneTitle}
+                  {...createNumericInputHandler("blankLinesAfterSceneTitle", 0, 10, false, setTempSettings)}
+                  className="w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                  min="0"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-6">
+                <input
+                  type="checkbox"
+                  id="pageBreakAfterSceneTitle"
+                  checked={tempSettings.pageBreakAfterSceneTitle}
+                  onChange={(e) => setTempSettings({ ...tempSettings, pageBreakAfterSceneTitle: e.target.checked })}
+                  className="w-4 h-4 text-[var(--accent)] rounded"
+                />
+                <label htmlFor="pageBreakAfterSceneTitle" className="text-sm text-[var(--text-primary)]">
+                  Page break before each scene
+                </label>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Extra Chapters ────────────────────────────────────────────── */}
+      <div className="border-t border-[var(--border)] pt-5">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Extra Chapters</h3>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          {[
+            { id: "includePrologue", label: "Include Prologue" },
+            { id: "includeEpilogue", label: "Include Epilogue" },
+            { id: "includeAcknowledgements", label: "Include Acknowledgements" },
+          ].map(({ id, label }) => {
+            const field = id as keyof DocumentSettings;
+            return (
+              <label key={id} className="flex items-center gap-3 rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
+                <input
+                  type="checkbox"
+                  id={id}
+                  checked={tempSettings[field] as boolean}
+                  onChange={(e) => setTempSettings((prev) => ({ ...prev, [field]: e.target.checked } as DocumentSettings))}
+                  className="w-4 h-4 text-[var(--accent)] rounded"
+                />
+                <span className="text-sm text-[var(--text-primary)]">{label}</span>
+              </label>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

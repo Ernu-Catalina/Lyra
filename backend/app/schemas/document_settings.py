@@ -30,10 +30,17 @@ class DocumentSettings(BaseModel):
     chapterTitleAlignment: ChapterTitleAlignment
     chapterTitleStyle: ChapterTitleStyle
     blankLinesAfterChapter: conint(ge=0, le=10) = Field(..., description="Blank lines after chapter must be zero or positive")
+    blankLinesAfterSpecialChapter: conint(ge=0, le=10) = Field(1, description="Blank lines after special chapter title (Prologue, Epilogue, etc.)")
     pageBreakAfterChapter: bool
     includePrologue: bool = Field(False, description="Include prologue section in document rendering")
     includeEpilogue: bool = Field(False, description="Include epilogue section in document rendering")
     includeAcknowledgements: bool = Field(False, description="Include acknowledgements section in document rendering")
+    showSceneTitles: bool = Field(False, description="Show scene titles in compiled output")
+    sceneTitleSize: conint(ge=6, le=200) = Field(13, description="Scene title font size in pt")
+    sceneTitleAlignment: ChapterTitleAlignment = Field("left", description="Scene title alignment")
+    sceneTitleStyle: ChapterTitleStyle = Field("bold", description="Scene title font style")
+    blankLinesAfterSceneTitle: conint(ge=0, le=10) = Field(0, description="Blank lines after scene title")
+    pageBreakAfterSceneTitle: bool = Field(False, description="Insert page break before each scene when titles are shown")
 
     @model_validator(mode='after')
     def validate_custom_dimensions(self):

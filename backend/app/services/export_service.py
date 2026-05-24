@@ -128,7 +128,21 @@ def _sanitize_html_to_xhtml(raw_html: str) -> str:
     return result if result.strip() else "<p>&#160;</p>"
 
 
-# ── Chapter title helpers ──────────────────────────────────────────────────────
+# ── Chapter / scene title helpers ─────────────────────────────────────────────
+
+_SPECIAL_SECTION_TITLES = {"prologue", "epilogue", "acknowledgements"}
+
+
+def _is_special_chapter(chapter: dict) -> bool:
+    return chapter.get("title", "").strip().lower() in _SPECIAL_SECTION_TITLES
+
+
+def _format_scene_title(scene_title: str, settings: dict) -> str:
+    """Return the scene title text, or empty string if scene titles are disabled."""
+    if not settings.get("showSceneTitles", False):
+        return ""
+    return scene_title.strip()
+
 
 def _format_chapter_title(order: int, title: str, settings: dict) -> str:
     fmt = settings.get("chapterTitleFormat", "none")
@@ -326,8 +340,9 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
 
     # ── Chapters ────────────────────────────────────────────────────
     for ch_idx, chapter in enumerate(chapters):
+        ch_num = chapter.get("_chapter_number", ch_idx + 1)
         ch_title_text = _format_chapter_title(
-            chapter.get("order", ch_idx) + 1,
+            ch_num,
             chapter.get("title", ""),
             settings
         )
@@ -345,32 +360,58 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
             ct_run.font.italic = "italic" in title_style
             ct_run.font.name  = default_font_name
 
-            blank_lines = int(settings.get("blankLinesAfterChapter", 2))
+            is_special = _is_special_chapter(chapter)
+            blank_lines = int(settings.get(
+                "blankLinesAfterSpecialChapter" if is_special else "blankLinesAfterChapter", 2
+            ))
             for _ in range(blank_lines):
                 doc.add_paragraph()
 
         # ── Scenes ────────────────────────────────────────────────
-        for scene in chapter.get("scenes", []):
+        show_scene_titles      = settings.get("showSceneTitles", False) and not _is_special_chapter(chapter)
+        scene_title_pt         = float(settings.get("sceneTitleSize", 13))
+        scene_title_style      = settings.get("sceneTitleStyle", "bold")
+        scene_title_align      = ALIGN_MAP.get(settings.get("sceneTitleAlignment", "left"), WD_ALIGN_PARAGRAPH.LEFT)
+        blank_after_scene_title = int(settings.get("blankLinesAfterSceneTitle", 0))
+        page_break_scene       = settings.get("pageBreakAfterSceneTitle", False)
+
+        non_empty_scenes = [s for s in chapter.get("scenes", []) if s.get("content", "").strip()]
+        for sc_idx, scene in enumerate(non_empty_scenes):
             content = scene.get("content", "")
-            if not content:
-                continue
+
+            if show_scene_titles:
+                if sc_idx > 0 and page_break_scene:
+                    doc.add_page_break()
+                sc_title_text = _format_scene_title(scene.get("title", ""), settings)
+                if sc_title_text:
+                    st_para = doc.add_paragraph()
+                    st_para.alignment = scene_title_align
+                    st_run = st_para.add_run(sc_title_text)
+                    st_run.font.size   = Pt(scene_title_pt)
+                    st_run.font.bold   = "bold" in scene_title_style
+                    st_run.font.italic = "italic" in scene_title_style
+                    st_run.font.name   = default_font_name
+                    for _ in range(blank_after_scene_title):
+                        doc.add_paragraph()
+            elif sc_idx > 0:
+                sep_para = doc.add_paragraph("* * *")
+                sep_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
             # Strip spacer divs before parsing
             content = re.sub(r'<div[^>]*data-type="page-break-spacer"[^>]*>.*?</div>', "", content, flags=re.DOTALL)
 
             soup = BeautifulSoup(content, "html.parser")
             block_tags = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "div"}
-            
+
             blocks = [el for el in soup.children if isinstance(el, Tag) and el.name in block_tags]
             if not blocks:
-                # Wrap bare text in a paragraph
                 if soup.get_text().strip():
                     para = doc.add_paragraph()
                     para.alignment = default_align
                     para.add_run(soup.get_text())
             else:
                 for i, block in enumerate(blocks):
-                    _add_block(block, first_block=(i == 0 and ch_idx == 0))
+                    _add_block(block, first_block=(i == 0 and sc_idx == 0 and ch_idx == 0))
 
         # Page break between chapters
         if settings.get("pageBreakAfterChapter", True) and ch_idx < len(chapters) - 1:
@@ -659,23 +700,68 @@ def build_pdf(document_title: str, chapters: list, settings: dict) -> bytes:
         spaceAfter=ch_title_pt * 0.5,
     )
 
+    show_scene_titles     = settings.get("showSceneTitles", False)
+    scene_title_pt        = float(settings.get("sceneTitleSize", 13))
+    sc_title_style_val    = settings.get("sceneTitleStyle", "bold")
+    sc_title_align_val    = settings.get("sceneTitleAlignment", "left")
+    sc_title_rl_align     = ALIGN_MAP.get(sc_title_align_val, TA_LEFT)
+    sc_title_fn           = rl_font_bold if "bold" in sc_title_style_val else rl_font
+    if "italic" in sc_title_style_val:
+        sc_title_fn = rl_font_bi if "bold" in sc_title_style_val else rl_font_it
+    sc_title_rl_style = _make_style(
+        "sc_title",
+        fontName=sc_title_fn,
+        fontSize=scene_title_pt,
+        leading=scene_title_pt * 1.4,
+        alignment=sc_title_rl_align,
+        firstLineIndent=0,
+        spaceBefore=scene_title_pt * 0.5,
+        spaceAfter=scene_title_pt * 0.25,
+    )
+    scene_sep_style = _make_style(
+        "scene_sep",
+        fontName=rl_font,
+        fontSize=default_font_pt,
+        leading=default_font_pt * default_lh,
+        alignment=TA_CENTER,
+        firstLineIndent=0,
+        spaceBefore=default_font_pt * default_lh,
+        spaceAfter=default_font_pt * default_lh,
+    )
+
     for ch_idx, chapter in enumerate(chapters):
+        ch_num = chapter.get("_chapter_number", ch_idx + 1)
         ch_title_text = _format_chapter_title(
-            chapter.get("order", ch_idx) + 1,
+            ch_num,
             chapter.get("title", ""),
             settings
         )
 
         if ch_title_text:
             story.append(Paragraph(html_lib.escape(ch_title_text), ch_title_style))
-            blank_lines = int(settings.get("blankLinesAfterChapter", 2))
+            is_special_ch = _is_special_chapter(chapter)
+            blank_lines = int(settings.get(
+                "blankLinesAfterSpecialChapter" if is_special_ch else "blankLinesAfterChapter", 2
+            ))
             for _ in range(blank_lines):
                 story.append(Spacer(1, default_font_pt * default_lh))
 
-        for scene in chapter.get("scenes", []):
+        chapter_show_sc_titles  = show_scene_titles and not _is_special_chapter(chapter)
+        blank_after_sc_title_pdf = int(settings.get("blankLinesAfterSceneTitle", 0))
+        page_break_scene_pdf     = settings.get("pageBreakAfterSceneTitle", False)
+        non_empty_scenes = [s for s in chapter.get("scenes", []) if s.get("content", "").strip()]
+        for sc_idx, scene in enumerate(non_empty_scenes):
             content = scene.get("content", "")
-            if not content:
-                continue
+            if chapter_show_sc_titles:
+                if sc_idx > 0 and page_break_scene_pdf:
+                    story.append(PageBreak())
+                sc_title_text = _format_scene_title(scene.get("title", ""), settings)
+                if sc_title_text:
+                    story.append(Paragraph(html_lib.escape(sc_title_text), sc_title_rl_style))
+                    for _ in range(blank_after_sc_title_pdf):
+                        story.append(Spacer(1, default_font_pt * default_lh))
+            elif sc_idx > 0:
+                story.append(Paragraph("* * *", scene_sep_style))
             flowables = _html_to_rl(content, base_style)
             story.extend(flowables)
 
@@ -730,6 +816,14 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
     chapter_blank_lines = int(settings.get("blankLinesAfterChapter", 2))
     blank_margin = max(1, chapter_blank_lines) * 0.8
 
+    scene_title_size_epub   = float(settings.get("sceneTitleSize", 13))
+    scene_title_align_epub  = settings.get("sceneTitleAlignment", "left")
+    scene_title_style_epub  = settings.get("sceneTitleStyle", "bold")
+    sc_title_weight         = "bold" if "bold" in str(scene_title_style_epub) else "normal"
+    sc_title_italic         = "italic" if "italic" in str(scene_title_style_epub) else "normal"
+    sc_blank_after          = int(settings.get("blankLinesAfterSceneTitle", 0))
+    sc_blank_margin         = max(0.25, sc_blank_after) * 0.8 if sc_blank_after > 0 else 0.25
+
     css = f"""
     body {{
       font-family: '{default_font}', serif;
@@ -748,6 +842,26 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
       font-style: {chapter_title_italic};
       text-align: {chapter_title_alignment};
       margin: 0 0 {blank_margin}em 0;
+    }}
+    .scene-title {{
+      font-size: {scene_title_size_epub}pt;
+      font-weight: {sc_title_weight};
+      font-style: {sc_title_italic};
+      text-align: {scene_title_align_epub};
+      margin: 0.75em 0 {sc_blank_margin}em 0;
+      text-indent: 0;
+    }}
+    .scene-page-break {{
+      page-break-before: always;
+      break-before: page;
+      height: 0;
+      margin: 0;
+      padding: 0;
+    }}
+    .scene-sep {{
+      text-align: center;
+      margin: 1em 0;
+      text-indent: 0;
     }}
     .scene {{
       margin-bottom: 1.25em;
@@ -792,7 +906,8 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
 
     for ch_idx, chapter in enumerate(chapters):
         chapter_title = chapter.get("title", "") or f"Chapter {ch_idx + 1}"
-        formatted_title = _format_chapter_title(ch_idx + 1, chapter_title, settings)
+        ch_num = chapter.get("_chapter_number", ch_idx + 1)
+        formatted_title = _format_chapter_title(ch_num, chapter_title, settings)
         chapter_label = formatted_title or chapter_title
 
         chapter_body = []
@@ -801,7 +916,10 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
                 f"<h1 class='chapter-title'>{_html.escape(formatted_title)}</h1>"
             )
 
+        show_sc_titles          = settings.get("showSceneTitles", False) and not _is_special_chapter(chapter)
+        page_break_scene_epub   = settings.get("pageBreakAfterSceneTitle", False)
         has_scene_content = False
+        sc_idx = 0
         for scene in chapter.get("scenes", []):
             raw_content = scene.get("content", "") or ""
             clean = _sanitize_html_to_xhtml(raw_content)
@@ -815,8 +933,20 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
                 )
                 continue
 
+            if show_sc_titles:
+                if sc_idx > 0 and page_break_scene_epub:
+                    chapter_body.append("<div class='scene-page-break'></div>")
+                sc_title_text = _format_scene_title(scene.get("title", ""), settings)
+                if sc_title_text:
+                    chapter_body.append(
+                        f"<p class='scene-title'>{_html.escape(sc_title_text)}</p>"
+                    )
+            elif sc_idx > 0:
+                chapter_body.append("<p class='scene-sep'>* * *</p>")
+
             chapter_body.append(f"<div class='scene'>{clean}</div>")
             has_scene_content = True
+            sc_idx += 1
 
         if not has_scene_content and not formatted_title:
             log.warning(
