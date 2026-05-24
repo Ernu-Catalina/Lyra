@@ -113,7 +113,7 @@ const TAB_LABELS: Record<TabId, string> = {
   general: "General",
   "page-layout": "Page Layout",
   typography: "Typography",
-  "chapter-formatting": "Chapter Titles",
+  "chapter-formatting": "Chapter Formatting",
   advanced: "Advanced",
 };
 
@@ -499,7 +499,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           disabled={!isTabDirty("chapter-formatting")}
           className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
         >
-          Apply Chapter Titles
+          Apply Chapter Formatting
         </button>
       </div>
       <div>
@@ -597,7 +597,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {[
           { id: "includePrologue", label: "Include Prologue" },
           { id: "includeEpilogue", label: "Include Epilogue" },
