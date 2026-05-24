@@ -37,41 +37,21 @@ export function getReorderedOutline(outline: DocumentOutline, settings: Document
     }
   });
 
+  // Build the canonical display order: Prologue → normal chapters → Epilogue → Acknowledgements.
+  // Only include a special section if it is both enabled AND already exists in the backend.
+  // Never insert placeholder objects — if the backend chapter doesn't exist yet the sync
+  // effect will create it and reloadOutline will re-trigger this function.
   const reordered: Chapter[] = [];
 
-  if (settings.includePrologue) {
-    reordered.push(
-      existingSections.get("prologue") ?? {
-        id: "__prologue__",
-        title: "Prologue",
-        order: 0,
-        wordcount: 0,
-        scenes: [],
-      }
-    );
+  if (settings.includePrologue && existingSections.has("prologue")) {
+    reordered.push(existingSections.get("prologue")!);
   }
   reordered.push(...normalChapters);
-  if (settings.includeEpilogue) {
-    reordered.push(
-      existingSections.get("epilogue") ?? {
-        id: "__epilogue__",
-        title: "Epilogue",
-        order: normalChapters.length,
-        wordcount: 0,
-        scenes: [],
-      }
-    );
+  if (settings.includeEpilogue && existingSections.has("epilogue")) {
+    reordered.push(existingSections.get("epilogue")!);
   }
-  if (settings.includeAcknowledgements) {
-    reordered.push(
-      existingSections.get("acknowledgements") ?? {
-        id: "__acknowledgements__",
-        title: "Acknowledgements",
-        order: normalChapters.length + (settings.includeEpilogue ? 1 : 0),
-        wordcount: 0,
-        scenes: [],
-      }
-    );
+  if (settings.includeAcknowledgements && existingSections.has("acknowledgements")) {
+    reordered.push(existingSections.get("acknowledgements")!);
   }
 
   return {
@@ -80,27 +60,11 @@ export function getReorderedOutline(outline: DocumentOutline, settings: Document
   };
 }
 
+// getVisibleOutline returns chapters in canonical display order with disabled
+// special sections omitted. getReorderedOutline already enforces both conditions
+// (enabled + exists in backend), so this is a direct alias.
 export function getVisibleOutline(outline: DocumentOutline, settings: DocumentSettings): DocumentOutline {
-  const reordered = getReorderedOutline(outline, settings);
-  // Filter out any special chapter whose setting is disabled.
-  // getReorderedOutline only includes enabled ones, but the raw outline still
-  // has the persisted chapters — filtering here ensures disabled chapters are
-  // invisible in the sidebar/editor without deleting them from the backend.
-  const enabledKeys = new Set(getEnabledSpecialSectionKeys(settings));
-  const filteredChapters = reordered.chapters.filter((chapter) => {
-    const specialKey = normalizeSpecialSectionTitle(chapter.title);
-    if (!specialKey) return true; // normal chapter, always show
-    return enabledKeys.has(specialKey);
-  });
-  return { ...reordered, chapters: filteredChapters };
-}
-
-export function getDisabledSpecialSections(outline: DocumentOutline, settings: DocumentSettings): Chapter[] {
-  return outline.chapters.filter((chapter) => {
-    const specialKey = normalizeSpecialSectionTitle(chapter.title);
-    if (!specialKey) return false;
-    return !(settings[SPECIAL_SECTIONS.find((s) => s.key === specialKey)!.settingKey] as boolean);
-  });
+  return getReorderedOutline(outline, settings);
 }
 
 export function getEnabledSpecialSectionKeys(settings: DocumentSettings): SpecialSectionKey[] {

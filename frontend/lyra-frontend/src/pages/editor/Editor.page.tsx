@@ -4,7 +4,7 @@ import { useAuth } from "../../auth/useAuth";
 import api from "../../api/client";
 import NavigationBar from "../../common_components/NavigationBar";
 import { DocumentSettingsProvider, useDocumentSettings } from "./context/DocumentSettingsContext";
-import { getVisibleOutline, getMissingEnabledSpecialSections, getExistingSpecialChaptersWithoutScenes, getDisabledSpecialSections, getSpecialSectionSettingKey } from "./utils/specialSections";
+import { getVisibleOutline, getMissingEnabledSpecialSections, getExistingSpecialChaptersWithoutScenes, getSpecialSectionSettingKey } from "./utils/specialSections";
 import { EditorLayout } from "./components/EditorLayout";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { EditorToolbar } from "./components/EditorToolbar";
@@ -50,39 +50,34 @@ function EditorPageContent({ projectId, documentId }: { projectId?: string; docu
 
   const visibleOutline = useMemo(() => {
     if (!outline) return outline;
-    if (settingsLoading) return outline;
     return getVisibleOutline(outline, settings);
-  }, [outline, settings, settingsLoading]);
+  }, [outline, settings]);
 
   useEffect(() => {
     if (!outline || !projectId || !documentId || settingsLoading) return;
     if (isSyncingRef.current) return;
 
-    // Chapters that are enabled but not yet created in the backend
+    // Enabled special sections that do not yet exist in the backend.
     const missingSectionMeta = getMissingEnabledSpecialSections(outline, settings);
-    // Special chapters that exist but were created without a scene (e.g. a
-    // prior run was interrupted after POST chapter but before POST scene).
-    // Exclude any that are also in missingSectionMeta to avoid touching
-    // chapters we are about to create fresh.
+
+    // Special chapters that exist but have no scene — e.g. a prior run was
+    // interrupted after POST chapter but before POST scene. Exclude titles
+    // already being created fresh this run to avoid double-adding.
     const missingTitles = new Set(missingSectionMeta.map((s) => s.title.toLowerCase()));
     const emptySpecialChapters = getExistingSpecialChaptersWithoutScenes(outline).filter(
       (ch) => !missingTitles.has(ch.title.trim().toLowerCase())
     );
-    // Chapters that exist in the backend but whose setting is now disabled
-    const disabledSpecialChapters = getDisabledSpecialSections(outline, settings);
 
-    if (
-      missingSectionMeta.length === 0 &&
-      emptySpecialChapters.length === 0 &&
-      disabledSpecialChapters.length === 0
-    ) return;
+    // Nothing to do — disabled sections are kept in the backend and only
+    // hidden by getVisibleOutline; no deletions happen here.
+    if (missingSectionMeta.length === 0 && emptySpecialChapters.length === 0) return;
 
     let cancelled = false;
     const syncSpecialSections = async () => {
       if (isSyncingRef.current) return;
       isSyncingRef.current = true;
       try {
-        // 1. Create missing enabled sections (chapter + scene in one go)
+        // 1. Create missing enabled sections (chapter + scene atomically)
         for (const section of missingSectionMeta) {
           const chapterRes = await api.post(
             `/projects/${projectId}/documents/${documentId}/chapters`,
@@ -102,16 +97,7 @@ function EditorPageContent({ projectId, documentId }: { projectId?: string; docu
           );
         }
 
-        // 3. Delete special chapters whose setting is disabled
-        for (const chapter of disabledSpecialChapters) {
-          await api.delete(
-            `/projects/${projectId}/documents/${documentId}/chapters/${chapter.id}`
-          );
-        }
-
-        if (!cancelled) {
-          reloadOutline();
-        }
+        if (!cancelled) reloadOutline();
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : String(err);
@@ -286,7 +272,7 @@ useEffect(() => {
   }, [loading, outline, visibleOutline, userDefaultView, activeChapterId, activeSceneId, selectChapter, selectScene, setEditorMode]);
 
   useEffect(() => {
-    if (!outline || !visibleOutline || settingsLoading || !activeChapterId) return;
+    if (!outline || !visibleOutline || !activeChapterId) return;
 
     const activeChapter = outline.chapters.find((c) => c.id === activeChapterId);
     if (!activeChapter) return;
@@ -713,7 +699,7 @@ useEffect(() => {
           sidebar={
             <Sidebar
               title={outline.title}
-              chapters={outline.chapters}
+              chapters={visibleOutline?.chapters ?? outline.chapters}
               activeSceneId={activeSceneId}
               activeChapterId={activeChapterId}
               openChapterIds={openChapterIds}
