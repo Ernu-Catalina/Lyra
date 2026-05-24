@@ -62,62 +62,133 @@ export function compileDocument(
     compiledOutline.chapters.map((ch, i) => `${ch.title} → #${chapterNumbers[i]}`)
   );
 
+  let bodyPages: string[];
+
   if (settings.pageBreakAfterChapter) {
-    // Each chapter starts on its own page. Pass the pre-computed number so
-    // compileChapter never has to guess from the raw order field.
-    return compiledOutline.chapters.flatMap((chapter, i) =>
+    bodyPages = compiledOutline.chapters.flatMap((chapter, i) =>
       compileChapter(chapter, settings, chapterNumbers[i])
     );
+  } else {
+    // Continuous flow — compile the entire document as one HTML string.
+    const paperSize =
+      settings.paperFormat === "Custom"
+        ? { width: settings.customWidth, height: settings.customHeight }
+        : PAPER_SIZES[settings.paperFormat];
+
+    const pageWidthPx    = mmToPx(paperSize.width);
+    const pageHeightPx   = mmToPx(paperSize.height);
+    const marginTopPx    = mmToPx(convertToMm(settings.marginTop,    settings.marginUnit));
+    const marginBottomPx = mmToPx(convertToMm(settings.marginBottom, settings.marginUnit));
+    const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
+    const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
+
+    const fullHtml = compiledOutline.chapters
+      .map((chapter, i) => {
+        const { html: titleText, style: titleStyle } = formatChapterTitle(
+          chapterNumbers[i],
+          chapter.title,
+          settings
+        );
+        const titleHtml = titleText
+          ? `<div data-title="chapter" style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
+          : "";
+        return titleHtml + composeChapter(chapter.scenes, settings, isSpecialSectionTitle(chapter.title));
+      })
+      .join("");
+
+    const paginatorSettings: PaginatorSettings = {
+      pageWidthPx,
+      pageHeightPx,
+      marginTopPx,
+      marginBottomPx,
+      marginLeftPx,
+      marginRightPx,
+      fontFamily: settings.defaultFont,
+      fontSize: `${settings.defaultFontSize}pt`,
+      lineHeight: settings.defaultLineHeight,
+      paragraphSpacing: settings.defaultParagraphSpacing,
+      textAlign: settings.defaultAlignment,
+      firstLineIndent: settings.defaultFirstLineIndent > 0
+        ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
+        : "0",
+    };
+
+    bodyPages = paginateHtml(fullHtml, paginatorSettings);
   }
 
-  // Continuous flow — compile the entire document as one HTML string
-  // so text flows naturally across chapter boundaries.
-  const paperSize =
-    settings.paperFormat === "Custom"
-      ? { width: settings.customWidth, height: settings.customHeight }
-      : PAPER_SIZES[settings.paperFormat];
+  if (!settings.includeTitlePage) return bodyPages;
 
-  const pageWidthPx    = mmToPx(paperSize.width);
-  const pageHeightPx   = mmToPx(paperSize.height);
-  const marginTopPx    = mmToPx(convertToMm(settings.marginTop,    settings.marginUnit));
-  const marginBottomPx = mmToPx(convertToMm(settings.marginBottom, settings.marginUnit));
-  const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
-  const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
+  return [buildTitlePageHtml(settings), ...bodyPages];
+}
 
-  const fullHtml = compiledOutline.chapters
-    .map((chapter, i) => {
-      const { html: titleText, style: titleStyle } = formatChapterTitle(
-        chapterNumbers[i],
-        chapter.title,
-        settings
-      );
+/**
+ * Build a single-page HTML string for the title page.
+ * Rendered by PaginatedPageView as page index 0 — no page number band shown.
+ *
+ * Rules:
+ *  - All text is forced to #000 (consistent print/export colour).
+ *  - Font sizes come exclusively from titlePage* settings, never from defaultFontSize.
+ *  - Author is prefixed with "By ".
+ *  - Header and footer each have left / center / right cells.
+ *  - font-size / line-height are set with !important so the page-content
+ *    wrapper's inherited defaults cannot override them.
+ */
+function buildTitlePageHtml(settings: DocumentSettings): string {
+  const titleText  = escapeHtml(settings.titlePageTitle  || "");
+  const authorRaw  = escapeHtml(settings.titlePageAuthor || "");
+  const authorText = authorRaw ? `By ${authorRaw}` : "";
+  const align      = settings.titlePageAlignment;
 
-      const titleHtml = titleText
-        ? `<div data-title="chapter" style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
-        : "";
+  const titlePt  = settings.titlePageTitleFontSize;
+  const authorPt = settings.titlePageAuthorFontSize;
+  const headerPt = settings.titlePageHeaderFontSize;
+  const footerPt = settings.titlePageFooterFontSize;
 
-      return titleHtml + composeChapter(chapter.scenes, settings, isSpecialSectionTitle(chapter.title));
-    })
-    .join("");
+  const hL = nl2br(settings.titlePageHeaderLeft   || "");
+  const hC = nl2br(settings.titlePageHeaderCenter || "");
+  const hR = nl2br(settings.titlePageHeaderRight  || "");
+  const fL = nl2br(settings.titlePageFooterLeft   || "");
+  const fC = nl2br(settings.titlePageFooterCenter || "");
+  const fR = nl2br(settings.titlePageFooterRight  || "");
 
-  const paginatorSettings: PaginatorSettings = {
-    pageWidthPx,
-    pageHeightPx,
-    marginTopPx,
-    marginBottomPx,
-    marginLeftPx,
-    marginRightPx,
-    fontFamily: settings.defaultFont,
-    fontSize: `${settings.defaultFontSize}pt`,
-    lineHeight: settings.defaultLineHeight,
-    paragraphSpacing: settings.defaultParagraphSpacing,
-    textAlign: settings.defaultAlignment,
-    firstLineIndent: settings.defaultFirstLineIndent > 0
-      ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
-      : "0",
-  };
+  const hasHeader = hL || hC || hR;
+  const hasFooter = fL || fC || fR;
 
-  return paginateHtml(fullHtml, paginatorSettings);
+  // Three-column band — align-items:flex-start so multi-line cells grow downward
+  const band = (l: string, c: string, r: string, pt: number) =>
+    `<div style="display:flex;justify-content:space-between;align-items:flex-start;` +
+    `font-size:${pt}pt!important;color:#000000;line-height:1.4;box-sizing:border-box;padding:4pt 0;">` +
+    `<span style="flex:1;text-align:left;white-space:pre-wrap;word-break:break-word;">${l}</span>` +
+    `<span style="flex:1;text-align:center;white-space:pre-wrap;word-break:break-word;">${c}</span>` +
+    `<span style="flex:1;text-align:right;white-space:pre-wrap;word-break:break-word;">${r}</span>` +
+    `</div>`;
+
+  const headerBand = hasHeader ? band(hL, hC, hR, headerPt) : `<div></div>`;
+  const footerBand = hasFooter ? band(fL, fC, fR, footerPt) : `<div></div>`;
+
+  const titleHtml = titleText
+    ? `<div style="font-size:${titlePt}pt!important;font-weight:bold;color:#000000;` +
+      `text-align:${align};line-height:1.2;margin-bottom:${Math.round(authorPt * 0.5)}pt;">${titleText}</div>`
+    : "";
+
+  const authorHtml = authorText
+    ? `<div style="font-size:${authorPt}pt!important;color:#000000;` +
+      `text-align:${align};line-height:1.4;">${authorText}</div>`
+    : "";
+
+  return (
+    // Reset all inherited typography — this div fills the padded content area (height:100%)
+    `<div style="display:flex;flex-direction:column;height:100%;` +
+    `font-size:${titlePt}pt!important;line-height:normal!important;text-indent:0!important;">` +
+    headerBand +
+    `<div style="flex:1;display:flex;flex-direction:column;justify-content:center;` +
+    `text-align:${align};gap:${Math.round(authorPt * 0.4)}pt;">` +
+    titleHtml +
+    authorHtml +
+    `</div>` +
+    footerBand +
+    `</div>`
+  );
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -129,6 +200,10 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function nl2br(str: string): string {
+  return escapeHtml(str).replace(/\n/g, "<br>");
 }
 
 function styleObjectToCss(style: React.CSSProperties): string {

@@ -2,13 +2,25 @@
  * PaginatedPageView
  *
  * Renders pre-computed HTML pages without extra scroll space at the end.
+ * When headers/footers are enabled in DocumentSettings, each page gets
+ * absolutely-positioned bands inside the margin zone at top/bottom.
+ *
+ * Layout contract:
+ *   - The band height is HF_BAND_PX and sits HF_INSET_PX from the page edge.
+ *   - Content padding equals the full margin so body text never overlaps the band.
+ *     (The margin must be large enough to contain HF_INSET_PX + HF_BAND_PX.)
  */
 
 import { useDocumentSettings, type DocumentSettings } from "../context/DocumentSettingsContext";
+import { buildHeaderHtml, buildFooterHtml } from "../utils/headerFooterRenderer";
 
 interface PaginatedPageViewProps {
   pages: string[];
   scale?: number;
+  documentTitle?: string;
+  author?: string;
+  /** When false, header/footer bands are suppressed regardless of settings (e.g. Chapter view). */
+  showHeaderFooter?: boolean;
 }
 
 const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; height: number }> = {
@@ -29,7 +41,12 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
   return value;
 }
 
-export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) {
+// Band height in px — two comfortable lines at ~10pt with padding
+const HF_BAND_PX = 44;
+// Distance from page edge to the outer edge of the band
+const HF_INSET_PX = 10;
+
+export function PaginatedPageView({ pages, scale = 1, documentTitle = "", author = "", showHeaderFooter = true }: PaginatedPageViewProps) {
   const { settings } = useDocumentSettings();
 
   const paperSize =
@@ -44,8 +61,11 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
   const marginLeftPx  = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  const pageCount = Math.max(pages.length, 1);
-  // Tight total height: no extra padding or safety margin at the very bottom
+  const hasHeader = showHeaderFooter && settings.showHeader;
+  const hasFooter = showHeaderFooter && (settings.showFooter || settings.showPageNumbers);
+
+  const totalPages = Math.max(pages.length, 1);
+  const pageCount  = totalPages;
   const totalHeightPx = pageCount * pageHeightPx + (pageCount - 1) * GAP_PX;
 
   return (
@@ -64,7 +84,7 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
       <div
         style={{
           width: pageWidthPx * scale,
-          height: totalHeightPx * scale,   // exact height only
+          height: totalHeightPx * scale,
           position: "relative",
           flexShrink: 0,
         }}
@@ -80,41 +100,99 @@ export function PaginatedPageView({ pages, scale = 1 }: PaginatedPageViewProps) 
             transform: `scale(${scale})`,
           }}
         >
-          {pages.map((pageHtml, i) => (
-            <div
-              key={i}
-              className="page-content"
-              style={{
-                position: "absolute",
-                top: i * (pageHeightPx + GAP_PX),
-                left: 0,
-                width: pageWidthPx,
-                height: pageHeightPx,
-                background: "var(--bg-secondary)",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-                borderRadius: 2,
-                overflow: "hidden",
-                boxSizing: "border-box",
-                paddingTop: marginTopPx,
-                paddingBottom: marginBotPx,
-                paddingLeft: marginLeftPx,
-                paddingRight: marginRightPx,
-                fontFamily: settings.defaultFont,
-                fontSize: `${settings.defaultFontSize}pt`,
-                lineHeight: `${settings.defaultLineHeight}`,
-                "--page-font-family": settings.defaultFont,
-                "--page-font-size": `${settings.defaultFontSize}pt`,
-                "--page-line-height": `${settings.defaultLineHeight}`,
-                "--page-paragraph-spacing": `${settings.defaultParagraphSpacing}pt`,
-                color: "var(--text-primary)",
-                "--default-first-line-indent": settings.defaultFirstLineIndent > 0
-                  ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
-                  : "0",
-                textIndent: "var(--default-first-line-indent, 0)",
-              } as React.CSSProperties}
-              dangerouslySetInnerHTML={{ __html: pageHtml }}
-            />
-          ))}
+          {pages.map((pageHtml, i) => {
+            // Title page (index 0 when includeTitlePage is on) gets no H/F bands
+            // and doesn't count toward the page number sequence.
+            const isTitlePage = showHeaderFooter && settings.includeTitlePage && i === 0;
+            // Body pages shift their display index when a title page is present
+            const bodyPageIndex = settings.includeTitlePage ? i - 1 : i;
+            const ctx = {
+              documentTitle,
+              author,
+              // pageIndex drives the displayed page number; title page never shows one
+              pageIndex: bodyPageIndex,
+              totalPages: settings.includeTitlePage ? totalPages - 1 : totalPages,
+            };
+            const headerHtml = (hasHeader && !isTitlePage) ? buildHeaderHtml(settings, ctx) : "";
+            const footerHtml = (hasFooter && !isTitlePage) ? buildFooterHtml(settings, ctx) : "";
+
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  top: i * (pageHeightPx + GAP_PX),
+                  left: 0,
+                  width: pageWidthPx,
+                  height: pageHeightPx,
+                  background: "var(--bg-secondary)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                }}
+              >
+                {/* Header band — floats inside top margin, never overlaps body */}
+                {headerHtml && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: HF_INSET_PX,
+                      left: marginLeftPx,
+                      right: marginRightPx,
+                      height: HF_BAND_PX,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: headerHtml }}
+                  />
+                )}
+
+                {/* Body content — full margins always honoured */}
+                <div
+                  className="page-content"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    boxSizing: "border-box",
+                    paddingTop: marginTopPx,
+                    paddingBottom: marginBotPx,
+                    paddingLeft: marginLeftPx,
+                    paddingRight: marginRightPx,
+                    fontFamily: settings.defaultFont,
+                    fontSize: `${settings.defaultFontSize}pt`,
+                    lineHeight: `${settings.defaultLineHeight}`,
+                    "--page-font-family": settings.defaultFont,
+                    "--page-font-size": `${settings.defaultFontSize}pt`,
+                    "--page-line-height": `${settings.defaultLineHeight}`,
+                    "--page-paragraph-spacing": `${settings.defaultParagraphSpacing}pt`,
+                    color: "var(--text-primary)",
+                    "--default-first-line-indent": settings.defaultFirstLineIndent > 0
+                      ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
+                      : "0",
+                    textIndent: "var(--default-first-line-indent, 0)",
+                    overflow: "hidden",
+                  } as React.CSSProperties}
+                  dangerouslySetInnerHTML={{ __html: pageHtml }}
+                />
+
+                {/* Footer band — floats inside bottom margin, never overlaps body */}
+                {footerHtml && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: HF_INSET_PX,
+                      left: marginLeftPx,
+                      right: marginRightPx,
+                      height: HF_BAND_PX,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: footerHtml }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

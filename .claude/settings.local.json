@@ -6,7 +6,13 @@
       "Bash(node_modules\\\\.bin\\\\tsc --noEmit)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(npx --no-install tsc -p tsconfig.json --noEmit)",
-      "Bash(xargs grep -l \"NodeViewRenderer\\\\|addNodeView\")"
+      "Bash(xargs grep -l \"NodeViewRenderer\\\\|addNodeView\")",
+      "Bash(xargs grep -l \"settings\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/services/export_service.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc -p tsconfig.json --noEmit)",
+      "Bash(node_modules/.bin/vite build *)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(item['text']\\) for item in data if item.get\\('type'\\)=='text']\")"
     ]
   }
 }

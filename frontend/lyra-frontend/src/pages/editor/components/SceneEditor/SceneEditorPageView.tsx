@@ -22,7 +22,10 @@ function convertToMm(value: number, unit: "mm" | "cm" | "in") {
   return value;
 }
 
-export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageViewProps) {
+export function SceneEditorPageView({
+  children,
+  scale = 1,
+}: SceneEditorPageViewProps) {
   const { settings } = useDocumentSettings();
   const pageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +40,6 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
   const marginLeftPx  = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  // Apply !important styles to page container after render to ensure document settings override inline marks
   useEffect(() => {
     if (pageContainerRef.current) {
       pageContainerRef.current.style.setProperty("font-family", settings.defaultFont, "important");
@@ -55,7 +57,7 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
         padding: "40px 20px",
         boxSizing: "border-box",
         backgroundColor: "var(--bg-primary)",
-        minHeight: "100%",           // keep this for layout stability
+        minHeight: "100%",
       }}
     >
       <div
@@ -72,36 +74,42 @@ export function SceneEditorPageView({ children, scale = 1 }: SceneEditorPageView
             transform: `scale(${scale})`,
           }}
         >
-          {/* Paper surface — grows exactly with content + margins only */}
+          {/* Paper surface — no header/footer bands in scene editor */}
           <div
-            ref={pageContainerRef}
-            className="page-container"
             style={{
+              position: "relative",
               width: pageWidthPx,
               background: "var(--bg-secondary)",
               boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
               borderRadius: 2,
               boxSizing: "border-box",
-              paddingTop: marginTopPx,
-              paddingBottom: marginBotPx,
-              paddingLeft: marginLeftPx,
-              paddingRight: marginRightPx,
-              fontFamily: settings.defaultFont,
-              fontSize: `${settings.defaultFontSize}pt`,
-              lineHeight: `${settings.defaultLineHeight}`,
-              "--page-font-family": settings.defaultFont,
-              "--page-font-size": `${settings.defaultFontSize}pt`,
-              "--page-line-height": `${settings.defaultLineHeight}`,
-              "--page-paragraph-spacing": `${settings.defaultParagraphSpacing}pt`,
-              textAlign: settings.defaultAlignment as any,
-              "--default-first-line-indent": settings.defaultFirstLineIndent > 0
-                ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
-                : "0",
-              textIndent: "var(--default-first-line-indent, 0)",
               minHeight: "100vh",
-            } as React.CSSProperties}
+            }}
           >
-            {children}
+            <div
+              ref={pageContainerRef}
+              className="page-container"
+              style={{
+                paddingTop: marginTopPx,
+                paddingBottom: marginBotPx,
+                paddingLeft: marginLeftPx,
+                paddingRight: marginRightPx,
+                fontFamily: settings.defaultFont,
+                fontSize: `${settings.defaultFontSize}pt`,
+                lineHeight: `${settings.defaultLineHeight}`,
+                "--page-font-family": settings.defaultFont,
+                "--page-font-size": `${settings.defaultFontSize}pt`,
+                "--page-line-height": `${settings.defaultLineHeight}`,
+                "--page-paragraph-spacing": `${settings.defaultParagraphSpacing}pt`,
+                textAlign: settings.defaultAlignment as React.CSSProperties["textAlign"],
+                "--default-first-line-indent": settings.defaultFirstLineIndent > 0
+                  ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
+                  : "0",
+                textIndent: "var(--default-first-line-indent, 0)",
+              } as React.CSSProperties}
+            >
+              {children}
+            </div>
           </div>
         </div>
       </div>

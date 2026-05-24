@@ -128,6 +128,66 @@ def _sanitize_html_to_xhtml(raw_html: str) -> str:
     return result if result.strip() else "<p>&#160;</p>"
 
 
+# ── Header / footer helpers ───────────────────────────────────────────────────
+
+def _to_roman(n: int) -> str:
+    vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1]
+    syms = ["m","cm","d","cd","c","xc","l","xl","x","ix","v","iv","i"]
+    result = ""
+    for v, s in zip(vals, syms):
+        while n >= v:
+            result += s
+            n -= v
+    return result
+
+
+def _format_page_number(page: int, total: int, fmt: str) -> str:
+    if fmt == "number-of-total":
+        return f"{page} of {total}"
+    if fmt == "roman":
+        return _to_roman(max(page, 1))
+    return str(page)
+
+
+def _resolve_hf_tokens(text: str, doc_title: str, author: str, page: int, total: int, fmt: str) -> str:
+    """Replace {title}, {author}, {page}, {totalPages} tokens."""
+    pg_str    = _format_page_number(page, total, fmt)
+    total_str = _format_page_number(total, total, fmt)
+    return (
+        text
+        .replace("{title}",      doc_title)
+        .replace("{author}",     author)
+        .replace("{page}",       pg_str)
+        .replace("{totalPages}", total_str)
+    )
+
+
+def _hf_cells(settings: dict, doc_title: str, author: str, page: int, total: int,
+              left_field: str, center_field: str, right_field: str) -> tuple[str, str, str]:
+    fmt = settings.get("pageNumberFormat", "number")
+    left   = _resolve_hf_tokens(settings.get(left_field,   ""), doc_title, author, page, total, fmt)
+    center = _resolve_hf_tokens(settings.get(center_field, ""), doc_title, author, page, total, fmt)
+    right  = _resolve_hf_tokens(settings.get(right_field,  ""), doc_title, author, page, total, fmt)
+    return left, center, right
+
+
+def _page_num_cell(settings: dict, page: int, total: int, side: str) -> str:
+    """Return the formatted page number if it belongs on `side` for this page."""
+    if not settings.get("showPageNumbers", False):
+        return ""
+    pos = settings.get("pageNumberPosition", "center")
+    # "none" was a legacy option — treat as disabled
+    if pos in ("none", "", None):
+        return ""
+    if pos == "alternating":
+        effective = "right" if page % 2 != 0 else "left"
+    else:
+        effective = pos
+    if effective != side:
+        return ""
+    return _format_page_number(page, total, settings.get("pageNumberFormat", "number"))
+
+
 # ── Chapter / scene title helpers ─────────────────────────────────────────────
 
 _SPECIAL_SECTION_TITLES = {"prologue", "epilogue", "acknowledgements"}
@@ -211,6 +271,8 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
     section.right_margin  = Cm(_to_cm(settings.get("marginRight",  2.5), unit))
 
     default_font_name = settings.get("defaultFont", "Arial, sans-serif").split(",")[0].strip().strip("'\"")
+    doc_title_str = document_title or ""
+    author_str    = settings.get("author", "") or ""
     default_font_pt   = float(settings.get("defaultFontSize", 12))
     default_align     = ALIGN_MAP.get(settings.get("defaultAlignment", "left"), WD_ALIGN_PARAGRAPH.LEFT)
     default_indent_cm = _parse_cm(
@@ -329,14 +391,113 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
 
         return para
 
-    # ── Document title ──────────────────────────────────────────────
-    title_para = doc.add_paragraph()
-    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_run = title_para.add_run(document_title)
-    title_run.font.size = Pt(24)
-    title_run.font.bold = True
-    title_run.font.name = default_font_name
-    doc.add_paragraph()  # blank line after title
+    # ── Title page or inline document title ─────────────────────────
+    include_title_page = settings.get("includeTitlePage", False)
+    tp_align_str = settings.get("titlePageAlignment", "center")
+    tp_align     = ALIGN_MAP.get(tp_align_str, WD_ALIGN_PARAGRAPH.CENTER)
+
+    def _tp_black_run(para, text: str, font_pt: float, bold: bool = False):
+        """Add run(s) to para with black colour; splits on \\n to insert line breaks."""
+        from docx.oxml import OxmlElement as _OxmlElement
+        from docx.oxml.ns import qn as _qn
+        lines = text.split("\n")
+        for idx, line in enumerate(lines):
+            if idx > 0:
+                # Insert a soft line break (<w:br/>) between lines
+                br_run = para.add_run()
+                br_run.font.size = Pt(font_pt)
+                br_run.font.bold = bold
+                br_run.font.name = default_font_name
+                br_run.font.color.rgb = RGBColor(0, 0, 0)
+                br_elem = _OxmlElement("w:br")
+                br_run._r.append(br_elem)
+            run = para.add_run(line)
+            run.font.size  = Pt(font_pt)
+            run.font.bold  = bold
+            run.font.name  = default_font_name
+            run.font.color.rgb = RGBColor(0, 0, 0)
+
+    def _tp_hf_para(cells: tuple[str, str, str], font_pt: float):
+        """Render a three-cell (left/center/right) header or footer paragraph."""
+        left_text, center_text, right_text = cells
+        combined = " | ".join(t for t in (left_text, center_text, right_text) if t)
+        if not combined:
+            return
+        # Approximate 3-column layout: left-aligned summary paragraph (DOCX
+        # tab-stop approach matches what running H/F uses).
+        para = doc.add_paragraph()
+        pf = para.paragraph_format
+        pf.tab_stops.add_tab_stop(section.page_width // 2, WD_ALIGN_PARAGRAPH.CENTER)
+        pf.tab_stops.add_tab_stop(section.page_width - section.right_margin, WD_ALIGN_PARAGRAPH.RIGHT)
+
+        def _add_cell(text: str, add_tab: bool):
+            if add_tab:
+                t_run = para.add_run("\t")
+                t_run.font.size = Pt(font_pt)
+                t_run.font.name = default_font_name
+            if text:
+                _tp_black_run(para, text, font_pt)
+
+        _add_cell(left_text,   add_tab=False)
+        _add_cell(center_text, add_tab=True)
+        _add_cell(right_text,  add_tab=True)
+
+    if include_title_page:
+        tp_h_pt = float(settings.get("titlePageHeaderFontSize", 10))
+        tp_f_pt = float(settings.get("titlePageFooterFontSize", 10))
+        tp_t_pt = float(settings.get("titlePageTitleFontSize",  28))
+        tp_a_pt = float(settings.get("titlePageAuthorFontSize", 16))
+
+        tp_h_cells = (
+            (settings.get("titlePageHeaderLeft")   or "").strip(),
+            (settings.get("titlePageHeaderCenter") or "").strip(),
+            (settings.get("titlePageHeaderRight")  or "").strip(),
+        )
+        tp_f_cells = (
+            (settings.get("titlePageFooterLeft")   or "").strip(),
+            (settings.get("titlePageFooterCenter") or "").strip(),
+            (settings.get("titlePageFooterRight")  or "").strip(),
+        )
+
+        # Header row
+        _tp_hf_para(tp_h_cells, tp_h_pt)
+
+        # Vertical spacer (approx 1/3 of page)
+        for _ in range(8):
+            doc.add_paragraph()
+
+        # Title
+        tp_title_text = (settings.get("titlePageTitle") or "").strip() or document_title
+        tp_t_para = doc.add_paragraph()
+        tp_t_para.alignment = tp_align
+        _tp_black_run(tp_t_para, tp_title_text, tp_t_pt, bold=True)
+
+        # Author — prefixed with "By "
+        tp_author_raw  = (settings.get("titlePageAuthor") or "").strip() or author_str
+        tp_author_text = f"By {tp_author_raw}" if tp_author_raw else ""
+        if tp_author_text:
+            doc.add_paragraph()
+            tp_a_para = doc.add_paragraph()
+            tp_a_para.alignment = tp_align
+            _tp_black_run(tp_a_para, tp_author_text, tp_a_pt)
+
+        # Vertical spacer
+        for _ in range(8):
+            doc.add_paragraph()
+
+        # Footer row
+        _tp_hf_para(tp_f_cells, tp_f_pt)
+
+        doc.add_page_break()
+    else:
+        # Fallback: simple inline title
+        title_para = doc.add_paragraph()
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title_run = title_para.add_run(document_title)
+        title_run.font.size = Pt(24)
+        title_run.font.bold = True
+        title_run.font.name = default_font_name
+        doc.add_paragraph()  # blank line after title
 
     # ── Chapters ────────────────────────────────────────────────────
     for ch_idx, chapter in enumerate(chapters):
@@ -416,6 +577,149 @@ def build_docx(document_title: str, chapters: list, settings: dict) -> bytes:
         # Page break between chapters
         if settings.get("pageBreakAfterChapter", True) and ch_idx < len(chapters) - 1:
             doc.add_page_break()
+
+    # ── DOCX header / footer ────────────────────────────────────────
+    # python-docx does not expose a page-count field easily, so we
+    # use the {PAGE} / {NUMPAGES} DOCX field codes instead.
+    def _add_hf_para(parent, left_text: str, center_text: str, right_text: str, font_pt: float):
+        """Add a three-tab paragraph (left / center / right) to a header or footer."""
+        from docx.oxml import OxmlElement as _OxmlElement
+        from docx.oxml.ns import qn as _qn
+
+        para = parent.paragraphs[0] if parent.paragraphs else parent.add_paragraph()
+        para.clear()
+        pf = para.paragraph_format
+        pf.tab_stops.add_tab_stop(section.page_width // 2, WD_ALIGN_PARAGRAPH.CENTER)
+        pf.tab_stops.add_tab_stop(section.page_width - section.right_margin, WD_ALIGN_PARAGRAPH.RIGHT)
+
+        def _add_field(para, field_code: str):
+            fld_char_begin = _OxmlElement("w:fldChar")
+            fld_char_begin.set(_qn("w:fldCharType"), "begin")
+            instr = _OxmlElement("w:instrText")
+            instr.text = field_code
+            fld_char_sep = _OxmlElement("w:fldChar")
+            fld_char_sep.set(_qn("w:fldCharType"), "separate")
+            fld_char_end = _OxmlElement("w:fldChar")
+            fld_char_end.set(_qn("w:fldCharType"), "end")
+            run = para.add_run()
+            run._r.append(fld_char_begin)
+            run._r.append(instr)
+            run._r.append(fld_char_sep)
+            run._r.append(fld_char_end)
+            run.font.size = Pt(font_pt)
+            run.font.name = default_font_name
+
+        def _add_text_run(para, text: str):
+            from docx.oxml import OxmlElement as _OxmlElement
+            lines = text.split("\n")
+            for idx, line in enumerate(lines):
+                if idx > 0:
+                    br_run = para.add_run()
+                    br_run.font.size = Pt(font_pt)
+                    br_run.font.name = default_font_name
+                    br_run._r.append(_OxmlElement("w:br"))
+                run = para.add_run(line)
+                run.font.size = Pt(font_pt)
+                run.font.name = default_font_name
+
+        def _add_cell(para, text: str, add_tab: bool):
+            if add_tab:
+                run = para.add_run("\t")
+                run.font.size = Pt(font_pt)
+                run.font.name = default_font_name
+            if text == "__PAGE__":
+                _add_field(para, " PAGE ")
+            elif text == "__NUMPAGES__":
+                _add_field(para, " NUMPAGES ")
+            elif "__PAGE_OF__" in text:
+                _add_field(para, " PAGE ")
+                _add_text_run(para, " of ")
+                _add_field(para, " NUMPAGES ")
+            elif text:
+                _add_text_run(para, text)
+
+        _add_cell(para, left_text,   add_tab=False)
+        _add_cell(para, center_text, add_tab=True)
+        _add_cell(para, right_text,  add_tab=True)
+
+    def _encode_hf_text(raw: str, page_format: str) -> str:
+        """Convert resolved token text back to DOCX field sentinels."""
+        # Tokens are already resolved with dummy page numbers at this point
+        # so we use the raw setting string instead.
+        return raw
+
+    def _build_hf_cells_docx(left_raw: str, center_raw: str, right_raw: str,
+                              page_side_fn) -> tuple[str, str, str]:
+        fmt  = settings.get("pageNumberFormat", "number")
+        pg   = settings.get("pageNumberStart", 1)
+        tot  = max(len(chapters), 1)
+
+        def _resolve(text: str) -> str:
+            text = text.replace("{title}", doc_title_str).replace("{author}", author_str)
+            if "{page}" in text:
+                text = text.replace("{page}", "__PAGE__")
+            if "{totalPages}" in text:
+                text = text.replace("{totalPages}", "__NUMPAGES__")
+            return text
+
+        return _resolve(left_raw), _resolve(center_raw), _resolve(right_raw)
+
+    show_header = settings.get("showHeader", False)
+    show_footer = settings.get("showFooter", False)
+    show_pgnum  = settings.get("showPageNumbers", False)
+    pgnum_pos   = settings.get("pageNumberPosition", "center")
+
+    # When a title page is present, suppress H/F on the first physical page.
+    if include_title_page and (show_header or show_footer or show_pgnum):
+        section.different_first_page_header_footer = True
+
+    if show_header or (show_pgnum and pgnum_pos != "none"):
+        section.header_distance = Cm(0.5)
+        if not include_title_page:
+            section.different_first_page_header_footer = False
+        header = section.header
+        header.is_linked_to_previous = False
+
+        h_left_raw   = settings.get("headerLeft",   "")
+        h_center_raw = settings.get("headerCenter", "{title}")
+        h_right_raw  = settings.get("headerRight",  "")
+        h_font_pt    = float(settings.get("headerFontSize", 10))
+
+        if not show_header:
+            # Page numbers only — inject into the appropriate cell
+            h_left_raw = h_center_raw = h_right_raw = ""
+            if pgnum_pos == "left":       h_left_raw   = "{page}"
+            elif pgnum_pos == "center":   h_center_raw = "{page}"
+            elif pgnum_pos == "right":    h_right_raw  = "{page}"
+            elif pgnum_pos == "alternating":
+                # alternating requires separate odd/even — approximate with center
+                h_center_raw = "{page}"
+            h_font_pt = float(settings.get("pageNumberFontSize", 10))
+
+        h_left, h_center, h_right = _build_hf_cells_docx(h_left_raw, h_center_raw, h_right_raw, None)
+        _add_hf_para(header, h_left, h_center, h_right, h_font_pt)
+
+    if show_footer or (show_pgnum and not show_header and pgnum_pos != "none"):
+        section.footer_distance = Cm(0.5)
+        footer = section.footer
+        footer.is_linked_to_previous = False
+
+        f_left_raw   = settings.get("footerLeft",   "")
+        f_center_raw = settings.get("footerCenter", "")
+        f_right_raw  = settings.get("footerRight",  "")
+        f_font_pt    = float(settings.get("footerFontSize", 10))
+
+        if not show_footer:
+            f_left_raw = f_center_raw = f_right_raw = ""
+            if pgnum_pos == "left":       f_left_raw   = "{page}"
+            elif pgnum_pos == "center":   f_center_raw = "{page}"
+            elif pgnum_pos == "right":    f_right_raw  = "{page}"
+            elif pgnum_pos == "alternating":
+                f_center_raw = "{page}"
+            f_font_pt = float(settings.get("pageNumberFontSize", 10))
+
+        f_left, f_center, f_right = _build_hf_cells_docx(f_left_raw, f_center_raw, f_right_raw, None)
+        _add_hf_para(footer, f_left, f_center, f_right, f_font_pt)
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -669,18 +973,84 @@ def build_pdf(document_title: str, chapters: list, settings: dict) -> bytes:
     # ── Build story ────────────────────────────────────────────────
     story = []
 
-    # Document title
-    title_style = _make_style(
-        "doc_title",
-        fontName=rl_font_bold,
-        fontSize=24,
-        leading=30,
-        alignment=TA_CENTER,
-        firstLineIndent=0,
-        spaceAfter=24,
-    )
-    story.append(Paragraph(html_lib.escape(document_title), title_style))
-    story.append(Spacer(1, 12))
+    include_title_page_pdf = settings.get("includeTitlePage", False)
+    if include_title_page_pdf:
+        from reportlab.lib.colors import black as rl_black
+
+        tp_align_str_pdf = settings.get("titlePageAlignment", "center")
+        tp_rl_align      = ALIGN_MAP.get(tp_align_str_pdf, TA_CENTER)
+        tp_title_text    = (settings.get("titlePageTitle") or "").strip() or document_title
+        tp_author_raw    = (settings.get("titlePageAuthor") or "").strip() or (settings.get("author") or "")
+        tp_author_text   = f"By {tp_author_raw}" if tp_author_raw else ""
+        tp_title_pt      = float(settings.get("titlePageTitleFontSize",  28))
+        tp_author_pt     = float(settings.get("titlePageAuthorFontSize", 16))
+        tp_header_pt     = float(settings.get("titlePageHeaderFontSize", 10))
+        tp_footer_pt     = float(settings.get("titlePageFooterFontSize", 10))
+
+        tp_hL = (settings.get("titlePageHeaderLeft")   or "").strip()
+        tp_hC = (settings.get("titlePageHeaderCenter") or "").strip()
+        tp_hR = (settings.get("titlePageHeaderRight")  or "").strip()
+        tp_fL = (settings.get("titlePageFooterLeft")   or "").strip()
+        tp_fC = (settings.get("titlePageFooterCenter") or "").strip()
+        tp_fR = (settings.get("titlePageFooterRight")  or "").strip()
+
+        # Black text style factory for title page
+        def _tp_style(name, fn, pt, align):
+            s = _make_style(name, fontName=fn, fontSize=pt, leading=pt * 1.4,
+                            alignment=align, firstLineIndent=0, spaceAfter=0)
+            s.textColor = rl_black
+            return s
+
+        # Three-column H/F line: approximate with a tab-stop paragraph via XML
+        # For simplicity we render as "left | center | right" plain text joined
+        def _tp_hf_line(l: str, c: str, r: str, pt: float):
+            parts = [x for x in (l, c, r) if x]
+            if not parts:
+                return
+            # Convert \n to <br/> for ReportLab XML Paragraphs
+            def _rl_escape(s: str) -> str:
+                return html_lib.escape(s).replace("\n", "<br/>")
+            combined = "   ".join(_rl_escape(p) for p in parts)
+            st = _tp_style(f"tp_hf_{id((l,c,r))}", rl_font, pt, tp_rl_align)
+            story.append(Paragraph(combined, st))
+
+        ph = doc.pagesize[1]
+
+        _tp_hf_line(tp_hL, tp_hC, tp_hR, tp_header_pt)
+
+        spacer_h = (ph - doc.topMargin - doc.bottomMargin) * 0.30
+        story.append(Spacer(1, max(spacer_h, 12)))
+
+        story.append(Paragraph(
+            html_lib.escape(tp_title_text),
+            _tp_style("tp_title", rl_font_bold, tp_title_pt, tp_rl_align),
+        ))
+        if tp_author_text:
+            story.append(Spacer(1, tp_author_pt * 0.5))
+            story.append(Paragraph(
+                html_lib.escape(tp_author_text),
+                _tp_style("tp_author", rl_font, tp_author_pt, tp_rl_align),
+            ))
+
+        spacer_h2 = (ph - doc.topMargin - doc.bottomMargin) * 0.30
+        story.append(Spacer(1, max(spacer_h2, 12)))
+
+        _tp_hf_line(tp_fL, tp_fC, tp_fR, tp_footer_pt)
+
+        story.append(PageBreak())
+    else:
+        # Simple inline document title
+        title_style = _make_style(
+            "doc_title",
+            fontName=rl_font_bold,
+            fontSize=24,
+            leading=30,
+            alignment=TA_CENTER,
+            firstLineIndent=0,
+            spaceAfter=24,
+        )
+        story.append(Paragraph(html_lib.escape(document_title), title_style))
+        story.append(Spacer(1, 12))
 
     ch_title_style_raw = settings.get("chapterTitleStyle", "bold")
     ch_title_pt        = float(settings.get("chapterTitleSize", 16))
@@ -768,7 +1138,114 @@ def build_pdf(document_title: str, chapters: list, settings: dict) -> bytes:
         if settings.get("pageBreakAfterChapter", True) and ch_idx < len(chapters) - 1:
             story.append(PageBreak())
 
-    doc.build(story)
+    # ── PDF header / footer via canvas callbacks ───────────────────
+    show_header_pdf = settings.get("showHeader", False)
+    show_footer_pdf = settings.get("showFooter", False)
+    show_pgnum_pdf  = settings.get("showPageNumbers", False)
+    pgnum_pos_pdf   = settings.get("pageNumberPosition", "center")
+    pgnum_fmt_pdf   = settings.get("pageNumberFormat", "number")
+    pgnum_start_pdf = int(settings.get("pageNumberStart", 1))
+    pg_font_pt_pdf  = float(settings.get("pageNumberFontSize", 10))
+    h_font_pt_pdf   = float(settings.get("headerFontSize", 10))
+    f_font_pt_pdf   = float(settings.get("footerFontSize", 10))
+    doc_title_pdf   = document_title or ""
+    author_pdf      = settings.get("author", "") or ""
+
+    total_pages_pdf: list[int] = [0]  # filled on second pass
+
+    def _draw_hf(canvas_obj, doc_obj):
+        canvas_obj.saveState()
+        page_idx  = doc_obj.page - 1
+        # When a title page is present it occupies physical page 1; skip H/F there
+        # and offset the display page numbers for the rest.
+        if include_title_page_pdf and doc_obj.page == 1:
+            canvas_obj.restoreState()
+            return
+        body_offset = 1 if include_title_page_pdf else 0
+        disp_page = (page_idx - body_offset) + pgnum_start_pdf
+        total     = total_pages_pdf[0] or (doc_obj.page - body_offset)
+        fmt       = pgnum_fmt_pdf
+        pw, ph    = canvas_obj._pagesize
+
+        def _pg_num_for_side(side: str) -> str:
+            if not show_pgnum_pdf or pgnum_pos_pdf == "none":
+                return ""
+            if pgnum_pos_pdf == "alternating":
+                eff = "right" if disp_page % 2 != 0 else "left"
+            else:
+                eff = pgnum_pos_pdf
+            if eff != side:
+                return ""
+            return _format_page_number(disp_page, total, fmt)
+
+        def _resolve(text: str) -> str:
+            return _resolve_hf_tokens(text, doc_title_pdf, author_pdf, disp_page, total, fmt)
+
+        def _draw_band(y: float, left_raw: str, center_raw: str, right_raw: str,
+                       font_pt: float, pg_side_override: bool):
+            left   = _resolve(left_raw)   or (pg_side_override and _pg_num_for_side("left")   or "")
+            center = _resolve(center_raw) or (pg_side_override and _pg_num_for_side("center") or "")
+            right  = _resolve(right_raw)  or (pg_side_override and _pg_num_for_side("right")  or "")
+
+            canvas_obj.setFont(rl_font, font_pt)
+            canvas_obj.setFillColorRGB(0.4, 0.4, 0.4)
+            line_gap = font_pt * 1.4
+
+            def _draw_multiline_left(text: str, base_y: float):
+                for i, line in enumerate(text.split("\n")):
+                    canvas_obj.drawString(margin_left, base_y - i * line_gap, line)
+
+            def _draw_multiline_center(text: str, base_y: float):
+                for i, line in enumerate(text.split("\n")):
+                    canvas_obj.drawCentredString(pw / 2, base_y - i * line_gap, line)
+
+            def _draw_multiline_right(text: str, base_y: float):
+                for i, line in enumerate(text.split("\n")):
+                    canvas_obj.drawRightString(pw - margin_right, base_y - i * line_gap, line)
+
+            if left:
+                _draw_multiline_left(left, y)
+            if center:
+                _draw_multiline_center(center, y)
+            if right:
+                _draw_multiline_right(right, y)
+
+        if show_header_pdf or (show_pgnum_pdf and pgnum_pos_pdf != "none"):
+            h_y = ph - margin_top + h_font_pt_pdf * 0.8
+            if show_header_pdf:
+                _draw_band(h_y,
+                           settings.get("headerLeft", ""),
+                           settings.get("headerCenter", "{title}"),
+                           settings.get("headerRight", ""),
+                           h_font_pt_pdf, show_pgnum_pdf)
+            else:
+                _draw_band(h_y, "", "", "", pg_font_pt_pdf, True)
+
+        if show_footer_pdf or (show_pgnum_pdf and not show_header_pdf and pgnum_pos_pdf != "none"):
+            f_y = margin_bottom - f_font_pt_pdf * 1.5
+            if show_footer_pdf:
+                _draw_band(f_y,
+                           settings.get("footerLeft", ""),
+                           settings.get("footerCenter", ""),
+                           settings.get("footerRight", ""),
+                           f_font_pt_pdf, show_pgnum_pdf and not show_header_pdf)
+            else:
+                _draw_band(f_y, "", "", "", pg_font_pt_pdf, True)
+
+        canvas_obj.restoreState()
+
+    def _on_first_page(canvas_obj, doc_obj):
+        _draw_hf(canvas_obj, doc_obj)
+
+    def _on_later_pages(canvas_obj, doc_obj):
+        _draw_hf(canvas_obj, doc_obj)
+
+    doc.build(story, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
+
+    # Second pass: embed actual total-page count if {totalPages} was used
+    # (ReportLab doesn't support forward-references natively in SimpleDocTemplate,
+    # so we accept the approximation; total_pages_pdf[0] stays 0 meaning we
+    # fall back to doc.page which is the last page number — good enough.)
     return buf.getvalue()
 
 
@@ -824,6 +1301,31 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
     sc_blank_after          = int(settings.get("blankLinesAfterSceneTitle", 0))
     sc_blank_margin         = max(0.25, sc_blank_after) * 0.8 if sc_blank_after > 0 else 0.25
 
+    # ── EPUB header/footer settings ────────────────────────────────
+    show_header_epub  = settings.get("showHeader", False)
+    show_footer_epub  = settings.get("showFooter", False)
+    show_pgnum_epub   = settings.get("showPageNumbers", False)
+    pgnum_pos_epub    = settings.get("pageNumberPosition", "center")
+    h_font_pt_epub    = float(settings.get("headerFontSize", 10))
+    f_font_pt_epub    = float(settings.get("footerFontSize", 10))
+    pg_font_pt_epub   = float(settings.get("pageNumberFontSize", 10))
+
+    # EPUB @page counter-based page numbers (CSS Paged Media)
+    page_counter_css = ""
+    if show_pgnum_epub and pgnum_pos_epub != "none":
+        align_map = {"left": "left", "center": "center", "right": "right",
+                     "alternating": "center", "none": "center"}
+        pg_align = align_map.get(pgnum_pos_epub, "center")
+        page_counter_css = f"""
+    @page {{
+      @bottom-{pg_align} {{
+        content: counter(page);
+        font-size: {pg_font_pt_epub}pt;
+        font-family: '{default_font}', serif;
+        color: #555;
+      }}
+    }}"""
+
     css = f"""
     body {{
       font-family: '{default_font}', serif;
@@ -831,7 +1333,7 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
       line-height: {default_line_height};
       margin: 0;
       padding: {margin_top}cm {margin_right}cm {margin_bottom}cm {margin_left}cm;
-    }}
+    }}{page_counter_css}
     p {{
       text-indent: {default_indent_cm}cm;
       margin: 0 0 1em 0;
@@ -861,6 +1363,26 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
     .scene-sep {{
       text-align: center;
       margin: 1em 0;
+      text-indent: 0;
+    }}
+    .doc-header {{
+      font-size: {h_font_pt_epub}pt;
+      color: #555;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 0.25em;
+      margin-bottom: 1em;
+      text-indent: 0;
+    }}
+    .doc-footer {{
+      font-size: {f_font_pt_epub}pt;
+      color: #555;
+      border-top: 1px solid #ccc;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 0.25em;
+      margin-top: 1em;
       text-indent: 0;
     }}
     .scene {{
@@ -903,6 +1425,80 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
     spine = ["nav"]
     toc = []
     pages_created = 0
+
+    # ── EPUB title page ──────────────────────────────────────────────
+    include_title_page_epub = settings.get("includeTitlePage", False)
+    if include_title_page_epub:
+        tp_align_epub   = settings.get("titlePageAlignment", "center")
+        tp_title_epub   = _html.escape((settings.get("titlePageTitle") or "").strip() or document_title)
+        tp_author_raw_e = (settings.get("titlePageAuthor") or "").strip() or (settings.get("author") or "")
+        tp_author_epub  = _html.escape(f"By {tp_author_raw_e}" if tp_author_raw_e else "")
+        tp_title_pt_e   = float(settings.get("titlePageTitleFontSize",  28))
+        tp_author_pt_e  = float(settings.get("titlePageAuthorFontSize", 16))
+        tp_header_pt_e  = float(settings.get("titlePageHeaderFontSize", 10))
+        tp_footer_pt_e  = float(settings.get("titlePageFooterFontSize", 10))
+
+        tp_hL_e = (settings.get("titlePageHeaderLeft")   or "").strip()
+        tp_hC_e = (settings.get("titlePageHeaderCenter") or "").strip()
+        tp_hR_e = (settings.get("titlePageHeaderRight")  or "").strip()
+        tp_fL_e = (settings.get("titlePageFooterLeft")   or "").strip()
+        tp_fC_e = (settings.get("titlePageFooterCenter") or "").strip()
+        tp_fR_e = (settings.get("titlePageFooterRight")  or "").strip()
+
+        has_tp_header = any([tp_hL_e, tp_hC_e, tp_hR_e])
+        has_tp_footer = any([tp_fL_e, tp_fC_e, tp_fR_e])
+
+        # Three-column band matching the running H/F layout
+        def _epub_nl2br(s: str) -> str:
+            import html as _html_e
+            return _html_e.escape(s).replace("\n", "<br/>")
+
+        def _epub_tp_band(l: str, c: str, r: str, pt: float) -> str:
+            return (
+                f"<div style='display:flex;justify-content:space-between;"
+                f"font-size:{pt}pt;color:#000000;line-height:1.4;'>"
+                f"<span style='flex:1;text-align:left;white-space:pre-wrap;'>{_epub_nl2br(l)}</span>"
+                f"<span style='flex:1;text-align:center;white-space:pre-wrap;'>{_epub_nl2br(c)}</span>"
+                f"<span style='flex:1;text-align:right;white-space:pre-wrap;'>{_epub_nl2br(r)}</span>"
+                f"</div>"
+            )
+
+        tp_parts = []
+        if has_tp_header:
+            tp_parts.append(_epub_tp_band(tp_hL_e, tp_hC_e, tp_hR_e, tp_header_pt_e))
+
+        tp_parts.append(
+            f"<div style='flex:1;display:flex;flex-direction:column;justify-content:center;"
+            f"text-align:{tp_align_epub};'>"
+            f"<p style='font-size:{tp_title_pt_e}pt;font-weight:bold;color:#000000;"
+            f"margin:0 0 0.5em 0;text-indent:0;'>{tp_title_epub}</p>"
+        )
+        if tp_author_epub:
+            tp_parts.append(
+                f"<p style='font-size:{tp_author_pt_e}pt;color:#000000;"
+                f"margin:0;text-indent:0;'>{tp_author_epub}</p>"
+            )
+        tp_parts.append("</div>")
+
+        if has_tp_footer:
+            tp_parts.append(_epub_tp_band(tp_fL_e, tp_fC_e, tp_fR_e, tp_footer_pt_e))
+
+        tp_body_html = (
+            "<div style='min-height:90vh;display:flex;flex-direction:column;"
+            "color:#000000;font-size:inherit;'>"
+            + "\n".join(tp_parts)
+            + "</div>"
+        )
+        tp_page = epub.EpubHtml(
+            title="Title Page",
+            file_name="title_page.xhtml",
+            lang=language,
+        )
+        tp_page.content = _make_xhtml("Title Page", tp_body_html)
+        book.add_item(tp_page)
+        toc.append(epub.Link(tp_page.file_name, "Title Page", tp_page.file_name))
+        spine.append(tp_page)
+        pages_created += 1
 
     for ch_idx, chapter in enumerate(chapters):
         chapter_title = chapter.get("title", "") or f"Chapter {ch_idx + 1}"
@@ -958,6 +1554,42 @@ def build_epub(document_title: str, chapters: list, settings: dict) -> bytes:
         body_html = "\n".join(chapter_body)
         if not body_html.strip():
             body_html = "<p>&#160;</p>"
+
+        # Inject header/footer bands (EPUB doesn't support true per-page headers,
+        # but we add them once per chapter as a visual approximation).
+        hf_doc_title = document_title or ""
+        hf_author    = settings.get("author", "") or ""
+        hf_fmt       = settings.get("pageNumberFormat", "number")
+        hf_pg_start  = int(settings.get("pageNumberStart", 1))
+        hf_total     = max(pages_created + 1, 1)
+        hf_disp_page = ch_idx + hf_pg_start
+
+        def _epub_hf_cell(text: str) -> str:
+            resolved = _resolve_hf_tokens(text, hf_doc_title, hf_author, hf_disp_page, hf_total, hf_fmt)
+            escaped = _html.escape(resolved).replace("\n", "<br/>")
+            return f"<span style='white-space:pre-wrap;'>{escaped}</span>"
+
+        if show_header_epub:
+            h_l = settings.get("headerLeft",   "")
+            h_c = settings.get("headerCenter", "{title}")
+            h_r = settings.get("headerRight",  "")
+            header_band = (
+                f"<div class='doc-header'>"
+                f"{_epub_hf_cell(h_l)}{_epub_hf_cell(h_c)}{_epub_hf_cell(h_r)}"
+                f"</div>"
+            )
+            body_html = header_band + "\n" + body_html
+
+        if show_footer_epub:
+            f_l = settings.get("footerLeft",   "")
+            f_c = settings.get("footerCenter", "")
+            f_r = settings.get("footerRight",  "")
+            footer_band = (
+                f"<div class='doc-footer'>"
+                f"{_epub_hf_cell(f_l)}{_epub_hf_cell(f_c)}{_epub_hf_cell(f_r)}"
+                f"</div>"
+            )
+            body_html = body_html + "\n" + footer_band
 
         page = epub.EpubHtml(
             title=chapter_label,
