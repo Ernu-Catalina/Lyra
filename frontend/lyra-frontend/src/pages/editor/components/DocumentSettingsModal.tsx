@@ -582,7 +582,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
               <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
             </div>
             <div
-              className="rounded bg-white p-2"
+              className="rounded p-2"
               style={{
                 fontFamily: tempSettings.defaultFont,
                 fontSize: `${tempSettings.chapterTitleSize}px`,
@@ -705,7 +705,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
                 <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
               </div>
               <div
-                className="rounded bg-white p-2"
+                className="rounded p-2"
                 style={{
                   fontFamily: tempSettings.defaultFont,
                   fontSize: `${tempSettings.sceneTitleSize}px`,
