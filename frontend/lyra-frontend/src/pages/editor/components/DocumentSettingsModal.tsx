@@ -499,7 +499,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           disabled={!isTabDirty("chapter-formatting")}
           className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
         >
-          Apply Chapter Formatting
+          Apply Formatting
         </button>
       </div>
       <div>
@@ -571,19 +571,40 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           </div>
         </div>
       )}
+      {tempSettings.chapterTitleFormat !== "none" && (
+        <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
+          <div className="flex items-center gap-2">
+            <Eye size={16} className="text-[var(--text-secondary)]" />
+            <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
+          </div>
+          {/* eslint-disable-next-line */}
+          <div
+            className="rounded bg-white p-2 text-[var(--text-primary)]"
+            style={{
+              fontFamily: tempSettings.defaultFont,
+              fontSize: `${tempSettings.chapterTitleSize}px`,
+              fontWeight: tempSettings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
+              fontStyle: tempSettings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
+              textAlign: tempSettings.chapterTitleAlignment as React.CSSProperties["textAlign"],
+            }}
+          >
+            {getChapterTitlePreview(tempSettings.chapterTitleFormat)}
+          </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Blank Lines After Chapter</label>
+      <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Blank Lines After Chapter Title</label>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="flex: 1 items-center rounded">
           <input
             type="number"
             value={tempSettings.blankLinesAfterChapter}
             {...createNumericInputHandler("blankLinesAfterChapter", 0, 10, false, setTempSettings)}
-            className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+            className="w-15 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
             min="0"
           />
         </div>
-        <div className="flex items-center gap-3 rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
+        <div className="flex items-center gap-3 rounded px-2 py-2">
           <input
             type="checkbox"
             id="pageBreakAfterChapter"
@@ -597,6 +618,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
         </div>
       </div>
 
+      <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Extra Chapters</label>
       <div className="grid grid-cols-3 gap-4">
         {[
           { id: "includePrologue", label: "Include Prologue" },
@@ -618,28 +640,6 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
           );
         })}
       </div>
-
-      {tempSettings.chapterTitleFormat !== "none" && (
-        <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Eye size={16} className="text-[var(--text-secondary)]" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
-          </div>
-          {/* eslint-disable-next-line */}
-          <div
-            className="rounded border border-[var(--border)] bg-white p-4 text-[var(--text-primary)]"
-            style={{
-              fontFamily: tempSettings.defaultFont,
-              fontSize: `${tempSettings.chapterTitleSize}px`,
-              fontWeight: tempSettings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
-              fontStyle: tempSettings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
-              textAlign: tempSettings.chapterTitleAlignment as React.CSSProperties["textAlign"],
-            }}
-          >
-            {getChapterTitlePreview(tempSettings.chapterTitleFormat)}
-          </div>
-        </div>
-      )}
     </div>
   );
 
