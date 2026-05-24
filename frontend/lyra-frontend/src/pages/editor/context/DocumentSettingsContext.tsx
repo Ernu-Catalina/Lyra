@@ -1,3 +1,4 @@
+// DocumentSettingsContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import api from "../../../api/client";
 import type { Editor } from "@tiptap/react";
@@ -22,6 +23,9 @@ export interface DocumentSettings {
   chapterTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
   blankLinesAfterChapter: number;
   pageBreakAfterChapter: boolean;
+  includePrologue: boolean;
+  includeEpilogue: boolean;
+  includeAcknowledgements: boolean;
   defaultFirstLineIndent: number;
   defaultFirstLineIndentUnit: "cm" | "in" | "mm";
   templateId?: string;
@@ -95,6 +99,9 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   chapterTitleStyle: "bold",
   blankLinesAfterChapter: 2,
   pageBreakAfterChapter: true,
+  includePrologue: false,
+  includeEpilogue: false,
+  includeAcknowledgements: false,
   defaultFirstLineIndent: 0,
   defaultFirstLineIndentUnit: "cm",
 };

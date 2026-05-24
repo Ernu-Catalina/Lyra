@@ -132,11 +132,23 @@ def _sanitize_html_to_xhtml(raw_html: str) -> str:
 
 def _format_chapter_title(order: int, title: str, settings: dict) -> str:
     fmt = settings.get("chapterTitleFormat", "none")
-    if fmt == "none": return ""
-    if fmt == "chapter-number": return f"Chapter {order}"
-    if fmt == "chapter-number-title": return f"Chapter {order}: {title}"
-    if fmt == "number-title": return f"{order}. {title}"
-    if fmt == "title-only": return title
+    if fmt == "none":
+        return ""
+
+    # Special sections: NO chapter number
+    if title.strip().lower() in ("prologue", "epilogue", "acknowledgements"):
+        return title.strip()
+
+    # Normal chapters
+    if fmt == "chapter-number":
+        return f"Chapter {order}"
+    if fmt == "chapter-number-title":
+        return f"Chapter {order}: {title}"
+    if fmt == "number-title":
+        return f"{order}. {title}"
+    if fmt == "title-only":
+        return title
+
     return title
 
 # ── DOCX export ────────────────────────────────────────────────────────────────

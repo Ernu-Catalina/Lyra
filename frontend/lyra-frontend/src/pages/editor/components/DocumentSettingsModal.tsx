@@ -102,6 +102,9 @@ const TAB_FIELDS: Record<TabId, Array<keyof DocumentSettings>> = {
     "chapterTitleStyle",
     "blankLinesAfterChapter",
     "pageBreakAfterChapter",
+    "includePrologue",
+    "includeEpilogue",
+    "includeAcknowledgements",
   ],
   advanced: [],
 };
@@ -592,6 +595,28 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
             Page break after each chapter
           </label>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {[
+          { id: "includePrologue", label: "Include Prologue" },
+          { id: "includeEpilogue", label: "Include Epilogue" },
+          { id: "includeAcknowledgements", label: "Include Acknowledgements" },
+        ].map(({ id, label }) => {
+          const field = id as keyof DocumentSettings;
+          return (
+            <label key={id} className="flex items-center gap-3 rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
+              <input
+                type="checkbox"
+                id={id}
+                checked={tempSettings[field] as boolean}
+                onChange={(e) => setTempSettings((prev) => ({ ...prev, [field]: e.target.checked } as DocumentSettings))}
+                className="w-4 h-4 text-[var(--accent)] rounded"
+              />
+              <span className="text-sm text-[var(--text-primary)]">{label}</span>
+            </label>
+          );
+        })}
       </div>
 
       {tempSettings.chapterTitleFormat !== "none" && (

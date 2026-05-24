@@ -1,14 +1,5 @@
 /**
- * documentCompiler.ts
- *
- * Converts a DocumentOutline into an array of HTML strings, one per page,
- * ready to render in DocumentEditorView with dangerouslySetInnerHTML.
- *
- * Compiles each chapter individually, then concatenates the page arrays.
- * When pageBreakAfterChapter is enabled, each chapter always starts on a
- * fresh page — achieved by simply appending chapter pages sequentially
- * since compileChapter always starts a new chapter from page 1.
- *
+ * Documentcompiler.ts
  */
 
 import type { DocumentOutline } from "../../../types/document";
@@ -17,6 +8,11 @@ import { compileChapter } from "./Chaptercompiler";
 import { paginateHtml, type PaginatorSettings } from "./Htmlpaginator";
 import { composeChapter } from "./chapterComposer";
 import { formatChapterTitle } from "./chapterTitleFormatter";
+import { getReorderedOutline, isSpecialSectionTitle } from "./specialSections";
+
+function injectSpecialSections(outline: DocumentOutline, settings: DocumentSettings): DocumentOutline {
+  return getReorderedOutline(outline, settings);
+}
 
 const MM_TO_PX = 3.7795275591;
 function mmToPx(mm: number) { return mm * MM_TO_PX; }
@@ -37,7 +33,7 @@ const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; heig
 /**
  * Compiles an entire document into paginated HTML page strings.
  *
- * @param outline  - The full DocumentOutline
+ * @param outline  - The full DocumentOutline (may be raw or pre-filtered)
  * @param settings - DocumentSettings
  * @returns        - Array of HTML strings, one per page
  */
@@ -45,12 +41,32 @@ export function compileDocument(
   outline: DocumentOutline,
   settings: DocumentSettings
 ): string[] {
-  if (outline.chapters.length === 0) return [""];
+  // Always work from the canonically ordered, visibility-filtered outline so
+  // disabled special sections are excluded and order is Prologue→chapters→
+  // Epilogue→Acknowledgements regardless of the raw DB order field.
+  const compiledOutline = injectSpecialSections(outline, settings);
+  if (compiledOutline.chapters.length === 0) return [""];
+
+  // Pre-compute each chapter's 1-based sequential number once.
+  // Special sections (Prologue, Epilogue, Acknowledgements) are assigned 0
+  // so formatChapterTitle knows to omit any numeric prefix.
+  let normalCount = 0;
+  const chapterNumbers = compiledOutline.chapters.map((chapter) => {
+    if (isSpecialSectionTitle(chapter.title)) return 0;
+    normalCount += 1;
+    return normalCount;
+  });
+
+  console.log(
+    "[compileDocument] chapter order:",
+    compiledOutline.chapters.map((ch, i) => `${ch.title} → #${chapterNumbers[i]}`)
+  );
 
   if (settings.pageBreakAfterChapter) {
-    // Each chapter starts on its own page — compile independently and concat
-    return outline.chapters.flatMap((chapter) =>
-      compileChapter(chapter, settings)
+    // Each chapter starts on its own page. Pass the pre-computed number so
+    // compileChapter never has to guess from the raw order field.
+    return compiledOutline.chapters.flatMap((chapter, i) =>
+      compileChapter(chapter, settings, chapterNumbers[i])
     );
   }
 
@@ -68,16 +84,18 @@ export function compileDocument(
   const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  const fullHtml = outline.chapters
-    .map((chapter) => {
+  const fullHtml = compiledOutline.chapters
+    .map((chapter, i) => {
       const { html: titleText, style: titleStyle } = formatChapterTitle(
-        chapter.order + 1,
+        chapterNumbers[i],
         chapter.title,
         settings
       );
+
       const titleHtml = titleText
         ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
         : "";
+
       return titleHtml + composeChapter(chapter.scenes);
     })
     .join("");
@@ -95,8 +113,8 @@ export function compileDocument(
     paragraphSpacing: settings.defaultParagraphSpacing,
     textAlign: settings.defaultAlignment,
     firstLineIndent: settings.defaultFirstLineIndent > 0
-  ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
-  : "0",
+      ? `${settings.defaultFirstLineIndent}${settings.defaultFirstLineIndentUnit}`
+      : "0",
   };
 
   return paginateHtml(fullHtml, paginatorSettings);

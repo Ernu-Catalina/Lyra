@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 
 interface ChapterEditorViewProps {
   chapter: Chapter;
+  chapterNumber?: number;
   scale?: number;
 }
 
@@ -17,17 +18,17 @@ interface ChapterEditorViewProps {
  * Uses compileChapter to convert the chapter into pre-paginated HTML strings,
  * then passes them to PaginatedPageView for rendering.
  */
-export function ChapterEditorView({ chapter, scale = 1 }: ChapterEditorViewProps) {
+export function ChapterEditorView({ chapter, chapterNumber, scale = 1 }: ChapterEditorViewProps) {
   const { settings } = useDocumentSettings();
 
-  const [pages, setPages] = useState<string[]>(() => compileChapter(chapter, settings));
+  const [pages, setPages] = useState<string[]>(() => compileChapter(chapter, settings, chapterNumber));
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setPages(compileChapter(chapter, settings));
+      setPages(compileChapter(chapter, settings, chapterNumber));
     }, 400);
     return () => clearTimeout(timer);
-  }, [chapter, settings]);
+  }, [chapter, settings, chapterNumber]);
 
   return <PaginatedPageView pages={pages} scale={scale} />;
 }

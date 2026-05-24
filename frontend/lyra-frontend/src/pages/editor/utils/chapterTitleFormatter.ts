@@ -1,42 +1,51 @@
+// chapterTitleFormatter.ts
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import type { CSSProperties } from "react";
+import { isSpecialSectionTitle } from "./specialSections";
 
 export function formatChapterTitle(
   chapterNumber: number,
   chapterTitle: string,
   settings: DocumentSettings
-): { html: string; style: React.CSSProperties } {
+): { html: string; style: CSSProperties } {
   if (settings.chapterTitleFormat === "none") {
     return { html: "", style: {} };
   }
 
+  const titleText = chapterTitle.trim();
+  const isSpecial = isSpecialSectionTitle(titleText);
   let displayText = "";
-  switch (settings.chapterTitleFormat) {
-    case "chapter-number":
-      displayText = `Chapter ${chapterNumber}`;
-      break;
-    case "chapter-number-title":
-      displayText = `Chapter ${chapterNumber}: ${chapterTitle}`;
-      break;
-    case "number-title":
-      displayText = `${chapterNumber}. ${chapterTitle}`;
-      break;
-    case "title-only":
-      displayText = chapterTitle;
-      break;
-    default:
-      displayText = chapterTitle;
+
+  if (isSpecial) {
+    displayText = titleText;                    // No number ever
+  } else {
+    switch (settings.chapterTitleFormat) {
+      case "chapter-number":
+        displayText = `Chapter ${chapterNumber}`;
+        break;
+      case "chapter-number-title":
+        displayText = `Chapter ${chapterNumber}: ${chapterTitle}`;
+        break;
+      case "number-title":
+        displayText = `${chapterNumber}. ${chapterTitle}`;
+        break;
+      case "title-only":
+        displayText = chapterTitle;
+        break;
+      default:
+        displayText = chapterTitle;
+    }
   }
 
-const style = {
-  fontFamily: settings.defaultFont,
-  fontSize: `${settings.chapterTitleSize}pt`,  // also fix px → pt here
-  fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
-  fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
-  textAlign: settings.chapterTitleAlignment,
-  marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
-  display: "block",
-};
+  const style: CSSProperties = {
+    fontFamily: settings.defaultFont,
+    fontSize: `${settings.chapterTitleSize}pt`,
+    fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
+    fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
+    textAlign: settings.chapterTitleAlignment as any,
+    marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
+    display: "block",
+  };
 
   return { html: displayText, style };
 }

@@ -3,9 +3,12 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 interface ChapterHeaderProps {
   title: string;
   isOpen: boolean;
-  isActive?: boolean;                // NEW: to apply bold when chapter is selected
+  isActive?: boolean;
+  isSpecial?: boolean;
+  hideToggle?: boolean;
+  showAddScene?: boolean;
   onToggle: () => void;
-  onChapterClick: () => void;        // NEW: switch to chapter view
+  onChapterClick: () => void;
   onAddScene: () => void;
 }
 
@@ -13,23 +16,28 @@ export function ChapterHeader({
   title,
   isOpen,
   isActive = false,
+  isSpecial = false,
+  hideToggle = false,
+  showAddScene = true,
   onToggle,
   onChapterClick,
   onAddScene,
 }: ChapterHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-3 hover:bg-[var(--bg-secondary)]/50 rounded-md">
-      {/* Chevron – only toggles open/close */}
+    <div className="flex items-center justify-between px-3 rounded-md hover:bg-[var(--bg-secondary)]/50">
       <div
-        className="flex items-center gap-1.5 cursor-pointer flex-1"
-        onClick={onToggle}
+        className={`flex items-center gap-1.5 flex-1 ${hideToggle ? "" : "cursor-pointer"}`}
+        onClick={hideToggle ? undefined : onToggle}
       >
-        {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        {/* Title text – switches to chapter view when clicked */}
+        {!hideToggle && (isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
         <span
-          className={`font-medium text-[var(--text-primary)] cursor-pointer ${isActive ? "font-bold" : "font-medium"}`}
+          className={`cursor-pointer ${
+            isSpecial
+              ? `font-normal text-[var(--text-secondary)] ${isActive ? "text-[var(--text-primary)]" : ""}`
+              : `text-[var(--text-primary)] ${isActive ? "font-bold" : "font-medium"}`
+          }`}
           onClick={(e) => {
-            e.stopPropagation(); // Prevent triggering onToggle
+            e.stopPropagation();
             onChapterClick();
           }}
         >
@@ -37,17 +45,18 @@ export function ChapterHeader({
         </span>
       </div>
 
-      {/* Add scene button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onAddScene();
-        }}
-        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-[var(--accent)]/10 rounded"
-        title="Add scene"
-      >
-        <Plus size={16} className="text-[var(--accent)]" />
-      </button>
+      {showAddScene && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddScene();
+          }}
+          className="opacity-0 hover:opacity-100 transition-opacity p-1 hover:bg-[var(--accent)]/10 rounded"
+          title="Add scene"
+        >
+          <Plus size={16} className="text-[var(--accent)]" />
+        </button>
+      )}
     </div>
   );
 }

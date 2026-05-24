@@ -1061,6 +1061,62 @@ async def move_chapter(
 from fastapi.responses import Response as FastAPIResponse
 from app.services.export_service import build_docx, build_pdf, build_epub
 
+# Canonical title→position for special sections (must match frontend SPECIAL_SECTIONS order).
+_SPECIAL_SECTION_ORDER = {
+    "prologue": -1,       # before normal chapters
+    "epilogue": 999998,   # after normal chapters
+    "acknowledgements": 999999,
+}
+
+_SPECIAL_SECTION_SETTINGS_KEY = {
+    "prologue": "includePrologue",
+    "epilogue": "includeEpilogue",
+    "acknowledgements": "includeAcknowledgements",
+}
+
+
+def _prepare_chapters_for_export(document: dict, settings: dict) -> list:
+    """
+    Return chapters in canonical display order (Prologue → normal → Epilogue →
+    Acknowledgements) with disabled special sections excluded, and scenes sorted
+    by their order field.
+    """
+    raw_chapters = document.get("chapters", [])
+
+    normal_chapters = []
+    special_chapters: dict[str, dict] = {}
+
+    for ch in raw_chapters:
+        title_key = ch.get("title", "").strip().lower()
+        if title_key in _SPECIAL_SECTION_ORDER:
+            special_chapters[title_key] = ch
+        else:
+            normal_chapters.append(ch)
+
+    # Sort normal chapters by their stored order field
+    normal_chapters.sort(key=lambda c: c.get("order", 0))
+
+    ordered: list[dict] = []
+
+    # Prologue first (if enabled and exists)
+    if settings.get("includePrologue") and "prologue" in special_chapters:
+        ordered.append(special_chapters["prologue"])
+
+    ordered.extend(normal_chapters)
+
+    # Epilogue then Acknowledgements (if enabled and exist)
+    if settings.get("includeEpilogue") and "epilogue" in special_chapters:
+        ordered.append(special_chapters["epilogue"])
+    if settings.get("includeAcknowledgements") and "acknowledgements" in special_chapters:
+        ordered.append(special_chapters["acknowledgements"])
+
+    # Sort scenes within each chapter
+    for ch in ordered:
+        ch["scenes"] = sorted(ch.get("scenes", []), key=lambda s: s.get("order", 0))
+
+    return ordered
+
+
 @router.post("/{document_id}/export/epub")
 async def export_document_epub(
     project_id: str,
@@ -1072,10 +1128,7 @@ async def export_document_epub(
         raise HTTPException(404, "Document not found")
 
     settings = document.get("settings") or {}
-    chapters = sorted(document.get("chapters", []), key=lambda c: c.get("order", 0))
-    for ch in chapters:
-        ch["scenes"] = sorted(ch.get("scenes", []), key=lambda s: s.get("order", 0))
-
+    chapters = _prepare_chapters_for_export(document, settings)
     doc_title = document.get("title", "document")
     data = build_epub(doc_title, chapters, settings)
 
@@ -1101,10 +1154,7 @@ async def export_document(
         raise HTTPException(404, "Document not found")
 
     settings = document.get("settings") or {}
-    chapters = sorted(document.get("chapters", []), key=lambda c: c.get("order", 0))
-    for ch in chapters:
-        ch["scenes"] = sorted(ch.get("scenes", []), key=lambda s: s.get("order", 0))
-
+    chapters = _prepare_chapters_for_export(document, settings)
     doc_title = document.get("title", "document")
 
     if fmt == "docx":
