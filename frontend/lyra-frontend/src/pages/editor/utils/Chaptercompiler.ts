@@ -80,7 +80,7 @@ export function compileChapter(
   );
 
   const titleHtml = titleText
-    ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
+    ? `<div data-title="chapter" style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
     : "";
 
   const bodyHtml = composeChapter(chapter.scenes, settings, isSpecial);

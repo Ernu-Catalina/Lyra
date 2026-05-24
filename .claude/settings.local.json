@@ -5,7 +5,8 @@
       "Bash(npx tsc *)",
       "Bash(node_modules\\\\.bin\\\\tsc --noEmit)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
-      "Bash(npx --no-install tsc -p tsconfig.json --noEmit)"
+      "Bash(npx --no-install tsc -p tsconfig.json --noEmit)",
+      "Bash(xargs grep -l \"NodeViewRenderer\\\\|addNodeView\")"
     ]
   }
 }

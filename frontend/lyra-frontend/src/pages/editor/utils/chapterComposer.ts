@@ -53,7 +53,7 @@ export function composeChapter(
           settings!
         );
         const titleHtml = titleText
-          ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
+          ? `<div data-title="scene" style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
           : "";
         const prefix = i > 0 ? pageBreak : "";
         return prefix + titleHtml + (scene.content ?? "");

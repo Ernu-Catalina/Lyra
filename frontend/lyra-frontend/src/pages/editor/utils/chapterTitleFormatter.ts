@@ -107,5 +107,5 @@ export function getChapterTitleHTML(
     })
     .join(" ");
 
-  return `<div style="${styleStr}">${escapeHtml(html)}</div>`;
+  return `<div data-title="chapter" style="${styleStr}">${escapeHtml(html)}</div>`;
 }

@@ -93,7 +93,7 @@ export function compileDocument(
       );
 
       const titleHtml = titleText
-        ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
+        ? `<div data-title="chapter" style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
         : "";
 
       return titleHtml + composeChapter(chapter.scenes, settings, isSpecialSectionTitle(chapter.title));

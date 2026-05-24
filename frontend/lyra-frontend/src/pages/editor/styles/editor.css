@@ -11,11 +11,13 @@
     overflow-wrap: break-word;
   }
 
-  .page-content :not(code):not(pre) {
+  .page-content :not(code):not(pre):not([data-title]) {
     font-family: inherit !important;
     font-size: inherit !important;
     line-height: inherit !important;
   }
+
+  /* Title elements carry their own explicit inline styles — browser lets inline win */
 
   .ProseMirror {
     font-size: inherit !important;
