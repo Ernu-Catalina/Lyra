@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import api from "../../api/client";
 import NavigationBar from "../../common_components/NavigationBar";
-import { DocumentSettingsProvider } from "./context/DocumentSettingsContext";
+import { DocumentSettingsProvider, useDocumentSettings } from "./context/DocumentSettingsContext";
+import { getVisibleOutline, getMissingEnabledSpecialSections, getExistingSpecialChaptersWithoutScenes, getDisabledSpecialSections, getSpecialSectionSettingKey } from "./utils/specialSections";
 import { EditorLayout } from "./components/EditorLayout";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { EditorToolbar } from "./components/EditorToolbar";
@@ -23,11 +24,22 @@ import { EditorFooter } from "./components/EditorFooter";
 import "./styles/editor.css";
 import { ExportModal } from "./components/ExportModal";
 
-
 export default function EditorPage() {
   const { projectId, documentId } = useParams<{ projectId: string; documentId: string }>();
+
+  return (
+    <DocumentSettingsProvider projectId={projectId} documentId={documentId}>
+      <EditorPageContent projectId={projectId} documentId={documentId} />
+    </DocumentSettingsProvider>
+  );
+}
+
+
+
+function EditorPageContent({ projectId, documentId }: { projectId?: string; documentId?: string; }) {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { settings, isLoading: settingsLoading } = useDocumentSettings();
 
   const { outline: serverOutline, loading, error, reloadOutline } = useDocumentOutline(projectId, documentId);
   const [outline, setOutline] = useState<DocumentOutline | undefined>(serverOutline ?? undefined);
@@ -35,6 +47,88 @@ export default function EditorPage() {
   useEffect(() => {
     if (serverOutline) setOutline(serverOutline);
   }, [serverOutline]);
+
+  const visibleOutline = useMemo(() => {
+    if (!outline) return outline;
+    if (settingsLoading) return outline;
+    return getVisibleOutline(outline, settings);
+  }, [outline, settings, settingsLoading]);
+
+  useEffect(() => {
+    if (!outline || !projectId || !documentId || settingsLoading) return;
+    if (isSyncingRef.current) return;
+
+    // Chapters that are enabled but not yet created in the backend
+    const missingSectionMeta = getMissingEnabledSpecialSections(outline, settings);
+    // Special chapters that exist but were created without a scene (e.g. a
+    // prior run was interrupted after POST chapter but before POST scene).
+    // Exclude any that are also in missingSectionMeta to avoid touching
+    // chapters we are about to create fresh.
+    const missingTitles = new Set(missingSectionMeta.map((s) => s.title.toLowerCase()));
+    const emptySpecialChapters = getExistingSpecialChaptersWithoutScenes(outline).filter(
+      (ch) => !missingTitles.has(ch.title.trim().toLowerCase())
+    );
+    // Chapters that exist in the backend but whose setting is now disabled
+    const disabledSpecialChapters = getDisabledSpecialSections(outline, settings);
+
+    if (
+      missingSectionMeta.length === 0 &&
+      emptySpecialChapters.length === 0 &&
+      disabledSpecialChapters.length === 0
+    ) return;
+
+    let cancelled = false;
+    const syncSpecialSections = async () => {
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
+      try {
+        // 1. Create missing enabled sections (chapter + scene in one go)
+        for (const section of missingSectionMeta) {
+          const chapterRes = await api.post(
+            `/projects/${projectId}/documents/${documentId}/chapters`,
+            { title: section.title }
+          );
+          await api.post(
+            `/projects/${projectId}/documents/${documentId}/chapters/${chapterRes.data.id}/scenes`,
+            { title: section.title }
+          );
+        }
+
+        // 2. Repair special chapters that exist without a scene
+        for (const chapter of emptySpecialChapters) {
+          await api.post(
+            `/projects/${projectId}/documents/${documentId}/chapters/${chapter.id}/scenes`,
+            { title: chapter.title }
+          );
+        }
+
+        // 3. Delete special chapters whose setting is disabled
+        for (const chapter of disabledSpecialChapters) {
+          await api.delete(
+            `/projects/${projectId}/documents/${documentId}/chapters/${chapter.id}`
+          );
+        }
+
+        if (!cancelled) {
+          reloadOutline();
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : String(err);
+          showToast(`Failed to sync special sections: ${message}`);
+          console.error("Failed to sync special sections:", err);
+        }
+      } finally {
+        isSyncingRef.current = false;
+      }
+    };
+
+    syncSpecialSections();
+    return () => {
+      cancelled = true;
+      isSyncingRef.current = false;
+    };
+  }, [outline, projectId, documentId, settings, settingsLoading, reloadOutline]);
 
   const [userDefaultView, setUserDefaultView] = useState<"document" | "chapter" | "scene">("scene");
   const { activeChapterId, activeSceneId, editorMode, selectScene, selectChapter, setEditorMode } = useActiveScene();
@@ -62,6 +156,7 @@ export default function EditorPage() {
   // apply the correct ProseMirror selection after a cross-scene navigation.
   const [sceneContentKey, setSceneContentKey] = useState(0);
   const hasInitializedEmptyDocument = useRef(false);
+  const isSyncingRef = useRef(false);
   // Add these new states
   const [sidebarWidth, setSidebarWidth] = useState(300);        // Default width in px
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -177,17 +272,46 @@ useEffect(() => {
 
   // Apply default view when outline first loads
   useEffect(() => {
-    if (loading || !outline || outline.chapters.length === 0) return;
+    const sourceOutline = visibleOutline || outline;
+    if (loading || !sourceOutline || sourceOutline.chapters.length === 0) return;
     if (activeChapterId || activeSceneId) return;
 
     if (userDefaultView === "document") {
       setEditorMode("document");
-    } else if (userDefaultView === "chapter" && outline.chapters[0]) {
-      selectChapter(outline.chapters[0].id);
-    } else if (outline.chapters[0]?.scenes[0]) {
-      selectScene(outline.chapters[0].id, outline.chapters[0].scenes[0].id);
+    } else if (userDefaultView === "chapter" && sourceOutline.chapters[0]) {
+      selectChapter(sourceOutline.chapters[0].id);
+    } else if (sourceOutline.chapters[0]?.scenes[0]) {
+      selectScene(sourceOutline.chapters[0].id, sourceOutline.chapters[0].scenes[0].id);
     }
-  }, [loading, outline, userDefaultView, activeChapterId, activeSceneId, selectChapter, selectScene, setEditorMode]);
+  }, [loading, outline, visibleOutline, userDefaultView, activeChapterId, activeSceneId, selectChapter, selectScene, setEditorMode]);
+
+  useEffect(() => {
+    if (!outline || !visibleOutline || settingsLoading || !activeChapterId) return;
+
+    const activeChapter = outline.chapters.find((c) => c.id === activeChapterId);
+    if (!activeChapter) return;
+
+    const settingKey = getSpecialSectionSettingKey(activeChapter.title);
+    if (!settingKey) return;
+    if (settings[settingKey]) return;
+
+    if (userDefaultView === "document") {
+      setEditorMode("document");
+      return;
+    }
+
+    const firstVisible = visibleOutline.chapters[0];
+    if (!firstVisible) return;
+
+    if (userDefaultView === "chapter") {
+      selectChapter(firstVisible.id);
+      return;
+    }
+
+    if (firstVisible.scenes[0]) {
+      selectScene(firstVisible.id, firstVisible.scenes[0].id);
+    }
+  }, [outline, visibleOutline, settings, settingsLoading, activeChapterId, userDefaultView, selectChapter, selectScene, setEditorMode]);
 
   // ── Word count computation ─────────────────────────────────────────
   const sceneWC = sceneWordcount;
@@ -203,10 +327,10 @@ useEffect(() => {
   })();
 
   const documentWC = (() => {
-    if (!outline) return 0;
-    const total = outline.total_wordcount || 0;
+    if (!visibleOutline) return 0;
+    const total = visibleOutline.chapters.reduce((sum, chapter) => sum + chapter.wordcount, 0);
     if (!activeChapterId) return total;
-    const savedChapterWC = outline.chapters.find((c) => c.id === activeChapterId)?.wordcount || 0;
+    const savedChapterWC = visibleOutline.chapters.find((c) => c.id === activeChapterId)?.wordcount || 0;
     return total - savedChapterWC + chapterWC;
   })();
 
@@ -524,7 +648,7 @@ useEffect(() => {
   if (!projectId || !documentId) return <div className="flex items-center justify-center h-screen">Project or document not found.</div>;
 
   const activeChapter = activeChapterId
-    ? outline.chapters.find((c) => c.id === activeChapterId)
+    ? visibleOutline?.chapters.find((c) => c.id === activeChapterId) ?? outline?.chapters.find((c) => c.id === activeChapterId)
     : null;
 
   // ── Editor area ───────────────────────────────────────────────────
@@ -548,7 +672,7 @@ useEffect(() => {
       );
     }
 
-    if (editorMode === "chapter" && activeChapter) {
+    if (editorMode === "chapter") {
       return <ChapterEditorView chapter={activeChapter} scale={scale} />;
     }
 
@@ -564,7 +688,7 @@ useEffect(() => {
   };
 
   return (
-    <DocumentSettingsProvider projectId={projectId} documentId={documentId}>
+    <>
       <div className="editor-page flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
         {!isFullscreen && (
           <NavigationBar
@@ -652,6 +776,6 @@ useEffect(() => {
         onNavigateScene={handleNavigateScene}
         onUpdateScenes={handleUpdateScenes}
       />
-    </DocumentSettingsProvider>
+    </>
   );
 }

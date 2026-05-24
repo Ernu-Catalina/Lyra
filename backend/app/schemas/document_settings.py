@@ -31,6 +31,9 @@ class DocumentSettings(BaseModel):
     chapterTitleStyle: ChapterTitleStyle
     blankLinesAfterChapter: conint(ge=0, le=10) = Field(..., description="Blank lines after chapter must be zero or positive")
     pageBreakAfterChapter: bool
+    includePrologue: bool = Field(False, description="Include prologue section in document rendering")
+    includeEpilogue: bool = Field(False, description="Include epilogue section in document rendering")
+    includeAcknowledgements: bool = Field(False, description="Include acknowledgements section in document rendering")
 
     @model_validator(mode='after')
     def validate_custom_dimensions(self):

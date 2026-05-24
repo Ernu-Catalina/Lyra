@@ -1,31 +1,43 @@
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import type { CSSProperties } from "react";
+import { isSpecialSectionTitle } from "./specialSections";
+
+function isSpecialSection(chapterTitle: string) {
+  return isSpecialSectionTitle(chapterTitle);
+}
 
 export function formatChapterTitle(
   chapterNumber: number,
   chapterTitle: string,
   settings: DocumentSettings
-): { html: string; style: React.CSSProperties } {
+): { html: string; style: CSSProperties } {
   if (settings.chapterTitleFormat === "none") {
     return { html: "", style: {} };
   }
 
+  const titleText = chapterTitle.trim();
+  const isSpecial = isSpecialSection(titleText);
   let displayText = "";
-  switch (settings.chapterTitleFormat) {
-    case "chapter-number":
-      displayText = `Chapter ${chapterNumber}`;
-      break;
-    case "chapter-number-title":
-      displayText = `Chapter ${chapterNumber}: ${chapterTitle}`;
-      break;
-    case "number-title":
-      displayText = `${chapterNumber}. ${chapterTitle}`;
-      break;
-    case "title-only":
-      displayText = chapterTitle;
-      break;
-    default:
-      displayText = chapterTitle;
+
+  if (isSpecial) {
+    displayText = titleText;
+  } else {
+    switch (settings.chapterTitleFormat) {
+      case "chapter-number":
+        displayText = `Chapter ${chapterNumber}`;
+        break;
+      case "chapter-number-title":
+        displayText = `Chapter ${chapterNumber}: ${chapterTitle}`;
+        break;
+      case "number-title":
+        displayText = `${chapterNumber}. ${chapterTitle}`;
+        break;
+      case "title-only":
+        displayText = chapterTitle;
+        break;
+      default:
+        displayText = chapterTitle;
+    }
   }
 
 const style = {

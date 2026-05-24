@@ -17,6 +17,11 @@ import { compileChapter } from "./Chaptercompiler";
 import { paginateHtml, type PaginatorSettings } from "./Htmlpaginator";
 import { composeChapter } from "./chapterComposer";
 import { formatChapterTitle } from "./chapterTitleFormatter";
+import { getReorderedOutline, isSpecialSectionTitle } from "./specialSections";
+
+function injectSpecialSections(outline: DocumentOutline, settings: DocumentSettings): DocumentOutline {
+  return getReorderedOutline(outline, settings);
+}
 
 const MM_TO_PX = 3.7795275591;
 function mmToPx(mm: number) { return mm * MM_TO_PX; }
@@ -45,11 +50,12 @@ export function compileDocument(
   outline: DocumentOutline,
   settings: DocumentSettings
 ): string[] {
-  if (outline.chapters.length === 0) return [""];
+  const compiledOutline = injectSpecialSections(outline, settings);
+  if (compiledOutline.chapters.length === 0) return [""];
 
   if (settings.pageBreakAfterChapter) {
     // Each chapter starts on its own page — compile independently and concat
-    return outline.chapters.flatMap((chapter) =>
+    return compiledOutline.chapters.flatMap((chapter) =>
       compileChapter(chapter, settings)
     );
   }
@@ -68,10 +74,16 @@ export function compileDocument(
   const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  const fullHtml = outline.chapters
+  let chapterNumber = 0;
+  const fullHtml = compiledOutline.chapters
     .map((chapter) => {
+      const isSpecial = isSpecialSectionTitle(chapter.title);
+      if (!isSpecial) {
+        chapterNumber += 1;
+      }
+
       const { html: titleText, style: titleStyle } = formatChapterTitle(
-        chapter.order + 1,
+        chapterNumber,
         chapter.title,
         settings
       );
