@@ -37,6 +37,41 @@ export interface DocumentSettings {
   defaultFirstLineIndentUnit: "cm" | "in" | "mm";
   templateId?: string;
   templateName?: string;
+  // Headers
+  showHeader: boolean;
+  headerLeft: string;
+  headerCenter: string;
+  headerRight: string;
+  headerFontSize: number;
+  // Footers
+  showFooter: boolean;
+  footerLeft: string;
+  footerCenter: string;
+  footerRight: string;
+  footerFontSize: number;
+  // Page Numbers (part of footer)
+  showPageNumbers: boolean;
+  pageNumberPosition: "left" | "center" | "right" | "alternating";
+  pageNumberStart: number;
+  pageNumberFormat: "number" | "number-of-total" | "roman";
+  pageNumberFontSize: number;
+  // Separator line between header/footer and body
+  showHeaderFooterSeparator: boolean;
+  // Title Page
+  includeTitlePage: boolean;
+  titlePageTitle: string;
+  titlePageAuthor: string;
+  titlePageHeaderLeft: string;
+  titlePageHeaderCenter: string;
+  titlePageHeaderRight: string;
+  titlePageFooterLeft: string;
+  titlePageFooterCenter: string;
+  titlePageFooterRight: string;
+  titlePageTitleFontSize: number;
+  titlePageAuthorFontSize: number;
+  titlePageHeaderFontSize: number;
+  titlePageFooterFontSize: number;
+  titlePageAlignment: "left" | "center" | "right";
 }
 
 // Apply styles to the page container and all rendered page wrappers
@@ -119,6 +154,41 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   sceneTitleStyle: "bold",
   blankLinesAfterSceneTitle: 0,
   pageBreakAfterSceneTitle: false,
+  // Headers
+  showHeader: false,
+  headerLeft: "",
+  headerCenter: "{title}",
+  headerRight: "",
+  headerFontSize: 10,
+  // Footers
+  showFooter: false,
+  footerLeft: "",
+  footerCenter: "",
+  footerRight: "",
+  footerFontSize: 10,
+  // Page Numbers (part of footer)
+  showPageNumbers: false,
+  pageNumberPosition: "center",
+  pageNumberStart: 1,
+  pageNumberFormat: "number",
+  pageNumberFontSize: 10,
+  // Separator
+  showHeaderFooterSeparator: true,
+  // Title Page
+  includeTitlePage: false,
+  titlePageTitle: "",
+  titlePageAuthor: "",
+  titlePageHeaderLeft: "",
+  titlePageHeaderCenter: "",
+  titlePageHeaderRight: "",
+  titlePageFooterLeft: "",
+  titlePageFooterCenter: "",
+  titlePageFooterRight: "",
+  titlePageTitleFontSize: 28,
+  titlePageAuthorFontSize: 16,
+  titlePageHeaderFontSize: 10,
+  titlePageFooterFontSize: 10,
+  titlePageAlignment: "center",
 };
 
 interface DocumentSettingsContextType {

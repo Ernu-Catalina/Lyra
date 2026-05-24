@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, conint, confloat, model_validator
 
@@ -8,6 +8,8 @@ DefaultAlignment = Literal["left", "center", "right", "justify"]
 ChapterTitleFormat = Literal["none", "chapter-number", "chapter-number-title", "number-title", "title-only"]
 ChapterTitleAlignment = Literal["left", "center", "right"]
 ChapterTitleStyle = Literal["normal", "bold", "italic", "bold-italic"]
+PageNumberPosition = Literal["left", "center", "right", "alternating", "none"]
+PageNumberFormat = Literal["number", "number-of-total", "roman"]
 
 class DocumentSettings(BaseModel):
     marginTop: confloat(ge=0) = Field(..., description="Top margin in the selected unit, must be zero or positive")
@@ -41,6 +43,24 @@ class DocumentSettings(BaseModel):
     sceneTitleStyle: ChapterTitleStyle = Field("bold", description="Scene title font style")
     blankLinesAfterSceneTitle: conint(ge=0, le=10) = Field(0, description="Blank lines after scene title")
     pageBreakAfterSceneTitle: bool = Field(False, description="Insert page break before each scene when titles are shown")
+    # Headers
+    showHeader: bool = Field(False, description="Show header on every page")
+    headerLeft: str = Field("", description="Left-aligned header content (supports {title}, {author}, {page}, {totalPages})")
+    headerCenter: str = Field("{title}", description="Center-aligned header content")
+    headerRight: str = Field("", description="Right-aligned header content")
+    headerFontSize: conint(ge=6, le=72) = Field(10, description="Header font size in pt")
+    # Footers
+    showFooter: bool = Field(False, description="Show footer on every page")
+    footerLeft: str = Field("", description="Left-aligned footer content")
+    footerCenter: str = Field("", description="Center-aligned footer content")
+    footerRight: str = Field("", description="Right-aligned footer content")
+    footerFontSize: conint(ge=6, le=72) = Field(10, description="Footer font size in pt")
+    # Page Numbers
+    showPageNumbers: bool = Field(False, description="Show page numbers")
+    pageNumberPosition: PageNumberPosition = Field("center", description="Page number position")
+    pageNumberStart: conint(ge=0) = Field(1, description="Starting page number")
+    pageNumberFormat: PageNumberFormat = Field("number", description="Page number format")
+    pageNumberFontSize: conint(ge=6, le=72) = Field(10, description="Page number font size in pt")
 
     @model_validator(mode='after')
     def validate_custom_dimensions(self):

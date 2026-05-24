@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import { Editor } from "@tiptap/react";
 import { X, Eye } from "lucide-react";
 import { useDocumentSettings, type DocumentSettings, applyPageStyles, resetAllTextFormatting, DEFAULT_SETTINGS } from "../context/DocumentSettingsContext";
@@ -9,7 +9,7 @@ interface DocumentSettingsModalProps {
   onSettingsApplied?: () => void;
 }
 
-type TabId = "general" | "page-layout" | "typography" | "chapter-formatting" | "advanced";
+type TabId = "general" | "page-layout" | "typography" | "chapter-formatting" | "headers-footers" | "title-page" | "advanced";
 
 type PendingAction =
   | { type: "tab"; tab: TabId; settings: DocumentSettings }
@@ -114,6 +114,40 @@ const TAB_FIELDS: Record<TabId, Array<keyof DocumentSettings>> = {
     "includeAcknowledgements",
     "blankLinesAfterSpecialChapter",
   ],
+  "headers-footers": [
+    "showHeader",
+    "headerLeft",
+    "headerCenter",
+    "headerRight",
+    "headerFontSize",
+    "showFooter",
+    "footerLeft",
+    "footerCenter",
+    "footerRight",
+    "footerFontSize",
+    "showPageNumbers",
+    "pageNumberPosition",
+    "pageNumberStart",
+    "pageNumberFormat",
+    "pageNumberFontSize",
+    "showHeaderFooterSeparator",
+  ],
+  "title-page": [
+    "includeTitlePage",
+    "titlePageTitle",
+    "titlePageAuthor",
+    "titlePageHeaderLeft",
+    "titlePageHeaderCenter",
+    "titlePageHeaderRight",
+    "titlePageFooterLeft",
+    "titlePageFooterCenter",
+    "titlePageFooterRight",
+    "titlePageTitleFontSize",
+    "titlePageAuthorFontSize",
+    "titlePageHeaderFontSize",
+    "titlePageFooterFontSize",
+    "titlePageAlignment",
+  ],
   advanced: [],
 };
 
@@ -122,6 +156,8 @@ const TAB_LABELS: Record<TabId, string> = {
   "page-layout": "Page Layout",
   typography: "Typography",
   "chapter-formatting": "Chapter Formatting",
+  "headers-footers": "Headers & Footers",
+  "title-page": "Title Page",
   advanced: "Advanced",
 };
 
@@ -774,6 +810,549 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
     </div>
   );
 
+  const renderHeadersFootersTab = () => {
+    const toggle = (field: keyof DocumentSettings, label: string) => {
+      const checked = tempSettings[field] as boolean;
+      return (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
+          title={label}
+          onClick={() => setTempSettings((prev) => ({ ...prev, [field]: !prev[field] }))}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+            checked ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              checked ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      );
+    };
+
+    const fieldRow = (label: string, field: "headerLeft" | "headerCenter" | "headerRight" | "footerLeft" | "footerCenter" | "footerRight") => (
+      <div key={field}>
+        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1 uppercase tracking-wide">{label}</label>
+        <textarea
+          value={tempSettings[field]}
+          onChange={(e) => setTempSettings((prev) => ({ ...prev, [field]: e.target.value }))}
+          placeholder="e.g. {title}, {author}, {page}"
+          rows={2}
+          className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] text-sm resize-y"
+        />
+      </div>
+    );
+
+    // Build a live footer preview that shows page numbers merged into the correct cell
+    const previewFooterCells = (): [string, string, string] => {
+      const pos = tempSettings.pageNumberPosition;
+      const pgLabel = tempSettings.showPageNumbers ? "1" : "";
+      const inject = (cell: string, side: "left" | "center" | "right") => {
+        const hasText = cell.trim() !== "";
+        const isTarget = pos === side || (pos === "alternating" && side === "right");
+        return hasText ? cell : (isTarget ? pgLabel : "");
+      };
+      return [
+        inject(tempSettings.footerLeft,   "left"),
+        inject(tempSettings.footerCenter, "center"),
+        inject(tempSettings.footerRight,  "right"),
+      ];
+    };
+
+    const [prevFL, prevFC, prevFR] = previewFooterCells();
+    const separatorBorderStyle = tempSettings.showHeaderFooterSeparator
+      ? "1px solid var(--border)"
+      : "none";
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-sm text-[var(--text-secondary)] max-w-3xl">
+            Configure headers and footers. Use <code className="px-1 rounded bg-[var(--bg-secondary)] text-xs">{"{title}"}</code>, <code className="px-1 rounded bg-[var(--bg-secondary)] text-xs">{"{author}"}</code>, <code className="px-1 rounded bg-[var(--bg-secondary)] text-xs">{"{page}"}</code>, or <code className="px-1 rounded bg-[var(--bg-secondary)] text-xs">{"{totalPages}"}</code> as dynamic fields. Page numbers are placed in the footer.
+          </p>
+          <button
+            type="button"
+            onClick={() => handleApplyTab("headers-footers")}
+            disabled={!isTabDirty("headers-footers")}
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+          >
+            Apply Headers &amp; Footers
+          </button>
+        </div>
+
+        {/* ── Separator toggle ──────────────────────────────────────── */}
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)]">
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Separator line</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Show a thin rule between header/footer and the page body.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[var(--text-secondary)]">
+                {tempSettings.showHeaderFooterSeparator ? "Shown" : "Hidden"}
+              </span>
+              {toggle("showHeaderFooterSeparator", "Show separator line")}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Header ───────────────────────────────────────────────── */}
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Header</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[var(--text-secondary)]">{tempSettings.showHeader ? "Enabled" : "Disabled"}</span>
+              {toggle("showHeader", "Enable header")}
+            </div>
+          </div>
+          {tempSettings.showHeader && (
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {fieldRow("Left", "headerLeft")}
+                {fieldRow("Center", "headerCenter")}
+                {fieldRow("Right", "headerRight")}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Font Size (pt)</label>
+                <input
+                  type="number"
+                  value={tempSettings.headerFontSize}
+                  {...createNumericInputHandler("headerFontSize", 6, 72, false, setTempSettings)}
+                  className="w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                  min="6" max="72"
+                />
+              </div>
+              {/* Live preview */}
+              <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Eye size={14} className="text-[var(--text-secondary)]" />
+                  <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">Preview</span>
+                </div>
+                <div
+                  className="flex justify-between pb-2"
+                  style={{ fontFamily: tempSettings.defaultFont, fontSize: `${tempSettings.headerFontSize}px`, color: "var(--text-secondary)", borderBottom: separatorBorderStyle }}
+                >
+                  <span style={{ flex: 1, textAlign: "left",   whiteSpace: "pre-wrap" }}>{tempSettings.headerLeft   || " "}</span>
+                  <span style={{ flex: 1, textAlign: "center", whiteSpace: "pre-wrap" }}>{tempSettings.headerCenter || " "}</span>
+                  <span style={{ flex: 1, textAlign: "right",  whiteSpace: "pre-wrap" }}>{tempSettings.headerRight  || " "}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ───────────────────────────────────────────────── */}
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Footer</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[var(--text-secondary)]">{tempSettings.showFooter ? "Enabled" : "Disabled"}</span>
+              {toggle("showFooter", "Enable footer")}
+            </div>
+          </div>
+          {tempSettings.showFooter && (
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {fieldRow("Left", "footerLeft")}
+                {fieldRow("Center", "footerCenter")}
+                {fieldRow("Right", "footerRight")}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Font Size (pt)</label>
+                <input
+                  type="number"
+                  value={tempSettings.footerFontSize}
+                  {...createNumericInputHandler("footerFontSize", 6, 72, false, setTempSettings)}
+                  className="w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                  min="6" max="72"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Page numbers — nested inside footer card */}
+          <div className="border-t border-[var(--border)]">
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)]">
+              <div>
+                <p className="text-sm font-medium text-[var(--text-primary)]">Page numbers</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">Inserted into the footer at the chosen position.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-[var(--text-secondary)]">{tempSettings.showPageNumbers ? "Enabled" : "Disabled"}</span>
+                {toggle("showPageNumbers", "Enable page numbers")}
+              </div>
+            </div>
+            <div className={`px-4 pb-4 space-y-4 transition-opacity ${tempSettings.showPageNumbers ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="pageNumberPosition" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Position</label>
+                  <select
+                    id="pageNumberPosition"
+                    value={tempSettings.pageNumberPosition}
+                    disabled={!tempSettings.showPageNumbers}
+                    onChange={(e) => setTempSettings((prev) => ({ ...prev, pageNumberPosition: e.target.value as DocumentSettings["pageNumberPosition"] }))}
+                    className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] disabled:cursor-not-allowed"
+                  >
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                    <option value="alternating">Alternating (odd→right, even→left)</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="pageNumberFormat" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Format</label>
+                  <select
+                    id="pageNumberFormat"
+                    value={tempSettings.pageNumberFormat}
+                    disabled={!tempSettings.showPageNumbers}
+                    onChange={(e) => setTempSettings((prev) => ({ ...prev, pageNumberFormat: e.target.value as DocumentSettings["pageNumberFormat"] }))}
+                    className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] disabled:cursor-not-allowed"
+                  >
+                    <option value="number">1, 2, 3 …</option>
+                    <option value="number-of-total">1 of 10, 2 of 10 …</option>
+                    <option value="roman">i, ii, iii …</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Start at page</label>
+                  <input
+                    type="number"
+                    value={tempSettings.pageNumberStart}
+                    disabled={!tempSettings.showPageNumbers}
+                    {...createNumericInputHandler("pageNumberStart", 0, 9999, false, setTempSettings)}
+                    className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] disabled:cursor-not-allowed"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Font Size (pt)</label>
+                  <input
+                    type="number"
+                    value={tempSettings.pageNumberFontSize}
+                    disabled={!tempSettings.showPageNumbers}
+                    {...createNumericInputHandler("pageNumberFontSize", 6, 72, false, setTempSettings)}
+                    className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] disabled:cursor-not-allowed"
+                    min="6" max="72"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer + page number live preview */}
+          {(tempSettings.showFooter || tempSettings.showPageNumbers) && (
+            <div className="px-4 pb-4 border-t border-[var(--border)]">
+              <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3 mt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Eye size={14} className="text-[var(--text-secondary)]" />
+                  <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">Footer Preview</span>
+                </div>
+                <div
+                  className="flex justify-between pt-2"
+                  style={{
+                    fontFamily: tempSettings.defaultFont,
+                    fontSize: `${tempSettings.footerFontSize}px`,
+                    color: "var(--text-secondary)",
+                    borderTop: separatorBorderStyle,
+                  }}
+                >
+                  <span style={{ flex: 1, textAlign: "left",   whiteSpace: "pre-wrap" }}>{prevFL || " "}</span>
+                  <span style={{ flex: 1, textAlign: "center", whiteSpace: "pre-wrap" }}>{prevFC || " "}</span>
+                  <span style={{ flex: 1, textAlign: "right",  whiteSpace: "pre-wrap" }}>{prevFR || " "}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderTitlePageTab = () => {
+    const toggle = (field: keyof DocumentSettings, label: string) => {
+      const checked = tempSettings[field] as boolean;
+      return (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
+          title={label}
+          onClick={() => setTempSettings((prev) => ({ ...prev, [field]: !prev[field] }))}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+            checked ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              checked ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      );
+    };
+
+    const disabled  = !tempSettings.includeTitlePage;
+    const inputCls  = `w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] text-sm disabled:opacity-50 disabled:cursor-not-allowed`;
+    const numCls    = `w-24 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed`;
+    const labelCls  = "block text-sm font-medium text-[var(--text-primary)] mb-2";
+
+    // Preview values — fall back to placeholders so layout is visible in the preview
+    const previewTitle  = tempSettings.titlePageTitle  || "My Novel";
+    const previewAuthor = tempSettings.titlePageAuthor ? `By ${tempSettings.titlePageAuthor}` : "By Author Name";
+    const align         = tempSettings.titlePageAlignment;
+
+    // Header/footer three-cell display for preview
+    const hasHeader = tempSettings.titlePageHeaderLeft || tempSettings.titlePageHeaderCenter || tempSettings.titlePageHeaderRight;
+    const hasFooter = tempSettings.titlePageFooterLeft || tempSettings.titlePageFooterCenter || tempSettings.titlePageFooterRight;
+
+    const hfRowStyle: React.CSSProperties = {
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: `${tempSettings.titlePageHeaderFontSize}px`,
+      color: "#000",
+      fontFamily: tempSettings.defaultFont,
+    };
+
+    // Shared field row for L/C/R inputs
+    const hfFieldRow = (
+      section: "Header" | "Footer",
+      leftField: keyof DocumentSettings,
+      centerField: keyof DocumentSettings,
+      rightField: keyof DocumentSettings,
+    ) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {(["Left", "Center", "Right"] as const).map((pos) => {
+          const field = pos === "Left" ? leftField : pos === "Center" ? centerField : rightField;
+          return (
+            <div key={pos}>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1 uppercase tracking-wide">
+                {pos}
+              </label>
+              <textarea
+                value={tempSettings[field] as string}
+                disabled={disabled}
+                onChange={(e) => setTempSettings((prev) => ({ ...prev, [field]: e.target.value }))}
+                placeholder={section === "Header" ? "e.g. Publisher" : "e.g. © 2025"}
+                rows={2}
+                className={`${inputCls} resize-y`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-sm text-[var(--text-secondary)] max-w-3xl">
+            Add a standalone title page as the very first page of your document. Page numbering starts on the page after it. All title page text renders in black for consistent print/export output.
+          </p>
+          <button
+            type="button"
+            onClick={() => handleApplyTab("title-page")}
+            disabled={!isTabDirty("title-page")}
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--accent)]/90 transition-colors"
+          >
+            Apply Title Page
+          </button>
+        </div>
+
+        {/* Enable toggle */}
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-secondary)]">
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Include Title Page</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Adds a dedicated title page before all chapters. Not shown in Scene or Chapter view.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[var(--text-secondary)]">
+                {tempSettings.includeTitlePage ? "Enabled" : "Disabled"}
+              </span>
+              {toggle("includeTitlePage", "Include title page")}
+            </div>
+          </div>
+        </div>
+
+        {/* Content fields */}
+        <div className={`space-y-6 transition-opacity ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
+
+          {/* Alignment */}
+          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+            <div className="px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Alignment</h3>
+            </div>
+            <div className="p-4">
+              <div className="flex gap-2">
+                {(["left", "center", "right"] as const).map((a) => (
+                  <label
+                    key={a}
+                    className="flex items-center gap-2 cursor-pointer rounded border border-transparent px-3 py-2 hover:border-[var(--border)]"
+                  >
+                    <input
+                      type="radio"
+                      checked={tempSettings.titlePageAlignment === a}
+                      onChange={() => setTempSettings((prev) => ({ ...prev, titlePageAlignment: a }))}
+                      disabled={disabled}
+                      className="w-4 h-4 text-[var(--accent)]"
+                    />
+                    <span className="text-sm text-[var(--text-primary)] capitalize">{a}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Title & Author */}
+          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+            <div className="px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Title &amp; Author</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Author will be prefixed with "By " automatically.</p>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelCls}>Title</label>
+                  <input
+                    type="text"
+                    value={tempSettings.titlePageTitle}
+                    disabled={disabled}
+                    onChange={(e) => setTempSettings((prev) => ({ ...prev, titlePageTitle: e.target.value }))}
+                    placeholder="Leave blank to use document title"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Title Font Size (pt)</label>
+                  <input
+                    type="number"
+                    value={tempSettings.titlePageTitleFontSize}
+                    disabled={disabled}
+                    {...createNumericInputHandler("titlePageTitleFontSize", 8, 120, false, setTempSettings)}
+                    className={numCls}
+                    min="8" max="120"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Author</label>
+                  <input
+                    type="text"
+                    value={tempSettings.titlePageAuthor}
+                    disabled={disabled}
+                    onChange={(e) => setTempSettings((prev) => ({ ...prev, titlePageAuthor: e.target.value }))}
+                    placeholder="Leave blank to use document author"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Author Font Size (pt)</label>
+                  <input
+                    type="number"
+                    value={tempSettings.titlePageAuthorFontSize}
+                    disabled={disabled}
+                    {...createNumericInputHandler("titlePageAuthorFontSize", 8, 72, false, setTempSettings)}
+                    className={numCls}
+                    min="8" max="72"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Header */}
+          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+            <div className="px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Header</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Optional text at the top of the title page.</p>
+            </div>
+            <div className="p-4 space-y-4">
+              {hfFieldRow("Header", "titlePageHeaderLeft", "titlePageHeaderCenter", "titlePageHeaderRight")}
+              <div>
+                <label className={labelCls}>Font Size (pt)</label>
+                <input
+                  type="number"
+                  value={tempSettings.titlePageHeaderFontSize}
+                  disabled={disabled}
+                  {...createNumericInputHandler("titlePageHeaderFontSize", 6, 72, false, setTempSettings)}
+                  className={numCls}
+                  min="6" max="72"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+            <div className="px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Footer</h3>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">Optional text at the bottom of the title page (e.g. copyright notice).</p>
+            </div>
+            <div className="p-4 space-y-4">
+              {hfFieldRow("Footer", "titlePageFooterLeft", "titlePageFooterCenter", "titlePageFooterRight")}
+              <div>
+                <label className={labelCls}>Font Size (pt)</label>
+                <input
+                  type="number"
+                  value={tempSettings.titlePageFooterFontSize}
+                  disabled={disabled}
+                  {...createNumericInputHandler("titlePageFooterFontSize", 6, 72, false, setTempSettings)}
+                  className={numCls}
+                  min="6" max="72"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview */}
+          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+            <div className="px-4 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <Eye size={14} className="text-[var(--text-secondary)]" />
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Preview</h3>
+              </div>
+            </div>
+            {/* White background simulates paper; all text forced black like print/export */}
+            <div
+              className="p-6 min-h-[260px] flex flex-col gap-3"
+              style={{ backgroundColor: "#fff", fontFamily: tempSettings.defaultFont }}
+            >
+              {/* Header band */}
+              {hasHeader && (
+                <div style={{ ...hfRowStyle, fontSize: `${tempSettings.titlePageHeaderFontSize}px` }}>
+                  <span style={{ flex: 1, textAlign: "left"   }}>{tempSettings.titlePageHeaderLeft}</span>
+                  <span style={{ flex: 1, textAlign: "center" }}>{tempSettings.titlePageHeaderCenter}</span>
+                  <span style={{ flex: 1, textAlign: "right"  }}>{tempSettings.titlePageHeaderRight}</span>
+                </div>
+              )}
+              {/* Title + Author vertically centred */}
+              <div className="flex flex-col flex-1 justify-center gap-2" style={{ textAlign: align }}>
+                <div style={{ fontSize: `${tempSettings.titlePageTitleFontSize}px`, fontWeight: "bold", color: "#000", lineHeight: 1.2 }}>
+                  {previewTitle}
+                </div>
+                <div style={{ fontSize: `${tempSettings.titlePageAuthorFontSize}px`, color: "#000", lineHeight: 1.4 }}>
+                  {previewAuthor}
+                </div>
+              </div>
+              {/* Footer band */}
+              {hasFooter && (
+                <div style={{ ...hfRowStyle, fontSize: `${tempSettings.titlePageFooterFontSize}px` }}>
+                  <span style={{ flex: 1, textAlign: "left"   }}>{tempSettings.titlePageFooterLeft}</span>
+                  <span style={{ flex: 1, textAlign: "center" }}>{tempSettings.titlePageFooterCenter}</span>
+                  <span style={{ flex: 1, textAlign: "right"  }}>{tempSettings.titlePageFooterRight}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderAdvancedTab = () => (
     <div className="space-y-5">
       <div className="rounded border border-dashed border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-center">
@@ -805,6 +1384,10 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
         return renderTypographyTab();
       case "chapter-formatting":
         return renderChapterFormattingTab();
+      case "headers-footers":
+        return renderHeadersFootersTab();
+      case "title-page":
+        return renderTitlePageTab();
       case "advanced":
         return renderAdvancedTab();
       default:

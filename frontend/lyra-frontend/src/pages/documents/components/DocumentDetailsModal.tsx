@@ -8,6 +8,8 @@ interface DocumentDetailsModalProps {
   onClose: () => void;
   document: Item | null;
   projectId: string;
+  /** Actual page count from the editor's paginator — takes precedence over the backend estimate. */
+  pageCount?: number;
 }
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
@@ -76,6 +78,7 @@ export default function DocumentDetailsModal({
   onClose,
   document,
   projectId,
+  pageCount,
 }: DocumentDetailsModalProps) {
   const [stats, setStats] = useState<DocumentStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -242,10 +245,14 @@ export default function DocumentDetailsModal({
                   value={stats.character_count_without_spaces.toLocaleString()}
                 />
                 <StatCard
-                  label="Approx. Page Count"
-                  value={stats.estimated_pages != null && stats.estimated_pages > 0
-                    ? `~${stats.estimated_pages}`
-                    : "—"}
+                  label="Page Count"
+                  value={
+                    pageCount != null && pageCount > 0
+                      ? pageCount
+                      : stats.estimated_pages != null && stats.estimated_pages > 0
+                        ? `~${stats.estimated_pages}`
+                        : "—"
+                  }
                 />
                 <StatCard label="Time in Editor" value="—" />
               </div>

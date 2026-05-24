@@ -30,5 +30,5 @@ export function ChapterEditorView({ chapter, chapterNumber, scale = 1 }: Chapter
     return () => clearTimeout(timer);
   }, [chapter, settings, chapterNumber]);
 
-  return <PaginatedPageView pages={pages} scale={scale} />;
+  return <PaginatedPageView pages={pages} scale={scale} showHeaderFooter={false} />;
 }
