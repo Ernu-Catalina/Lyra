@@ -1,3 +1,4 @@
+// DocumentSettingsContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from "react";
 import api from "../../../api/client";
 import type { Editor } from "@tiptap/react";

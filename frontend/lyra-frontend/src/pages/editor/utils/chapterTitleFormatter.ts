@@ -1,3 +1,4 @@
+// chapterTitleFormatter.ts
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import type { CSSProperties } from "react";
 import { isSpecialSectionTitle } from "./specialSections";
@@ -16,8 +17,7 @@ export function formatChapterTitle(
   let displayText = "";
 
   if (isSpecial) {
-    // Special sections: NO chapter number, just the title
-    displayText = titleText;
+    displayText = titleText;                    // No number ever
   } else {
     switch (settings.chapterTitleFormat) {
       case "chapter-number":

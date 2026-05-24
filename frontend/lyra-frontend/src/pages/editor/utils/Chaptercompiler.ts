@@ -12,6 +12,7 @@ import type { Chapter } from "../../../types/document";
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import { composeChapter } from "./chapterComposer";
 import { formatChapterTitle } from "./chapterTitleFormatter";
+import { isSpecialSectionTitle } from "./specialSections";
 import { paginateHtml, type PaginatorSettings } from "./Htmlpaginator";
 
 const MM_TO_PX = 3.7795275591;
@@ -33,13 +34,20 @@ const PAPER_SIZES: Record<DocumentSettings["paperFormat"], { width: number; heig
 /**
  * Compiles a chapter into paginated HTML page strings.
  *
- * @param chapter  - The Chapter object with scenes
- * @param settings - DocumentSettings (margins, font, paper size, etc.)
- * @returns        - Array of HTML strings, one per page
+ * @param chapter       - The Chapter object with scenes
+ * @param settings      - DocumentSettings (margins, font, paper size, etc.)
+ * @param chapterNumber - 1-based sequential number for normal chapters; pass 0
+ *                        for special sections (Prologue / Epilogue / etc.) so
+ *                        they are never prefixed with a number.  When omitted
+ *                        the function derives a best-effort value from the
+ *                        chapter's raw `order` field — callers should always
+ *                        pass an explicit value to guarantee correctness.
+ * @returns - Array of HTML strings, one per page
  */
 export function compileChapter(
   chapter: Chapter,
-  settings: DocumentSettings
+  settings: DocumentSettings,
+  chapterNumber?: number
 ): string[] {
   const paperSize =
     settings.paperFormat === "Custom"
@@ -53,9 +61,20 @@ export function compileChapter(
   const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
+  // Resolve the display number:
+  // - Special sections never get a number (pass 0 → formatChapterTitle ignores it).
+  // - If an explicit number was given, use it.
+  // - Fallback: treat the raw order field as 0-based and add 1. This is a
+  //   best-effort path used only when ChapterEditorView calls us without
+  //   knowing the full document context; the result may be wrong when special
+  //   sections have shifted the order field, but it will never affect the
+  //   document or export views which always pass an explicit number.
+  const isSpecial = isSpecialSectionTitle(chapter.title);
+  const resolvedNumber = isSpecial ? 0 : (chapterNumber ?? chapter.order + 1);
+
   // Build the full HTML: title block + scene content
   const { html: titleText, style: titleStyle } = formatChapterTitle(
-    chapter.order + 1,
+    resolvedNumber,
     chapter.title,
     settings
   );

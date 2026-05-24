@@ -1,10 +1,11 @@
+// Editor.page.tsx
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import api from "../../api/client";
 import NavigationBar from "../../common_components/NavigationBar";
 import { DocumentSettingsProvider, useDocumentSettings } from "./context/DocumentSettingsContext";
-import { getVisibleOutline, getMissingEnabledSpecialSections, getExistingSpecialChaptersWithoutScenes, getSpecialSectionSettingKey } from "./utils/specialSections";
+import { getVisibleOutline, getMissingEnabledSpecialSections, getExistingSpecialChaptersWithoutScenes, getSpecialSectionSettingKey, isSpecialSectionTitle } from "./utils/specialSections";
 import { EditorLayout } from "./components/EditorLayout";
 import Sidebar from "./components/Sidebar/Sidebar";
 import { EditorToolbar } from "./components/EditorToolbar";
@@ -659,11 +660,23 @@ useEffect(() => {
     }
 
     if (editorMode === "chapter") {
-      return <ChapterEditorView chapter={activeChapter} scale={scale} />;
+      // Compute the 1-based chapter number from the visible outline so
+      // special sections are skipped and the count always starts from 1.
+      const chapterNumber = (() => {
+        if (!activeChapter) return undefined;
+        const chapters = visibleOutline?.chapters ?? outline?.chapters ?? [];
+        let n = 0;
+        for (const ch of chapters) {
+          if (!isSpecialSectionTitle(ch.title)) n++;
+          if (ch.id === activeChapter.id) return n;
+        }
+        return undefined;
+      })();
+      return <ChapterEditorView chapter={activeChapter} chapterNumber={chapterNumber} scale={scale} />;
     }
 
     if (editorMode === "document") {
-      return <DocumentEditorView outline={outline} scale={scale} />;
+      return <DocumentEditorView outline={visibleOutline ?? outline} scale={scale} />;
     }
 
     return (

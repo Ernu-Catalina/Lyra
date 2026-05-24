@@ -1,3 +1,4 @@
+//specialSections.ts
 import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import type { Chapter, DocumentOutline } from "../../../types/document";
 
