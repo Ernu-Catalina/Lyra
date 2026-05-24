@@ -50,6 +50,48 @@ export function formatChapterTitle(
   return { html: displayText, style };
 }
 
+export function formatSceneTitle(
+  sceneNumber: number,
+  sceneTitle: string,
+  settings: DocumentSettings
+): { html: string; style: CSSProperties } {
+  if (!settings.showSceneTitles || settings.sceneTitleFormat === "none") {
+    return { html: "", style: {} };
+  }
+
+  const title = sceneTitle.trim();
+  let displayText = "";
+
+  switch (settings.sceneTitleFormat) {
+    case "scene-number":
+      displayText = `Scene ${sceneNumber}`;
+      break;
+    case "scene-number-title":
+      displayText = `Scene ${sceneNumber}: ${title}`;
+      break;
+    case "number-title":
+      displayText = `${sceneNumber}. ${title}`;
+      break;
+    case "title-only":
+      displayText = title;
+      break;
+    default:
+      displayText = title;
+  }
+
+  const style: CSSProperties = {
+    fontFamily: settings.defaultFont,
+    fontSize: `${settings.sceneTitleSize}pt`,
+    fontWeight: settings.sceneTitleStyle.includes("bold") ? "bold" : "normal",
+    fontStyle: settings.sceneTitleStyle.includes("italic") ? "italic" : "normal",
+    textAlign: settings.sceneTitleAlignment as any,
+    marginBottom: `${settings.defaultLineHeight}em`,
+    display: "block",
+  };
+
+  return { html: displayText, style };
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")

@@ -31,6 +31,14 @@ const CHAPTER_TITLE_FORMATS = {
   "title-only": { label: "Title only", preview: "My Chapter Title" },
 };
 
+const SCENE_TITLE_FORMATS = {
+  none: { label: "No scene titles (use *** separator)", preview: "* * *" },
+  "scene-number": { label: "Scene 1, Scene 2, etc.", preview: "Scene 1" },
+  "scene-number-title": { label: "Scene 1: Title", preview: "Scene 1: My Scene Title" },
+  "number-title": { label: "1. Title", preview: "1. My Scene Title" },
+  "title-only": { label: "Title only", preview: "My Scene Title" },
+};
+
 const FONT_FAMILIES = [
   { value: "Arial, sans-serif", label: "Arial" },
   { value: "'Times New Roman', serif", label: "Times New Roman" },
@@ -105,6 +113,11 @@ const TAB_FIELDS: Record<TabId, Array<keyof DocumentSettings>> = {
     "includePrologue",
     "includeEpilogue",
     "includeAcknowledgements",
+    "showSceneTitles",
+    "sceneTitleFormat",
+    "sceneTitleSize",
+    "sceneTitleAlignment",
+    "sceneTitleStyle",
   ],
   advanced: [],
 };
@@ -639,6 +652,129 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
             </label>
           );
         })}
+      </div>
+
+      {/* ── Scene Titles ─────────────────────────────────────────────── */}
+      <div className="border-t border-[var(--border)] pt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Scene Titles</h3>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={tempSettings.showSceneTitles}
+              onChange={(e) => setTempSettings((prev) => ({
+                ...prev,
+                showSceneTitles: e.target.checked,
+                sceneTitleFormat: e.target.checked && prev.sceneTitleFormat === "none" ? "title-only" : prev.sceneTitleFormat,
+              }))}
+              className="w-4 h-4 text-[var(--accent)] rounded"
+            />
+            <span className="text-sm text-[var(--text-primary)]">Display scene titles</span>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-secondary)] mb-3">
+          When enabled, each scene begins with its title and the{" "}
+          <span className="font-mono">* * *</span> separator is removed.
+        </p>
+
+        <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3">
+          {(Object.entries(SCENE_TITLE_FORMATS) as Array<[keyof typeof SCENE_TITLE_FORMATS, typeof SCENE_TITLE_FORMATS.none]>).map(([key, format]) => (
+            <label key={key} className="flex items-start gap-3 cursor-pointer rounded p-2 hover:bg-[var(--bg-primary)]">
+              <input
+                type="radio"
+                checked={tempSettings.sceneTitleFormat === key}
+                onChange={() => setTempSettings((prev) => ({
+                  ...prev,
+                  sceneTitleFormat: key,
+                  showSceneTitles: key !== "none" ? true : false,
+                }))}
+                className="w-4 h-4 mt-1 text-[var(--accent)]"
+              />
+              <div>
+                <div className="text-sm text-[var(--text-primary)]">{format.label}</div>
+                {format.preview && <div className="text-xs text-[var(--text-secondary)] mt-1 font-mono">{format.preview}</div>}
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {tempSettings.showSceneTitles && tempSettings.sceneTitleFormat !== "none" && (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Size (pt)</label>
+                <input
+                  type="number"
+                  value={tempSettings.sceneTitleSize}
+                  {...createNumericInputHandler("sceneTitleSize", 6, 72, false, setTempSettings)}
+                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                  min="6"
+                  max="72"
+                />
+              </div>
+              <div>
+                <label htmlFor="sceneTitleAlignment" className="block text-sm font-medium text-[var(--text-primary)] mb-2">Alignment</label>
+                <select
+                  id="sceneTitleAlignment"
+                  value={tempSettings.sceneTitleAlignment}
+                  onChange={(e) => setTempSettings({ ...tempSettings, sceneTitleAlignment: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-[var(--text-primary)]"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Style</label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    { value: "normal", label: "Normal" },
+                    { value: "bold", label: "Bold" },
+                    { value: "italic", label: "Italic" },
+                    { value: "bold-italic", label: "Bold Italic" },
+                  ].map((style) => (
+                    <label key={style.value} className="flex items-center gap-2 cursor-pointer rounded border border-transparent p-2 hover:border-[var(--border)]">
+                      <input
+                        type="radio"
+                        checked={tempSettings.sceneTitleStyle === style.value}
+                        onChange={() => setTempSettings({ ...tempSettings, sceneTitleStyle: style.value as any })}
+                        className="w-4 h-4 text-[var(--accent)]"
+                      />
+                      <span className="text-sm text-[var(--text-primary)]">{style.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye size={16} className="text-[var(--text-secondary)]" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">Live Preview</span>
+              </div>
+              <div
+                className="rounded bg-white p-2"
+                style={{
+                  fontFamily: tempSettings.defaultFont,
+                  fontSize: `${tempSettings.sceneTitleSize}px`,
+                  fontWeight: tempSettings.sceneTitleStyle.includes("bold") ? "bold" : "normal",
+                  fontStyle: tempSettings.sceneTitleStyle.includes("italic") ? "italic" : "normal",
+                  textAlign: tempSettings.sceneTitleAlignment as React.CSSProperties["textAlign"],
+                  color: "black",
+                }}
+              >
+                {(() => {
+                  const fmt = tempSettings.sceneTitleFormat;
+                  if (fmt === "scene-number") return "Scene 1";
+                  if (fmt === "scene-number-title") return "Scene 1: My Scene Title";
+                  if (fmt === "number-title") return "1. My Scene Title";
+                  return "My Scene Title";
+                })()}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ DefaultAlignment = Literal["left", "center", "right", "justify"]
 ChapterTitleFormat = Literal["none", "chapter-number", "chapter-number-title", "number-title", "title-only"]
 ChapterTitleAlignment = Literal["left", "center", "right"]
 ChapterTitleStyle = Literal["normal", "bold", "italic", "bold-italic"]
+SceneTitleFormat = Literal["none", "scene-number", "scene-number-title", "number-title", "title-only"]
 
 class DocumentSettings(BaseModel):
     marginTop: confloat(ge=0) = Field(..., description="Top margin in the selected unit, must be zero or positive")
@@ -34,6 +35,11 @@ class DocumentSettings(BaseModel):
     includePrologue: bool = Field(False, description="Include prologue section in document rendering")
     includeEpilogue: bool = Field(False, description="Include epilogue section in document rendering")
     includeAcknowledgements: bool = Field(False, description="Include acknowledgements section in document rendering")
+    showSceneTitles: bool = Field(False, description="Show scene titles in compiled output")
+    sceneTitleFormat: SceneTitleFormat = Field("title-only", description="Scene title display format")
+    sceneTitleSize: conint(ge=6, le=200) = Field(13, description="Scene title font size in pt")
+    sceneTitleAlignment: ChapterTitleAlignment = Field("left", description="Scene title alignment")
+    sceneTitleStyle: ChapterTitleStyle = Field("bold", description="Scene title font style")
 
     @model_validator(mode='after')
     def validate_custom_dimensions(self):

@@ -23,6 +23,11 @@ export interface DocumentSettings {
   chapterTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
   blankLinesAfterChapter: number;
   pageBreakAfterChapter: boolean;
+  showSceneTitles: boolean;
+  sceneTitleFormat: "none" | "scene-number" | "scene-number-title" | "number-title" | "title-only";
+  sceneTitleSize: number;
+  sceneTitleAlignment: "left" | "center" | "right";
+  sceneTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
   includePrologue: boolean;
   includeEpilogue: boolean;
   includeAcknowledgements: boolean;
@@ -104,6 +109,11 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   includeAcknowledgements: false,
   defaultFirstLineIndent: 0,
   defaultFirstLineIndentUnit: "cm",
+  showSceneTitles: false,
+  sceneTitleFormat: "title-only",
+  sceneTitleSize: 13,
+  sceneTitleAlignment: "left",
+  sceneTitleStyle: "bold",
 };
 
 interface DocumentSettingsContextType {
