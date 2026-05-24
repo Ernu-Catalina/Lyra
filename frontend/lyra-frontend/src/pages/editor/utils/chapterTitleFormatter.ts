@@ -2,10 +2,6 @@ import type { DocumentSettings } from "../context/DocumentSettingsContext";
 import type { CSSProperties } from "react";
 import { isSpecialSectionTitle } from "./specialSections";
 
-function isSpecialSection(chapterTitle: string) {
-  return isSpecialSectionTitle(chapterTitle);
-}
-
 export function formatChapterTitle(
   chapterNumber: number,
   chapterTitle: string,
@@ -16,10 +12,11 @@ export function formatChapterTitle(
   }
 
   const titleText = chapterTitle.trim();
-  const isSpecial = isSpecialSection(titleText);
+  const isSpecial = isSpecialSectionTitle(titleText);
   let displayText = "";
 
   if (isSpecial) {
+    // Special sections: NO chapter number, just the title
     displayText = titleText;
   } else {
     switch (settings.chapterTitleFormat) {
@@ -40,15 +37,15 @@ export function formatChapterTitle(
     }
   }
 
-const style = {
-  fontFamily: settings.defaultFont,
-  fontSize: `${settings.chapterTitleSize}pt`,  // also fix px → pt here
-  fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
-  fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
-  textAlign: settings.chapterTitleAlignment,
-  marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
-  display: "block",
-};
+  const style: CSSProperties = {
+    fontFamily: settings.defaultFont,
+    fontSize: `${settings.chapterTitleSize}pt`,
+    fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
+    fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
+    textAlign: settings.chapterTitleAlignment as any,
+    marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
+    display: "block",
+  };
 
   return { html: displayText, style };
 }

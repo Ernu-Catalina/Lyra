@@ -54,7 +54,6 @@ export function compileDocument(
   if (compiledOutline.chapters.length === 0) return [""];
 
   if (settings.pageBreakAfterChapter) {
-    // Each chapter starts on its own page — compile independently and concat
     return compiledOutline.chapters.flatMap((chapter) =>
       compileChapter(chapter, settings)
     );
@@ -74,10 +73,12 @@ export function compileDocument(
   const marginLeftPx   = mmToPx(convertToMm(settings.marginLeft,   settings.marginUnit));
   const marginRightPx  = mmToPx(convertToMm(settings.marginRight,  settings.marginUnit));
 
-  let chapterNumber = 0;
+let chapterNumber = 0;
   const fullHtml = compiledOutline.chapters
     .map((chapter) => {
       const isSpecial = isSpecialSectionTitle(chapter.title);
+
+      // Only increment chapter number for normal chapters
       if (!isSpecial) {
         chapterNumber += 1;
       }
@@ -87,9 +88,11 @@ export function compileDocument(
         chapter.title,
         settings
       );
+
       const titleHtml = titleText
         ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
         : "";
+
       return titleHtml + composeChapter(chapter.scenes);
     })
     .join("");
