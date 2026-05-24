@@ -96,7 +96,7 @@ export function compileDocument(
         ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
         : "";
 
-      return titleHtml + composeChapter(chapter.scenes, settings);
+      return titleHtml + composeChapter(chapter.scenes, settings, isSpecialSectionTitle(chapter.title));
     })
     .join("");
 

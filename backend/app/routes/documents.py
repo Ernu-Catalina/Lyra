@@ -1110,9 +1110,16 @@ def _prepare_chapters_for_export(document: dict, settings: dict) -> list:
     if settings.get("includeAcknowledgements") and "acknowledgements" in special_chapters:
         ordered.append(special_chapters["acknowledgements"])
 
-    # Sort scenes within each chapter
+    # Sort scenes within each chapter and attach sequential chapter number
+    # (special sections get 0; normal chapters count from 1).
+    normal_seq = 0
     for ch in ordered:
         ch["scenes"] = sorted(ch.get("scenes", []), key=lambda s: s.get("order", 0))
+        if ch.get("title", "").strip().lower() in _SPECIAL_SECTION_ORDER:
+            ch["_chapter_number"] = 0
+        else:
+            normal_seq += 1
+            ch["_chapter_number"] = normal_seq
 
     return ordered
 

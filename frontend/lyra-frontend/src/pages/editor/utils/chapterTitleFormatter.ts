@@ -17,7 +17,7 @@ export function formatChapterTitle(
   let displayText = "";
 
   if (isSpecial) {
-    displayText = titleText;                    // No number ever
+    displayText = titleText;
   } else {
     switch (settings.chapterTitleFormat) {
       case "chapter-number":
@@ -37,13 +37,18 @@ export function formatChapterTitle(
     }
   }
 
+  const blankLines = isSpecial
+    ? settings.blankLinesAfterSpecialChapter
+    : settings.blankLinesAfterChapter;
+
   const style: CSSProperties = {
     fontFamily: settings.defaultFont,
     fontSize: `${settings.chapterTitleSize}pt`,
+    lineHeight: 1.3,
     fontWeight: settings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
     fontStyle: settings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
     textAlign: settings.chapterTitleAlignment as any,
-    marginBottom: `${settings.blankLinesAfterChapter * settings.defaultLineHeight}em`,
+    marginBottom: `${blankLines}em`,
     display: "block",
   };
 
@@ -51,41 +56,24 @@ export function formatChapterTitle(
 }
 
 export function formatSceneTitle(
-  sceneNumber: number,
   sceneTitle: string,
   settings: DocumentSettings
 ): { html: string; style: CSSProperties } {
-  if (!settings.showSceneTitles || settings.sceneTitleFormat === "none") {
+  if (!settings.showSceneTitles) {
     return { html: "", style: {} };
   }
 
-  const title = sceneTitle.trim();
-  let displayText = "";
-
-  switch (settings.sceneTitleFormat) {
-    case "scene-number":
-      displayText = `Scene ${sceneNumber}`;
-      break;
-    case "scene-number-title":
-      displayText = `Scene ${sceneNumber}: ${title}`;
-      break;
-    case "number-title":
-      displayText = `${sceneNumber}. ${title}`;
-      break;
-    case "title-only":
-      displayText = title;
-      break;
-    default:
-      displayText = title;
-  }
+  const displayText = sceneTitle.trim();
+  if (!displayText) return { html: "", style: {} };
 
   const style: CSSProperties = {
     fontFamily: settings.defaultFont,
     fontSize: `${settings.sceneTitleSize}pt`,
+    lineHeight: 1.3,
     fontWeight: settings.sceneTitleStyle.includes("bold") ? "bold" : "normal",
     fontStyle: settings.sceneTitleStyle.includes("italic") ? "italic" : "normal",
     textAlign: settings.sceneTitleAlignment as any,
-    marginBottom: `${settings.defaultLineHeight}em`,
+    marginBottom: `${settings.blankLinesAfterSceneTitle}em`,
     display: "block",
   };
 

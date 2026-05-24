@@ -22,12 +22,14 @@ export interface DocumentSettings {
   chapterTitleAlignment: "left" | "center" | "right";
   chapterTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
   blankLinesAfterChapter: number;
+  blankLinesAfterSpecialChapter: number;
   pageBreakAfterChapter: boolean;
   showSceneTitles: boolean;
-  sceneTitleFormat: "none" | "scene-number" | "scene-number-title" | "number-title" | "title-only";
   sceneTitleSize: number;
   sceneTitleAlignment: "left" | "center" | "right";
   sceneTitleStyle: "normal" | "bold" | "italic" | "bold-italic";
+  blankLinesAfterSceneTitle: number;
+  pageBreakAfterSceneTitle: boolean;
   includePrologue: boolean;
   includeEpilogue: boolean;
   includeAcknowledgements: boolean;
@@ -54,17 +56,18 @@ export function applyPageStyles(settings: DocumentSettings) {
     el.style.setProperty("--page-line-height", `${settings.defaultLineHeight}`);
     el.style.setProperty("--page-paragraph-spacing", `${settings.defaultParagraphSpacing}pt`);
     
-    // Force direct styles with !important to override inline marks
+    // Set font-family and line-height on the container (no !important on font-size so
+    // title divs with their own inline font-size can override via specificity).
     el.style.setProperty("font-family", settings.defaultFont, "important");
-    el.style.setProperty("font-size", `${correctedFontSize}pt`, "important");
+    el.style.setProperty("font-size", `${correctedFontSize}pt`);
     el.style.setProperty("line-height", `${settings.defaultLineHeight}`, "important");
     
-    // Force line-height and margins on all paragraphs inside
-    const paragraphs = el.querySelectorAll<HTMLElement>("p");
+    // Force line-height and margins on body paragraphs only.
+    // Title divs carry their own explicit font-size inline style — never override them.
+    const paragraphs = el.querySelectorAll<HTMLElement>("p:not([data-title])");
     paragraphs.forEach((p) => {
       p.style.setProperty("line-height", `${settings.defaultLineHeight}`, "important");
       p.style.setProperty("margin-bottom", `${settings.defaultParagraphSpacing}pt`, "important");
-      // Also force font-size on paragraphs to override inline styles
       p.style.setProperty("font-size", `${correctedFontSize}pt`, "important");
     });
   });
@@ -103,6 +106,7 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   chapterTitleAlignment: "center",
   chapterTitleStyle: "bold",
   blankLinesAfterChapter: 2,
+  blankLinesAfterSpecialChapter: 1,
   pageBreakAfterChapter: true,
   includePrologue: false,
   includeEpilogue: false,
@@ -110,10 +114,11 @@ export const DEFAULT_SETTINGS: DocumentSettings = {
   defaultFirstLineIndent: 0,
   defaultFirstLineIndentUnit: "cm",
   showSceneTitles: false,
-  sceneTitleFormat: "title-only",
   sceneTitleSize: 13,
   sceneTitleAlignment: "left",
   sceneTitleStyle: "bold",
+  blankLinesAfterSceneTitle: 0,
+  pageBreakAfterSceneTitle: false,
 };
 
 interface DocumentSettingsContextType {

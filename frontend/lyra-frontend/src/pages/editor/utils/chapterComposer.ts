@@ -30,32 +30,37 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export function composeChapter(scenes: Scene[], settings?: DocumentSettings): string {
+export function composeChapter(
+  scenes: Scene[],
+  settings?: DocumentSettings,
+  isSpecial = false
+): string {
   const ordered = [...scenes].sort((a, b) => a.order - b.order);
   const nonEmpty = ordered.filter((s) => s.content);
 
   if (nonEmpty.length === 0) return "";
 
-  const showTitles = settings?.showSceneTitles ?? false;
+  const showTitles = !isSpecial && (settings?.showSceneTitles ?? false);
 
   if (showTitles) {
-    // Scene titles mode: prepend formatted title to each scene, no separator
+    const pageBreak = settings!.pageBreakAfterSceneTitle
+      ? `<div style="page-break-before: always; break-before: page;"></div>`
+      : "";
     return nonEmpty
       .map((scene, i) => {
         const { html: titleText, style: titleStyle } = formatSceneTitle(
-          i + 1,
           scene.title,
           settings!
         );
         const titleHtml = titleText
           ? `<div style="${styleObjectToCss(titleStyle)}">${escapeHtml(titleText)}</div>`
           : "";
-        return titleHtml + (scene.content ?? "");
+        const prefix = i > 0 ? pageBreak : "";
+        return prefix + titleHtml + (scene.content ?? "");
       })
       .join("");
   }
 
-  // Default mode: join scenes with * * * separator
   return nonEmpty
     .map((scene) => scene.content ?? "")
     .join(SEPARATOR);
