@@ -589,7 +589,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
                 fontWeight: tempSettings.chapterTitleStyle.includes("bold") ? "bold" : "normal",
                 fontStyle: tempSettings.chapterTitleStyle.includes("italic") ? "italic" : "normal",
                 textAlign: tempSettings.chapterTitleAlignment as React.CSSProperties["textAlign"],
-                color: "black",
+                color: "var(--text-primary)",
               }}
             >
               {getChapterTitlePreview(tempSettings.chapterTitleFormat)}
@@ -712,7 +712,7 @@ export function DocumentSettingsModal({ editor, onClose, onSettingsApplied }: Do
                   fontWeight: tempSettings.sceneTitleStyle.includes("bold") ? "bold" : "normal",
                   fontStyle: tempSettings.sceneTitleStyle.includes("italic") ? "italic" : "normal",
                   textAlign: tempSettings.sceneTitleAlignment as React.CSSProperties["textAlign"],
-                  color: "black",
+                  color: "var(--text-primary)",
                 }}
               >
                 My Scene Title
